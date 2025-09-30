@@ -60,7 +60,7 @@ router.post("/topics", async (req: Request, res: Response) => {
     }
 
     // 2. 파이썬 스크립트를 호출하여 기사 수집 시작
-    const pythonScriptPath = path.join(__dirname, "../../../different_news_data/article_collector.py");
+    const pythonScriptPath = path.join(__dirname, "../../../different-news-data/article_collector.py");
     const command = `python "${pythonScriptPath}" ${newTopicId}`;
 
     console.log(`Executing command: ${command}`);
@@ -73,8 +73,9 @@ router.post("/topics", async (req: Request, res: Response) => {
       console.error(`article_collector.py stderr: ${stderr}`);
     });
 
-    res.status(201).json({ message: `Topic ${newTopicId} has been created and published. Article collection started.` });
-
+    res
+      .status(201)
+      .json({ message: `Topic ${newTopicId} has been created and published. Article collection started.` });
   } catch (error) {
     console.error("Error creating new topic:", error);
     res.status(500).json({ message: "Server error" });
@@ -102,7 +103,7 @@ router.patch("/topics/:topicId/publish", async (req: Request, res: Response) => 
       return res.status(404).json({ message: "Topic not found or already handled." });
     }
 
-    const pythonScriptPath = path.join(__dirname, "../../../different_news_data/article_collector.py");
+    const pythonScriptPath = path.join(__dirname, "../../../different-news-data/article_collector.py");
     const command = `python "${pythonScriptPath}" ${topicId}`;
 
     console.log(`Executing command: ${command}`);
@@ -172,7 +173,9 @@ router.get("/topics/:topicId/articles", async (req: Request, res: Response) => {
   }
 
   try {
-    const [articles] = await pool.query("SELECT * FROM articles WHERE topic_id = ? ORDER BY `display_order` ASC", [numericTopicId]);
+    const [articles] = await pool.query("SELECT * FROM articles WHERE topic_id = ? ORDER BY `display_order` ASC", [
+      numericTopicId,
+    ]);
     res.json(articles);
   } catch (error) {
     console.error("Error fetching suggested articles:", error);
@@ -346,12 +349,15 @@ router.post("/topics/:topicId/recollect", async (req: Request, res: Response) =>
     }
 
     if (normalizedKeywords) {
-      await pool.query("UPDATE topics SET collection_status = 'pending', search_keywords = ?, updated_at = NOW() WHERE id = ?", [normalizedKeywords, topicId]);
+      await pool.query(
+        "UPDATE topics SET collection_status = 'pending', search_keywords = ?, updated_at = NOW() WHERE id = ?",
+        [normalizedKeywords, topicId]
+      );
     } else {
       await pool.query("UPDATE topics SET collection_status = 'pending', updated_at = NOW() WHERE id = ?", [topicId]);
     }
 
-    const pythonScriptPath = path.join(__dirname, "../../../different_news_data/article_collector.py");
+    const pythonScriptPath = path.join(__dirname, "../../../different-news-data/article_collector.py");
     const command = `python "${pythonScriptPath}" ${topicId}`;
 
     exec(command, (error, stdout, stderr) => {
