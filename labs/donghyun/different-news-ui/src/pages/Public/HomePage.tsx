@@ -1,6 +1,7 @@
-﻿import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState, useRef } from "react";
 import type { FormEvent } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
+import toast from "react-hot-toast";
 import "../../App.css";
 import { fetchPublishedTopics } from "../../api";
 import { useUserAuth } from "../../context/UserAuthContext";
@@ -15,6 +16,19 @@ const NAV_ITEMS = [
 
 const HomePage = () => {
   const { user, logout } = useUserAuth();
+  const location = useLocation();
+  const toastShownRef = useRef(false);
+
+  useEffect(() => {
+    // StrictMode에서 이중 실행 방지를 위해 ref 사용
+    if (location.state?.fromLogin && location.state?.userName && !toastShownRef.current) {
+      toast.success(`환영합니다, ${location.state.userName}님!`);
+      toastShownRef.current = true; // 토스트가 표시되었음을 기록
+      // 새로고침 시 토스트가 다시 뜨는 것을 방지하기 위해 location.state를 초기화
+      window.history.replaceState({}, document.title)
+    }
+  }, [location.state]);
+
   const isAuthenticated = Boolean(user);
 
   const [topics, setTopics] = useState<Topic[]>([]);
@@ -76,7 +90,7 @@ const HomePage = () => {
         <div className="newsround-auth">
           {isAuthenticated ? (
             <>
-              <span className="newsround-auth-btn">{user?.username}님</span>
+              <span className="newsround-auth-btn">{user?.name}님</span>
               <Link to="/mypage" className="newsround-auth-btn">
                 마이페이지
               </Link>

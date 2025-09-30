@@ -1,6 +1,7 @@
 ﻿import axios from "axios";
 import React, { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
 
 const signupPageStyles = `
   .dark-signup-page {
@@ -298,7 +299,10 @@ const SignupPage: React.FC = () => {
       const response = await axios.post("http://localhost:3000/user/signup", payload);
 
       if (response.status === 201) {
-        navigate("/login");
+        toast.success("회원가입이 완료되었습니다. 2초 후 로그인 페이지로 이동합니다.");
+        setTimeout(() => {
+          navigate("/login");
+        }, 2000); // 2초 지연
         return;
       }
 

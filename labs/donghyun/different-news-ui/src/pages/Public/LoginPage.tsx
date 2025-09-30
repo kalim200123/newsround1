@@ -276,9 +276,14 @@ const LoginPage: React.FC = () => {
         password,
       });
 
-      if (response.status === 200 && response.data.token) {
-        login(response.data.token);
-        navigate("/");
+      if (response.status === 200 && response.data.token && response.data.user) {
+        login(response.data.token, response.data.user);
+        navigate("/", { 
+          state: { 
+            fromLogin: true, 
+            userName: response.data.user.name 
+          } 
+        });
         return;
       }
 

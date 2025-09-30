@@ -104,7 +104,10 @@ router.post("/login", async (req: Request, res: Response) => {
     const jwtSecret = "your_super_secret_jwt_key";
     const token = jwt.sign({ userId: user.id, name: user.name }, jwtSecret, { expiresIn: "1h" });
 
-    res.json({ token });
+    res.json({ 
+      token, 
+      user: { id: user.id, name: user.name, email: user.email, nickname: user.nickname }
+    });
   } catch (error) {
     console.error("Error during login:", error);
     res.status(500).json({ message: "Server error" });
