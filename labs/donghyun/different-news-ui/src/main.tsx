@@ -1,6 +1,7 @@
-import React from "react";
+﻿import React from "react";
 import ReactDOM from "react-dom/client";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
+import { Toaster } from "react-hot-toast";
 
 import "./index.css";
 import RequireAdminAuth from "./components/RequireAdminAuth";
@@ -61,6 +62,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
     <AdminAuthProvider>
       <UserAuthProvider>
         <RouterProvider router={router} />
+        <Toaster position="top-right" toastOptions={{ duration: 3500 }} />
       </UserAuthProvider>
     </AdminAuthProvider>
   </React.StrictMode>
