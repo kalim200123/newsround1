@@ -1,0 +1,15 @@
+version: "3.9"
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: news-mysql
+    ports:
+      - "3307:3306" # 로컬 접속 포트, 3307이 바쁘면 3310 등으로 변경
+    env_file:
+      - ./.env
+    volumes:
+      - ./initdb:/docker-entrypoint-initdb.d
+    command:
+      - "--character-set-server=utf8mb4"
+      - "--collation-server=utf8mb4_unicode_ci"
+    restart: unless-stopped

@@ -183,6 +183,7 @@ router.get("/topics/:topicId/articles", async (req: Request, res: Response) => {
   }
 });
 
+// 특정 토픽 내 기사들의 진영별 순서 변경
 router.patch("/topics/:topicId/articles/order", async (req: Request, res: Response) => {
   const { topicId } = req.params;
   const { left, right } = req.body;
@@ -233,6 +234,7 @@ router.patch("/topics/:topicId/articles/order", async (req: Request, res: Respon
   }
 });
 
+// 특정 기사를 '대표' 기사로 설정 (같은 진영 내에서 유일해야 함)
 router.patch("/articles/:articleId/feature", async (req: Request, res: Response) => {
   const { articleId } = req.params;
   try {
@@ -248,7 +250,10 @@ router.patch("/articles/:articleId/feature", async (req: Request, res: Response)
     const { topic_id, side } = rows[0];
 
     // 2. 해당 토픽의 같은 진영에 있는 다른 모든 기사를 '대표 아님'으로 설정합니다.
-    await connection.query("UPDATE tn_article SET is_featured = FALSE WHERE topic_id = ? AND side = ?", [topic_id, side]);
+    await connection.query("UPDATE tn_article SET is_featured = FALSE WHERE topic_id = ? AND side = ?", [
+      topic_id,
+      side,
+    ]);
 
     // 3. 선택한 기사만 '대표'로 설정합니다.
     await connection.query("UPDATE tn_article SET is_featured = TRUE WHERE id = ?", [articleId]);
@@ -262,6 +267,7 @@ router.patch("/articles/:articleId/feature", async (req: Request, res: Response)
   }
 });
 
+// 특정 기사의 상태를 'deleted'로 변경 (소프트 삭제)
 router.patch("/articles/:articleId/delete", async (req: Request, res: Response) => {
   const { articleId } = req.params;
   try {
@@ -337,6 +343,7 @@ router.patch("/articles/:articleId/unpublish", async (req: Request, res: Respons
   }
 });
 
+// 특정 토픽에 대해 기사 재수집을 트리거
 router.post("/topics/:topicId/recollect", async (req: Request, res: Response) => {
   const { topicId } = req.params;
   const payload = req.body as { searchKeywords?: string };
