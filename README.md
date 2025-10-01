@@ -1,4 +1,4 @@
-# Different News Project
+# News Project
 
 이 프로젝트는 뉴스 기사를 수집하고, 주제별로 분류하여 보여주는 웹 애플리케이션입니다.
 
@@ -34,7 +34,7 @@ copy .env.example .env
 ```bash
 cd news-server
 npm install
-npm run start
+npm start
 ```
 
 ### 4. 프론트엔드 서버 실행
