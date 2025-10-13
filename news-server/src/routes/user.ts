@@ -1,5 +1,5 @@
-ï»¿import { Router, Request, Response } from "express";
-import bcrypt from "bcrypt";
+import { Router, Request, Response } from "express";
+import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import type { RowDataPacket } from "mysql2";
 import pool from "../config/db";
@@ -22,7 +22,7 @@ router.post("/signup", async (req: Request, res: Response) => {
   const trimmedPhone = typeof phone === "string" ? phone.trim() : "";
 
   if (!trimmedName || !trimmedNickname || !trimmedEmail || typeof password !== "string" || password.length === 0) {
-    return res.status(400).json({ message: "í•„ìˆ˜ ì •ë³´ë¥¼ ëª¨ë‘ ì…ë ¥í•´ ì£¼ì„¸ìš”." });
+    return res.status(400).json({ message: "ÇÊ¼ö Á¤º¸¸¦ ¸ğµÎ ÀÔ·ÂÇØ ÁÖ¼¼¿ä." });
   }
 
   try {
@@ -45,18 +45,18 @@ router.post("/signup", async (req: Request, res: Response) => {
       const phoneExists = trimmedPhone ? existingUsers.some((row) => row.phone === trimmedPhone) : false;
 
       if (emailExists) {
-        return res.status(409).json({ message: "ì´ë¯¸ ì‚¬ìš© ì¤‘ì¸ ì´ë©”ì¼ì…ë‹ˆë‹¤." });
+        return res.status(409).json({ message: "ÀÌ¹Ì »ç¿ë ÁßÀÎ ÀÌ¸ŞÀÏÀÔ´Ï´Ù." });
       }
 
       if (nicknameExists) {
-        return res.status(409).json({ message: "ì´ë¯¸ ì‚¬ìš© ì¤‘ì¸ ë‹‰ë„¤ì„ì…ë‹ˆë‹¤." });
+        return res.status(409).json({ message: "ÀÌ¹Ì »ç¿ë ÁßÀÎ ´Ğ³×ÀÓÀÔ´Ï´Ù." });
       }
 
       if (phoneExists) {
-        return res.status(409).json({ message: "ì´ë¯¸ ë“±ë¡ëœ íœ´ëŒ€í° ë²ˆí˜¸ì…ë‹ˆë‹¤." });
+        return res.status(409).json({ message: "ÀÌ¹Ì µî·ÏµÈ ÈŞ´ëÆù ¹øÈ£ÀÔ´Ï´Ù." });
       }
 
-      return res.status(409).json({ message: "ì´ë¯¸ ë“±ë¡ëœ ì‚¬ìš©ì ì •ë³´ê°€ ìˆìŠµë‹ˆë‹¤." });
+      return res.status(409).json({ message: "ÀÌ¹Ì µî·ÏµÈ »ç¿ëÀÚ Á¤º¸°¡ ÀÖ½À´Ï´Ù." });
     }
 
     const saltRounds = 10;
@@ -67,10 +67,10 @@ router.post("/signup", async (req: Request, res: Response) => {
       [trimmedName, trimmedNickname, trimmedEmail, passwordHash, trimmedPhone || null]
     );
 
-    res.status(201).json({ message: "íšŒì›ê°€ì…ì´ ì™„ë£Œë˜ì—ˆìŠµë‹ˆë‹¤." });
+    res.status(201).json({ message: "È¸¿ø°¡ÀÔÀÌ ¿Ï·áµÇ¾ú½À´Ï´Ù." });
   } catch (error) {
     console.error("Error during signup:", error);
-    res.status(500).json({ message: "ì„œë²„ ì˜¤ë¥˜ê°€ ë°œìƒí–ˆìŠµë‹ˆë‹¤." });
+    res.status(500).json({ message: "¼­¹ö ¿À·ù°¡ ¹ß»ıÇß½À´Ï´Ù." });
   }
 });
 

@@ -1,9 +1,4 @@
-import dotenv from "dotenv";
 import mysql from "mysql2/promise";
-import path from "path";
-
-// .env 파일의 절대 경로를 계산하여 환경 변수를 로드합니다.
-dotenv.config({ path: path.resolve(__dirname, '..', '..', '..', '.env') });
 
 // DB 커넥션 풀(Connection Pool) 생성
 // 웹 서버처럼 여러 요청을 동시에 처리해야 하는 경우,
