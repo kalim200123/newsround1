@@ -1,6 +1,8 @@
 # Environments
 .env
 .env.*
+!.env.template
+!.env.example
 *.env
 *.local
 venv/
