@@ -3,12 +3,8 @@ import { FEEDS } from '../config/feeds';
 import Parser from 'rss-parser';
 import { RowDataPacket } from 'mysql2';
 
-// 작업이 실행 중인지 확인하기 위한 잠금 변수
 let isJobRunning = false;
 
-/**
- * 모든 RSS 피드를 순회하며, `tn_home_article` 테이블에 없는 새로운 기사만 수집하여 저장합니다.
- */
 export const collectLatestArticles = async () => {
   if (isJobRunning) {
     console.log('이전 기사 수집 작업이 아직 실행 중입니다. 이번 실행은 건너뜁니다.');
@@ -60,20 +56,30 @@ export const collectLatestArticles = async () => {
     await Promise.allSettled(feedPromises);
     console.log(`총 ${allParsedArticles.length}개의 기사를 피드에서 파싱했습니다.`);
 
-    if (allParsedArticles.length === 0) {
+    // [수정] URL을 기준으로 메모리에서 중복 기사 제거
+    const uniqueArticlesMap = new Map<string, any>();
+    allParsedArticles.forEach(article => {
+      if (!uniqueArticlesMap.has(article.url)) {
+        uniqueArticlesMap.set(article.url, article);
+      }
+    });
+    const uniqueParsedArticles = Array.from(uniqueArticlesMap.values());
+    console.log(`중복 제거 후 ${uniqueParsedArticles.length}개의 고유한 기사를 확인했습니다.`);
+
+    if (uniqueParsedArticles.length === 0) {
       console.log('파싱된 기사가 없어 작업을 종료합니다.');
       isJobRunning = false;
       return { success: true, message: 'No new articles parsed.', articlesAdded: 0 };
     }
 
-    const allUrls = allParsedArticles.map(article => article.url);
+    const allUrls = uniqueParsedArticles.map(article => article.url);
     const [existingRows] = await connection.query<RowDataPacket[]>(
       'SELECT url FROM tn_home_article WHERE url IN (?)',
       [allUrls]
     );
     const existingUrls = new Set(existingRows.map(row => row.url));
 
-    const newArticles = allParsedArticles.filter(article => !existingUrls.has(article.url));
+    const newArticles = uniqueParsedArticles.filter(article => !existingUrls.has(article.url));
     console.log(`총 ${newArticles.length}개의 새로운 기사를 발견했습니다.`);
 
     if (newArticles.length > 0) {
@@ -106,12 +112,10 @@ export const collectLatestArticles = async () => {
       connection.release();
       console.log('데이터베이스 연결이 종료되었습니다.');
     }
-    // 최종적으로 잠금 해제 보장
     isJobRunning = false;
   }
 };
 
-// 이 파일이 직접 실행되었을 때만 아래 코드를 실행합니다. (로컬 테스트용)
 if (require.main === module) {
   collectLatestArticles()
     .then(result => console.log('Standalone execution result:', result))
