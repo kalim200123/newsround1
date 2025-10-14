@@ -23,18 +23,14 @@ export const collectLatestArticles = async () => {
     connection = await pool.getConnection();
     console.log('데이터베이스에 연결되었습니다.');
 
-    const parser = new Parser();
-    const allParsedArticles: any[] = [];
-
-    const customHeaders = {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36',
-      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
-    };
+    const parser = new Parser({
+      headers: customHeaders,
+    });
 
     const feedPromises = FEEDS.map(async (feed) => {
       try {
         const encodedUrl = encodeURI(feed.url);
-        const parsedFeed = await parser.parseURL(encodedUrl, { headers: customHeaders });
+        const parsedFeed = await parser.parseURL(encodedUrl);
         if (parsedFeed && parsedFeed.items) {
             parsedFeed.items.forEach(item => {
                 if (item.link && item.title) {
