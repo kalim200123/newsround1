@@ -1,12 +1,14 @@
 import mysql from "mysql2/promise";
+import fs from "fs";
 
 // DB 커넥션 풀(Connection Pool) 생성
 // 웹 서버처럼 여러 요청을 동시에 처리해야 하는 경우,
 // 매번 연결을 새로 만드는 대신 '커넥션 풀'을 만들어두고 재사용하는 것이 훨씬 효율적입니다.
 
 // DB_SSL_ENABLED 환경 변수가 'true'일 경우 SSL 연결 옵션을 추가합니다.
+// 클라우드 DB는 보안 연결을 위해 CA 인증서 경로를 지정해야 합니다.
 const sslConfig = process.env.DB_SSL_ENABLED === 'true' 
-  ? { ssl: { rejectUnauthorized: true } } 
+  ? { ssl: { ca: fs.readFileSync('/etc/ssl/certs/ca-certificates.crt') } } 
   : {};
 
 const pool = mysql.createPool({
