@@ -422,4 +422,13 @@
   servers: [
     { url: "/", description: "API 서버" },
   ],
+  components: {
+    securitySchemes: {
+      bearerAuth: {
+        type: "http",
+        scheme: "bearer",
+        bearerFormat: "JWT",
+      },
+    },
+  },
 } as const;
