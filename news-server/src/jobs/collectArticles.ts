@@ -37,12 +37,14 @@ export const collectLatestArticles = async () => {
         if (parsedFeed && parsedFeed.items) {
           parsedFeed.items.forEach(item => {
             if (item.link && item.title) {
+              // [수정] isoDate를 우선적으로 사용하여 날짜 파싱 안정성 향상
+              const dateString = item.isoDate || item.pubDate;
               allParsedArticles.push({
                 source: feed.source,
                 source_domain: feed.source_domain,
                 title: item.title,
                 url: item.link,
-                published_at: item.pubDate ? new Date(item.pubDate) : null,
+                published_at: dateString ? new Date(dateString) : null,
               });
             }
           });
