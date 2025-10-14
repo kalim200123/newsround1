@@ -43,7 +43,6 @@ export const collectLatestArticles = async () => {
                 title: item.title,
                 url: item.link,
                 published_at: item.pubDate ? new Date(item.pubDate) : null,
-                thumbnail_url: item.enclosure?.url || null,
               });
             }
           });
@@ -56,7 +55,6 @@ export const collectLatestArticles = async () => {
     await Promise.allSettled(feedPromises);
     console.log(`총 ${allParsedArticles.length}개의 기사를 피드에서 파싱했습니다.`);
 
-    // [수정] URL을 기준으로 메모리에서 중복 기사 제거
     const uniqueArticlesMap = new Map<string, any>();
     allParsedArticles.forEach(article => {
       if (!uniqueArticlesMap.has(article.url)) {
@@ -89,11 +87,10 @@ export const collectLatestArticles = async () => {
         article.title,
         article.url,
         article.published_at,
-        article.thumbnail_url
       ]);
 
       await connection.query(
-        'INSERT INTO tn_home_article (source, source_domain, title, url, published_at, thumbnail_url) VALUES ?',
+        'INSERT INTO tn_home_article (source, source_domain, title, url, published_at) VALUES ?',
         [values]
       );
       console.log(`${newArticles.length}개의 새로운 기사를 데이터베이스에 저장했습니다.`);
