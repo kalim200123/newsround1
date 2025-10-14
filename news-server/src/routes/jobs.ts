@@ -34,7 +34,7 @@ if (!JOB_SECRET) {
  *         description: 작업 실행 중 오류 발생.
  */
 if (JOB_SECRET) {
-    router.post(`/trigger-collector/${JOB_SECRET}`, async (req: Request, res: Response) => {
+    router.all(`/trigger-collector/${JOB_SECRET}`, async (req: Request, res: Response) => {
         console.log('API를 통해 기사 수집 작업을 시작합니다...');
 
         // 요청을 즉시 반환하고, 실제 작업은 백그라운드에서 계속 실행합니다.
