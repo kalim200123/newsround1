@@ -4,20 +4,18 @@ import express, { Express, NextFunction, Request, Response } from "express";
 import fs from "fs";
 import path from "path";
 import swaggerUi from "swagger-ui-express";
-import { createServer } from "http"; // 추가
-import { Server } from "socket.io"; // 추가
+import { createServer } from "http";
+import { Server } from "socket.io";
 
 import pool from "./config/db";
 import { specs } from "./config/swagger";
-import initializeSocket from "./socket"; // 추가
+import initializeSocket from "./socket";
 
 import adminRouter from "./routes/admin";
 import authRouter from "./routes/auth";
 import userRouter from "./routes/user";
 import apiRouter from "./routes/api";
 import articlesRouter from "./routes/articles";
-import scrapeByCategoryRouter from "./routes/scrapeByCategory";
-import scrapeBySourceRouter from "./routes/scrapeBySource";
 import jobsRouter from "./routes/jobs";
 
 dotenv.config();
@@ -39,8 +37,6 @@ app.use("/api/auth", authRouter);
 app.use("/api/user", userRouter);
 app.use("/api/jobs", jobsRouter);
 app.use("/api/articles", articlesRouter);
-app.use("/api/scrape-by-category", scrapeByCategoryRouter);
-app.use("/api/scrape-by-source", scrapeBySourceRouter);
 app.use("/api", apiRouter);
 
 // 헬스 체크
@@ -66,11 +62,11 @@ Stack: ${err.stack}
   res.status(500).json({ message: "서버 내부 오류가 발생했습니다." });
 });
 
-// HTTP 서버 및 소켓 서버 생성 및 기동
+// HTTP 서버 및 소켓 서버 생성
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
   cors: {
-    origin: "*", // 개발 중에는 모든 출처 허용, 프로덕션에서는 특정 도메인으로 제한해야 합니다.
+    origin: "*",
     methods: ["GET", "POST"]
   }
 });
@@ -78,6 +74,7 @@ const io = new Server(httpServer, {
 // 소켓 로직 초기화
 initializeSocket(io);
 
+// 서버 기동
 httpServer.listen(port, async () => {
   console.log(`Different News 서버가 http://localhost:${port} 에서 실행 중입니다.`);
   try {
