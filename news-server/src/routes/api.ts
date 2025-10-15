@@ -4,41 +4,66 @@ import { AuthenticatedRequest, authenticateUser } from "../middleware/userAuth";
 
 const router = Router();
 
-// GET /api/topics - 발행된 토픽 목록 조회
+/**
+ * @swagger
+ * /api/topics:
+ *   get:
+ *     tags: [Topics]
+ *     summary: 발행된 토픽 목록 조회
+ *     description: 사용자에게 노출되는 발행 상태의 토픽 목록을 최신순으로 반환합니다.
+ *     responses:
+ *       200:
+ *         description: 성공적으로 토픽 목록을 반환했습니다.
+ */
 router.get("/topics", async (req: Request, res: Response) => {
   let connection;
   try {
-    connection = await pool.getConnection(); // Explicitly get a connection
+    connection = await pool.getConnection();
     const [rows] = await connection.query(
       "SELECT id, display_name, summary, published_at FROM tn_topic WHERE status = 'published' ORDER BY published_at DESC"
     );
     res.json(rows);
   } catch (error) {
     console.error("Error fetching topics:", error);
-    console.error("Detailed error object:", JSON.stringify(error, Object.getOwnPropertyNames(error)));
     res.status(500).json({ message: "Server error" });
   } finally {
-    if (connection) connection.release(); // Release the connection
+    if (connection) connection.release();
   }
 });
 
-// GET /api/topics/:topicId - 토픽 상세 및 관련 기사 조회
+/**
+ * @swagger
+ * /api/topics/{topicId}:
+ *   get:
+ *     tags: [Topics]
+ *     summary: 특정 토픽 상세 및 관련 기사 조회
+ *     description: 선택한 토픽 정보와 좌·우 기사 목록을 함께 반환합니다.
+ *     parameters:
+ *       - in: path
+ *         name: topicId
+ *         required: true
+ *         schema: { type: "integer" }
+ *         description: 조회할 토픽의 고유 ID
+ *     responses:
+ *       200:
+ *         description: 토픽 정보와 관련 기사 목록을 반환했습니다.
+ *       404:
+ *         description: 해당 토픽을 찾을 수 없습니다.
+ */
 router.get("/topics/:topicId", async (req: Request, res: Response) => {
   const { topicId } = req.params;
   try {
-    // 토픽 정보와 관련 기사들을 각각 조회
     const [topicRows]: any = await pool.query(
       "SELECT id, display_name, summary, published_at FROM tn_topic WHERE id = ? AND status = 'published'",
       [topicId]
     );
+    if (topicRows.length === 0) {
+      return res.status(404).json({ message: "Topic not found" });
+    }
     const [articleRows] = await pool.query(
       "SELECT id, source, source_domain, side, title, url, published_at, is_featured, thumbnail_url FROM tn_article WHERE topic_id = ? AND status = 'published' ORDER BY `display_order` ASC",
       [topicId]
     );
-
-    if (topicRows.length === 0) {
-      return res.status(404).json({ message: "Topic not found" });
-    }
     const responseData = {
       topic: topicRows[0],
       articles: articleRows,
@@ -49,7 +74,23 @@ router.get("/topics/:topicId", async (req: Request, res: Response) => {
   }
 });
 
-// GET /api/topics/:topicId/comments - 토픽 댓글 목록 조회
+/**
+ * @swagger
+ * /api/topics/{topicId}/comments:
+ *   get:
+ *     tags: [Topics]
+ *     summary: 토픽 댓글 목록 조회
+ *     description: 최근 작성된 순서대로 댓글 목록을 반환합니다.
+ *     parameters:
+ *       - in: path
+ *         name: topicId
+ *         required: true
+ *         schema: { type: "integer" }
+ *         description: 댓글을 조회할 토픽의 고유 ID
+ *     responses:
+ *       200:
+ *         description: 댓글 목록을 반환했습니다.
+ */
 router.get("/topics/:topicId/comments", async (req: Request, res: Response) => {
   const { topicId } = req.params;
   try {
@@ -68,7 +109,38 @@ router.get("/topics/:topicId/comments", async (req: Request, res: Response) => {
   }
 });
 
-// POST /api/topics/:topicId/comments - 토픽 댓글 작성
+/**
+ * @swagger
+ * /api/topics/{topicId}/comments:
+ *   post:
+ *     tags: [Topics]
+ *     summary: 토픽 댓글 작성
+ *     description: 인증된 사용자가 새로운 댓글을 작성합니다.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: topicId
+ *         required: true
+ *         schema: { type: "integer" }
+ *         description: 댓글을 작성할 토픽의 고유 ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [content]
+ *             properties:
+ *               content:
+ *                 type: string
+ *                 example: "흥미로운 관점이네요!"
+ *     responses:
+ *       201:
+ *         description: 댓글이 성공적으로 등록되었습니다.
+ *       401:
+ *         description: 인증 토큰이 필요합니다.
+ */
 router.post("/topics/:topicId/comments", authenticateUser, async (req: AuthenticatedRequest, res: Response) => {
   const { topicId } = req.params;
   const { content } = req.body;
@@ -85,7 +157,6 @@ router.post("/topics/:topicId/comments", authenticateUser, async (req: Authentic
       content,
     ]);
 
-    // Inserted comment ID를 사용하여 새로 작성된 댓글 정보를 다시 조회
     const [newComment]: any = await pool.query(
       `SELECT c.id, c.content, c.created_at, u.nickname 
        FROM tn_comment c
