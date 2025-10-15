@@ -2,8 +2,11 @@ import pool from '../config/db';
 import { FEEDS } from '../config/feeds';
 import Parser from 'rss-parser';
 import { RowDataPacket } from 'mysql2';
+import * as cheerio from 'cheerio';
 
 let isJobRunning = false;
+
+const JOONGANG_LOGO_URL = 'https://img.megazonesoft.com/wp-content/uploads/2024/03/28110237/%EC%A4%91%EC%95%99%EC%9D%BC%EB%B3%B4-%EA%B0%80%EB%A1%9C-%EB%A1%9C%EA%B3%A0.jpg'; // 중앙일보 로고 URL
 
 export const collectLatestArticles = async () => {
   if (isJobRunning) {
@@ -38,8 +41,19 @@ export const collectLatestArticles = async () => {
           parsedFeed.items.forEach(item => {
             if (item.link && item.title) {
               const dateString = item.isoDate || item.pubDate;
-              // [수정] 날짜 정보가 없으면 현재 수집 시각을 대신 사용
               const publishedDate = dateString ? new Date(dateString) : new Date();
+
+              // [수정] 썸네일 추출 로직
+              let thumbnailUrl = null;
+              if (item.description) {
+                const $ = cheerio.load(item.description);
+                thumbnailUrl = $('img').attr('src') || null;
+              }
+              // 중앙일보 fallback 로직
+              if (!thumbnailUrl && feed.source === '중앙일보') {
+                thumbnailUrl = JOONGANG_LOGO_URL;
+              }
+
               allParsedArticles.push({
                 source: feed.source,
                 source_domain: feed.source_domain,
@@ -47,6 +61,7 @@ export const collectLatestArticles = async () => {
                 title: item.title,
                 url: item.link,
                 published_at: publishedDate,
+                thumbnail_url: thumbnailUrl, // 최종 썸네일 URL
               });
             }
           });
@@ -92,10 +107,11 @@ export const collectLatestArticles = async () => {
         article.title,
         article.url,
         article.published_at,
+        article.thumbnail_url, // 썸네일 추가
       ]);
 
       await connection.query(
-        'INSERT INTO tn_home_article (source, source_domain, category, title, url, published_at) VALUES ?',
+        'INSERT INTO tn_home_article (source, source_domain, category, title, url, published_at, thumbnail_url) VALUES ?',
         [values]
       );
       console.log(`${newArticles.length}개의 새로운 기사를 데이터베이스에 저장했습니다.`);
