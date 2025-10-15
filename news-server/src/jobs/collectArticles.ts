@@ -33,22 +33,11 @@ const LOGO_FALLBACK_MAP: { [key: string]: string } = {
 };
 
 // --- 헬퍼 함수 ---
-
-// [추가] 제목에서 언론사명 꼬리표 제거
-function cleanTitle(title: string): string {
-    if (!title) return '';
-    const publisherRegex = new RegExp(`\s*[-–—|:]\s*(중앙일보|조선일보|동아일보|한겨레|경향신문|오마이뉴스|joongang|chosun|donga|hani|khan)\s*$`, 'i');
-    return title.replace(publisherRegex, '').trim();
-}
-
 async function resolveGoogleNewsUrl(url: string): Promise<string> {
   if (url.includes('news.google.com')) {
-    console.log(`[Debug] Google News URL 발견: ${url}`);
     try {
       const response = await axios.get(url, { maxRedirects: 5, timeout: 5000 } as any);
-      const finalUrl = (response as any).request.res.responseUrl || url;
-      console.log(`[Debug] 최종 URL로 변환: ${finalUrl}`);
-      return finalUrl;
+      return (response as any).request.res.responseUrl || url;
     } catch (error) {
       console.error(`Google News URL 확인 중 오류: ${url}`, error);
       return url;
@@ -71,6 +60,12 @@ async function scrapeOgImage(url: string): Promise<string | null> {
   }
 }
 
+function cleanTitle(title: string): string {
+    if (!title) return '';
+    const publisherRegex = new RegExp(`\s*[-–—|:]\s*(중앙일보|조선일보|동아일보|한겨레|경향신문|오마이뉴스|joongang|chosun|donga|hani|khan)\s*$`, 'i');
+    return title.replace(publisherRegex, '').trim();
+}
+
 // --- 메인 로직 ---
 export const collectLatestArticles = async () => {
   if (isJobRunning) {
@@ -87,24 +82,27 @@ export const collectLatestArticles = async () => {
 
     const feedPromises = FEEDS.map(async (feed) => {
       try {
-        const parsedFeed = await parser.parseURL(encodeURI(feed.url));
-        return { feed, items: parsedFeed.items || [] };
-      } catch (error) {
-        console.error(`'${feed.source}' 피드 파싱 실패:`, error);
-        return { feed, items: [] };
-      }
-    });
-    const results = await Promise.allSettled(feedPromises);
-    results.forEach(result => {
-      if (result.status === 'fulfilled' && result.value) {
-        const { feed, items } = result.value;
-        items.forEach((item: CustomFeedItem) => {
-          if (item.link && item.title) {
-            initialParsedArticles.push({ feed, item });
-          }
+        const response = await axios.get<string>(encodeURI(feed.url), {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36',
+            }
         });
+        const parsedFeed = await parser.parseString(response.data);
+
+        if (parsedFeed && parsedFeed.items) {
+          parsedFeed.items.forEach((item: CustomFeedItem) => {
+            if (item.link && item.title) {
+              initialParsedArticles.push({ feed, item });
+            }
+          });
+        }
+      } catch (error) {
+        console.error(`'${feed.source}' 피드 처리 실패:`, error);
       }
     });
+
+    await Promise.all(feedPromises);
+    console.log(`총 ${initialParsedArticles.length}개 기사 아이템 파싱 완료.`);
 
     const processingPromises = initialParsedArticles.map(async ({ feed, item }) => {
       const dateString = item.isoDate || item.pubDate;
