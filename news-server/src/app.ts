@@ -11,7 +11,8 @@ import adminRouter from "./routes/admin";
 import authRouter from "./routes/auth";
 import userRouter from "./routes/user";
 import apiRouter from "./routes/api";
-import scrapeRouter from "./routes/scrape";
+import scrapeByCategoryRouter from "./routes/scrapeByCategory";
+import scrapeBySourceRouter from "./routes/scrapeBySource"; // 추가
 import jobsRouter from "./routes/jobs";
 
 dotenv.config();
@@ -27,12 +28,13 @@ app.use(express.urlencoded({ extended: true }));
 // Swagger UI
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(specs));
 
-// API 라우터 (라우팅 순서 수정됨)
+// API 라우터
 app.use("/api/admin", adminRouter);
 app.use("/api/auth", authRouter);
 app.use("/api/user", userRouter);
 app.use("/api/jobs", jobsRouter);
-app.use("/api/scrape", scrapeRouter);
+app.use("/api/scrape-by-category", scrapeByCategoryRouter);
+app.use("/api/scrape-by-source", scrapeBySourceRouter); // 추가
 app.use("/api", apiRouter); // 일반적인 라우터는 맨 뒤로
 
 // 헬스 체크
