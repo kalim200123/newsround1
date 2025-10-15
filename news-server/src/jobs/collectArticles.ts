@@ -4,6 +4,11 @@ import Parser from 'rss-parser';
 import { RowDataPacket } from 'mysql2';
 import * as cheerio from 'cheerio';
 
+// [추가] rss-parser의 기본 Item 타입을 확장하여 content:encoded를 포함시킵니다.
+interface CustomFeedItem extends Parser.Item {
+  'content:encoded': string;
+}
+
 let isJobRunning = false;
 
 const JOONGANG_LOGO_URL = 'https://img.megazonesoft.com/wp-content/uploads/2024/03/28110237/%EC%A4%91%EC%95%99%EC%9D%BC%EB%B3%B4-%EA%B0%80%EB%A1%9C-%EB%A1%9C%EA%B3%A0.jpg'; // 중앙일보 로고 URL
@@ -27,8 +32,9 @@ export const collectLatestArticles = async () => {
       'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
     };
 
-    const parser = new Parser({
+    const parser = new Parser<any, CustomFeedItem>({
       headers: customHeaders,
+      customFields: { item: ['content:encoded'] }
     });
 
     const allParsedArticles: any[] = [];
@@ -38,18 +44,21 @@ export const collectLatestArticles = async () => {
         const encodedUrl = encodeURI(feed.url);
         const parsedFeed = await parser.parseURL(encodedUrl);
         if (parsedFeed && parsedFeed.items) {
-          parsedFeed.items.forEach(item => {
+          parsedFeed.items.forEach((item: CustomFeedItem) => {
             if (item.link && item.title) {
               const dateString = item.isoDate || item.pubDate;
               const publishedDate = dateString ? new Date(dateString) : new Date();
 
-              // [수정] 썸네일 추출 로직
+              const content = item['content:encoded'] || item.content || '';
               let thumbnailUrl = null;
-              if (item.description) {
-                const $ = cheerio.load(item.description);
-                thumbnailUrl = $('img').attr('src') || null;
+              if (content) {
+                const $ = cheerio.load(content);
+                const imgTag = $('img').first();
+                if (imgTag.length) {
+                  thumbnailUrl = imgTag.attr('data-src') || imgTag.attr('src') || null;
+                }
               }
-              // 중앙일보 fallback 로직
+
               if (!thumbnailUrl && feed.source === '중앙일보') {
                 thumbnailUrl = JOONGANG_LOGO_URL;
               }
@@ -61,7 +70,7 @@ export const collectLatestArticles = async () => {
                 title: item.title,
                 url: item.link,
                 published_at: publishedDate,
-                thumbnail_url: thumbnailUrl, // 최종 썸네일 URL
+                thumbnail_url: thumbnailUrl,
               });
             }
           });
@@ -107,7 +116,7 @@ export const collectLatestArticles = async () => {
         article.title,
         article.url,
         article.published_at,
-        article.thumbnail_url, // 썸네일 추가
+        article.thumbnail_url,
       ]);
 
       await connection.query(
