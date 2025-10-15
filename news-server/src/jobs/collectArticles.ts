@@ -4,6 +4,7 @@ import Parser from 'rss-parser';
 import { RowDataPacket } from 'mysql2';
 import * as cheerio from 'cheerio';
 import axios from 'axios';
+import fetch from 'node-fetch'; // [추가] 
 
 // --- 타입 정의 ---
 interface CustomFeedItem extends Parser.Item {
@@ -33,13 +34,12 @@ const LOGO_FALLBACK_MAP: { [key: string]: string } = {
 };
 
 // --- 헬퍼 함수 ---
+// [수정] axios 대신 node-fetch를 사용하여 리디렉션 후 최종 URL을 안정적으로 가져옴
 async function resolveGoogleNewsUrl(url: string): Promise<string> {
   if (url.includes('news.google.com')) {
     try {
-      const response = await axios.get(url, { maxRedirects: 5, timeout: 5000 } as any);
-      // [수정] Optional Chaining(?.)을 사용하여 안전하게 속성에 접근
-      const finalUrl = (response as any)?.request?.res?.responseUrl || url;
-      return finalUrl;
+      const response = await fetch(url, { method: 'HEAD', redirect: 'follow', timeout: 5000 });
+      return response.url || url; // response.url이 최종 주소
     } catch (error) {
       console.error(`Google News URL 확인 중 오류: ${url}`, error);
       return url;
