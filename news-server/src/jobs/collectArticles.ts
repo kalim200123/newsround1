@@ -38,13 +38,15 @@ export const collectLatestArticles = async () => {
           parsedFeed.items.forEach(item => {
             if (item.link && item.title) {
               const dateString = item.isoDate || item.pubDate;
+              // [수정] 날짜 정보가 없으면 현재 수집 시각을 대신 사용
+              const publishedDate = dateString ? new Date(dateString) : new Date();
               allParsedArticles.push({
                 source: feed.source,
                 source_domain: feed.source_domain,
-                category: feed.section, // 카테고리 추가
+                category: feed.section,
                 title: item.title,
                 url: item.link,
-                published_at: dateString ? new Date(dateString) : null,
+                published_at: publishedDate,
               });
             }
           });
@@ -86,7 +88,7 @@ export const collectLatestArticles = async () => {
       const values = newArticles.map(article => [
         article.source,
         article.source_domain,
-        article.category, // 카테고리 추가
+        article.category,
         article.title,
         article.url,
         article.published_at,
