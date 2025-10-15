@@ -1,5 +1,5 @@
 import pool from '../config/db';
-import { FEEDS } from '../config/feeds';
+import { FEEDS, Feed } from '../config/feeds';
 import Parser from 'rss-parser';
 import { RowDataPacket } from 'mysql2';
 import * as cheerio from 'cheerio';
@@ -33,18 +33,6 @@ const LOGO_FALLBACK_MAP: { [key: string]: string } = {
 };
 
 // --- 헬퍼 함수 ---
-async function resolveGoogleNewsUrl(url: string): Promise<string> {
-  if (url.includes('news.google.com')) {
-    try {
-      const response = await axios.get(url, { maxRedirects: 5, timeout: 5000 } as any);
-      return (response as any).request.res.responseUrl || url;
-    } catch (error) {
-      return url;
-    }
-  }
-  return url;
-}
-
 async function scrapeOgImage(url: string): Promise<string | null> {
   try {
     const { data: html } = await axios.get<string>(url, { timeout: 5000 });
@@ -77,14 +65,17 @@ export const collectLatestArticles = async () => {
   try {
     connection = await pool.getConnection();
     const parser = new Parser<any, CustomFeedItem>({ customFields: { item: ['content:encoded'] } });
+    let initialParsedArticles: any[] = [];
 
-    // 1. 모든 RSS 피드에서 기본 정보 파싱
-    const feedPromises = FEEDS.map(async (feed) => {
+    // [수정] 피드를 일반 피드와 구글 뉴스 피드로 분리
+    const googleNewsFeeds = FEEDS.filter(f => f.url.includes('news.google.com'));
+    const normalFeeds = FEEDS.filter(f => !f.url.includes('news.google.com'));
+
+    // 1. 일반 피드 처리
+    const normalFeedPromises = normalFeeds.map(async (feed) => {
       try {
         const response = await axios.get<string>(encodeURI(feed.url), {
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36',
-            }
+            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36' }
         });
         const parsedFeed = await parser.parseString(response.data);
         const feedItems: any[] = [];
@@ -95,22 +86,47 @@ export const collectLatestArticles = async () => {
             }
           });
         }
-        return feedItems; // [수정] 각자 파싱한 결과를 반환
+        return feedItems;
       } catch (error) {
-        console.error(`'${feed.source}' 피드 처리 실패:`, error);
-        return []; // [수정] 실패 시 빈 배열 반환
+        console.error(`'${feed.source}' 일반 피드 처리 실패:`, error);
+        return [];
       }
     });
 
-    const results = await Promise.all(feedPromises);
-    const initialParsedArticles = results.flat(); // [수정] 모든 결과를 하나의 배열로 합침
+    // 2. 구글 뉴스 피드 처리 (리디렉션 확인 포함)
+    const googleNewsPromises = googleNewsFeeds.map(async (feed) => {
+        try {
+            const response = await axios.get<string>(encodeURI(feed.url), { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36' } });
+            const parsedFeed = await parser.parseString(response.data);
+            const feedItems: any[] = [];
+            if (parsedFeed && parsedFeed.items) {
+                for (const item of parsedFeed.items) {
+                    if (item.link && item.title) {
+                        // 구글 뉴스 링크는 리디렉션 후 최종 URL을 얻어야 함
+                        const res = await axios.get(item.link, { maxRedirects: 5, timeout: 5000 } as any);
+                        const finalUrl = (res as any).request.res.responseUrl || item.link;
+                        console.log(`[Debug] Google News Link: ${item.link} -> Final URL: ${finalUrl}`);
+                        item.link = finalUrl; // item의 링크를 최종 URL로 교체
+                        feedItems.push({ feed, item });
+                    }
+                }
+            }
+            return feedItems;
+        } catch (error) {
+            console.error(`'${feed.source}' 구글 뉴스 피드 처리 실패:`, error);
+            return [];
+        }
+    });
+
+    const allPromises = [...normalFeedPromises, ...googleNewsPromises];
+    const results = await Promise.all(allPromises);
+    initialParsedArticles = results.flat();
     console.log(`총 ${initialParsedArticles.length}개 기사 아이템 파싱 완료.`);
 
-    // 2. 썸네일 및 최종 데이터 정리
+    // ... (이하 로직은 동일)
     const processingPromises = initialParsedArticles.map(async ({ feed, item }) => {
       const dateString = item.isoDate || item.pubDate;
       const publishedDate = dateString ? new Date(dateString) : new Date();
-      const finalUrl = await resolveGoogleNewsUrl(item.link!);
       const cleanedTitle = cleanTitle(item.title!);
 
       const content = item['content:encoded'] || item.content || '';
@@ -127,7 +143,7 @@ export const collectLatestArticles = async () => {
       }
 
       if (!thumbnailUrl) {
-        thumbnailUrl = await scrapeOgImage(finalUrl);
+        thumbnailUrl = await scrapeOgImage(item.link!);
       }
 
       if (!thumbnailUrl) {
@@ -136,14 +152,13 @@ export const collectLatestArticles = async () => {
 
       return {
         source: feed.source, source_domain: feed.source_domain, category: feed.section,
-        title: cleanedTitle, url: finalUrl, published_at: publishedDate, thumbnail_url: thumbnailUrl,
+        title: cleanedTitle, url: item.link!, published_at: publishedDate, thumbnail_url: thumbnailUrl,
       };
     });
 
     const allParsedArticles = await Promise.all(processingPromises);
     console.log(`총 ${allParsedArticles.length}개 기사 처리 완료.`);
 
-    // 3. 중복 제거 및 DB 저장
     const uniqueArticlesMap = new Map<string, ParsedArticle>();
     allParsedArticles.forEach(article => { if (!uniqueArticlesMap.has(article.url)) { uniqueArticlesMap.set(article.url, article); } });
     const uniqueParsedArticles = Array.from(uniqueArticlesMap.values());
