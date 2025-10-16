@@ -2,6 +2,7 @@ import os
 import re
 import sys
 import time
+import html
 from datetime import datetime, timezone, timedelta
 import feedparser
 import mysql.connector
@@ -109,6 +110,7 @@ def main():
 
                 # 2. 제목 처리
                 cleaned_title = clean_title(item.title)
+                final_title = html.unescape(cleaned_title)
 
                 # 3. 날짜 처리
                 published_time = None
@@ -140,7 +142,7 @@ def main():
                     'source': feed_info['source'],
                     'source_domain': feed_info['source_domain'],
                     'category': feed_info['section'],
-                    'title': cleaned_title,
+                    'title': final_title,
                     'url': final_url,
                     'published_at': published_time,
                     'thumbnail_url': thumbnail_url
