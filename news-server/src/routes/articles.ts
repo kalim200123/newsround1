@@ -1,8 +1,41 @@
 import { Router, Request, Response } from "express";
 import pool from "../config/db";
 import { authenticateUser, AuthenticatedRequest } from "../middleware/userAuth";
+import { FAVICON_URLS } from "../config/favicons";
 
 const router = Router();
+
+// Helper function to add favicon url to articles
+const addFaviconUrl = (article: any) => ({
+  ...article,
+  favicon_url: FAVICON_URLS[article.source_domain] || null,
+});
+
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     ArticleWithFavicon:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: integer
+ *         source:
+ *           type: string
+ *         source_domain:
+ *           type: string
+ *         title:
+ *           type: string
+ *         url:
+ *           type: string
+ *         published_at:
+ *           type: string
+ *           format: date-time
+ *         thumbnail_url:
+ *           type: string
+ *         favicon_url:
+ *           type: string
+ */
 
 /**
  * @swagger
@@ -34,6 +67,12 @@ const router = Router();
  *     responses:
  *       200:
  *         description: 해당 카테고리의 기사 목록
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/ArticleWithFavicon'
  */
 router.get("/by-category", async (req: Request, res: Response) => {
   const { name, limit = 30, offset = 0 } = req.query;
@@ -45,7 +84,8 @@ router.get("/by-category", async (req: Request, res: Response) => {
   try {
     const query = "SELECT id, source, source_domain, title, url, published_at, thumbnail_url FROM tn_home_article WHERE category = ? ORDER BY published_at DESC LIMIT ? OFFSET ?";
     const [rows] = await pool.query(query, [name, Number(limit), Number(offset)]);
-    res.json(rows);
+    const articlesWithFavicon = (rows as any[]).map(addFaviconUrl);
+    res.json(articlesWithFavicon);
   } catch (error) {
     console.error("Error fetching articles by category:", error);
     res.status(500).json({ message: "Server error" });
@@ -82,6 +122,12 @@ router.get("/by-category", async (req: Request, res: Response) => {
  *     responses:
  *       200:
  *         description: 해당 언론사의 기사 목록
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/ArticleWithFavicon'
  */
 router.get("/by-source", async (req: Request, res: Response) => {
   const { name, limit = 30, offset = 0 } = req.query;
@@ -93,7 +139,8 @@ router.get("/by-source", async (req: Request, res: Response) => {
   try {
     const query = "SELECT id, source, source_domain, title, url, published_at, thumbnail_url FROM tn_home_article WHERE source = ? ORDER BY published_at DESC LIMIT ? OFFSET ?";
     const [rows] = await pool.query(query, [name, Number(limit), Number(offset)]);
-    res.json(rows);
+    const articlesWithFavicon = (rows as any[]).map(addFaviconUrl);
+    res.json(articlesWithFavicon);
   } catch (error) {
     console.error("Error fetching articles by source:", error);
     res.status(500).json({ message: "Server error" });
@@ -111,12 +158,23 @@ router.get("/by-source", async (req: Request, res: Response) => {
  *     responses:
  *       200:
  *         description: 인기 기사 목록
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 allOf:
+ *                   - $ref: '#/components/schemas/ArticleWithFavicon'
+ *                   - type: object
+ *                     properties:
+ *                       popularity_score:
+ *                         type: number
  */
 router.get("/popular", async (req: Request, res: Response) => {
   try {
     const query = `
       SELECT 
-        a.*,
+        a.id, a.source, a.source_domain, a.title, a.url, a.published_at, a.thumbnail_url,
         (a.view_count + (COUNT(l.id) * 3)) AS popularity_score
       FROM 
         tn_home_article a
@@ -131,7 +189,8 @@ router.get("/popular", async (req: Request, res: Response) => {
       LIMIT 30;
     `;
     const [rows] = await pool.query(query);
-    res.json(rows);
+    const articlesWithFavicon = (rows as any[]).map(addFaviconUrl);
+    res.json(articlesWithFavicon);
   } catch (error) {
     console.error("Error fetching popular articles:", error);
     res.status(500).json({ message: "Server error" });
@@ -249,15 +308,22 @@ router.post("/:articleId/view", async (req: Request, res: Response) => {
  *     responses:
  *       200:
  *         description: "[단독] 기사 목록"
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/ArticleWithFavicon'
  */
 router.get("/exclusives", async (req: Request, res: Response) => {
   const limit = parseInt(req.query.limit as string || '30', 10);
   const offset = parseInt(req.query.offset as string || '0', 10);
 
   try {
-    const query = "SELECT id, source, source_domain, url, published_at, title FROM tn_home_article WHERE title LIKE '%[단독]%' ORDER BY published_at DESC LIMIT ? OFFSET ?";
+    const query = "SELECT id, source, source_domain, url, published_at, title, thumbnail_url FROM tn_home_article WHERE title LIKE '%[단독]%' ORDER BY published_at DESC LIMIT ? OFFSET ?";
     const [rows] = await pool.query(query, [limit, offset]);
-    res.json(rows);
+    const articlesWithFavicon = (rows as any[]).map(addFaviconUrl);
+    res.json(articlesWithFavicon);
   } catch (error) {
     console.error("Error fetching exclusive articles:", error);
     res.status(500).json({ message: "Server error" });
@@ -288,15 +354,22 @@ router.get("/exclusives", async (req: Request, res: Response) => {
  *     responses:
  *       200:
  *         description: "[속보] 기사 목록"
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/ArticleWithFavicon'
  */
 router.get("/breaking", async (req: Request, res: Response) => {
   const limit = parseInt(req.query.limit as string || '30', 10);
   const offset = parseInt(req.query.offset as string || '0', 10);
 
   try {
-    const query = "SELECT id, source, source_domain, url, published_at, title FROM tn_home_article WHERE title LIKE '%[속보]%' ORDER BY published_at DESC LIMIT ? OFFSET ?";
+    const query = "SELECT id, source, source_domain, url, published_at, title, thumbnail_url FROM tn_home_article WHERE title LIKE '%[속보]%' ORDER BY published_at DESC LIMIT ? OFFSET ?";
     const [rows] = await pool.query(query, [limit, offset]);
-    res.json(rows);
+    const articlesWithFavicon = (rows as any[]).map(addFaviconUrl);
+    res.json(articlesWithFavicon);
   } catch (error) {
     console.error("Error fetching breaking articles:", error);
     res.status(500).json({ message: "Server error" });

@@ -23,8 +23,6 @@ const router = Router();
  *             schema:
  *               type: object
  *               properties:
- *                 id:
- *                   type: integer
  *                 email:
  *                   type: string
  *                 name:
@@ -45,7 +43,7 @@ router.get("/me", authenticateUser, async (req: AuthenticatedRequest, res: Respo
 
   try {
     const [users]: any = await pool.query(
-      "SELECT id, email, name, nickname, phone FROM tn_user WHERE id = ? AND status = 'ACTIVE'",
+      "SELECT email, name, nickname, phone FROM tn_user WHERE id = ? AND status = 'ACTIVE'",
       [userId]
     );
 
