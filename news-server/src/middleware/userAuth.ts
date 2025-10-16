@@ -17,8 +17,10 @@ export const authenticateUser = (req: AuthenticatedRequest, res: Response, next:
   const token = authHeader.split(' ')[1];
 
   try {
-    // TODO: Move JWT_SECRET to environment variables
-    const jwtSecret = 'your_super_secret_jwt_key';
+    const jwtSecret = process.env.USER_JWT_SECRET || "default_fallback_secret";
+    if (jwtSecret === 'default_fallback_secret') {
+        console.warn('Warning: USER_JWT_SECRET environment variable is not set. Using a default secret key for development.');
+    }
     const decoded = jwt.verify(token, jwtSecret) as { userId: number; username: string };
     req.user = decoded;
     next();
