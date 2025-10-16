@@ -183,7 +183,7 @@ router.post("/:articleId/view", async (req: Request, res: Response) => {
  *   get:
  *     tags:
  *       - Articles
- *     summary: '[단독]' 기사 목록 조회
+ *     summary: "[단독] 기사 목록 조회"
  *     description: "제목에 '[단독]'이 포함된 기사 목록을 최신순으로 조회합니다."
  *     parameters:
  *       - in: query
@@ -200,7 +200,7 @@ router.post("/:articleId/view", async (req: Request, res: Response) => {
  *         description: "건너뛸 기사 수 (페이지네이션용)"
  *     responses:
  *       200:
- *         description: '[단독]' 기사 목록
+ *         description: "[단독] 기사 목록"
  */
 router.get("/exclusives", async (req: Request, res: Response) => {
   const limit = parseInt(req.query.limit as string || '30', 10);
@@ -222,7 +222,7 @@ router.get("/exclusives", async (req: Request, res: Response) => {
  *   get:
  *     tags:
  *       - Articles
- *     summary: '[속보]' 기사 목록 조회
+ *     summary: "[속보] 기사 목록 조회"
  *     description: "제목에 '[속보]'가 포함된 기사 목록을 최신순으로 조회합니다."
  *     parameters:
  *       - in: query
@@ -239,7 +239,7 @@ router.get("/exclusives", async (req: Request, res: Response) => {
  *         description: "건너뛸 기사 수 (페이지네이션용)"
  *     responses:
  *       200:
- *         description: '[속보]' 기사 목록
+ *         description: "[속보] 기사 목록"
  */
 router.get("/breaking", async (req: Request, res: Response) => {
   const limit = parseInt(req.query.limit as string || '30', 10);
