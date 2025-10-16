@@ -28,6 +28,7 @@ const router = Router();
  *         description: 기사 목록
  */
 router.get("/", async (req: Request, res: Response) => {
+  console.log("[/] DB Connection Check:", pool.config.database);
   const { category, source } = req.query;
 
   try {
@@ -203,11 +204,12 @@ router.post("/:articleId/view", async (req: Request, res: Response) => {
  *         description: "[단독] 기사 목록"
  */
 router.get("/exclusives", async (req: Request, res: Response) => {
+  console.log("[/exclusives] DB Connection Check:", pool.config.database);
   const limit = parseInt(req.query.limit as string || '30', 10);
   const offset = parseInt(req.query.offset as string || '0', 10);
 
   try {
-    const query = "SELECT id, source, source_domain, url, published_at FROM tn_article WHERE title LIKE '%[단독]%' ORDER BY published_at DESC LIMIT ? OFFSET ?";
+    const query = "SELECT id, source, source_domain, url, published_at, title FROM tn_article WHERE title LIKE '%[단독]%' ORDER BY published_at DESC LIMIT ? OFFSET ?";
     const [rows] = await pool.query(query, [limit, offset]);
     res.json(rows);
   } catch (error) {
@@ -246,7 +248,7 @@ router.get("/breaking", async (req: Request, res: Response) => {
   const offset = parseInt(req.query.offset as string || '0', 10);
 
   try {
-    const query = "SELECT id, source, source_domain, url, published_at FROM tn_article WHERE title LIKE '%[속보]%' ORDER BY published_at DESC LIMIT ? OFFSET ?";
+    const query = "SELECT id, source, source_domain, url, published_at, title FROM tn_article WHERE title LIKE '%[속보]%' ORDER BY published_at DESC LIMIT ? OFFSET ?";
     const [rows] = await pool.query(query, [limit, offset]);
     res.json(rows);
   } catch (error) {
