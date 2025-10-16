@@ -177,4 +177,82 @@ router.post("/:articleId/view", async (req: Request, res: Response) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/articles/exclusives:
+ *   get:
+ *     tags:
+ *       - Articles
+ *     summary: '[단독]' 기사 목록 조회
+ *     description: "제목에 '[단독]'이 포함된 기사 목록을 최신순으로 조회합니다."
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 30
+ *         description: "한 번에 가져올 기사 수"
+ *       - in: query
+ *         name: offset
+ *         schema:
+ *           type: integer
+ *           default: 0
+ *         description: "건너뛸 기사 수 (페이지네이션용)"
+ *     responses:
+ *       200:
+ *         description: '[단독]' 기사 목록
+ */
+router.get("/exclusives", async (req: Request, res: Response) => {
+  const limit = parseInt(req.query.limit as string || '30', 10);
+  const offset = parseInt(req.query.offset as string || '0', 10);
+
+  try {
+    const query = "SELECT id, source, source_domain, url, published_at FROM tn_article WHERE title LIKE '%[단독]%' ORDER BY published_at DESC LIMIT ? OFFSET ?";
+    const [rows] = await pool.query(query, [limit, offset]);
+    res.json(rows);
+  } catch (error) {
+    console.error("Error fetching exclusive articles:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+/**
+ * @swagger
+ * /api/articles/breaking:
+ *   get:
+ *     tags:
+ *       - Articles
+ *     summary: '[속보]' 기사 목록 조회
+ *     description: "제목에 '[속보]'가 포함된 기사 목록을 최신순으로 조회합니다."
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 30
+ *         description: "한 번에 가져올 기사 수"
+ *       - in: query
+ *         name: offset
+ *         schema:
+ *           type: integer
+ *           default: 0
+ *         description: "건너뛸 기사 수 (페이지네이션용)"
+ *     responses:
+ *       200:
+ *         description: '[속보]' 기사 목록
+ */
+router.get("/breaking", async (req: Request, res: Response) => {
+  const limit = parseInt(req.query.limit as string || '30', 10);
+  const offset = parseInt(req.query.offset as string || '0', 10);
+
+  try {
+    const query = "SELECT id, source, source_domain, url, published_at FROM tn_article WHERE title LIKE '%[속보]%' ORDER BY published_at DESC LIMIT ? OFFSET ?";
+    const [rows] = await pool.query(query, [limit, offset]);
+    res.json(rows);
+  } catch (error) {
+    console.error("Error fetching breaking articles:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
 export default router;
