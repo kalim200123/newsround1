@@ -1,5 +1,6 @@
-import express from "express";
+import express, { Request, Response } from "express";
 import pool from "../config/db";
+import { authenticateUser, AuthenticatedRequest } from "../middleware/userAuth";
 
 const router = express.Router({ mergeParams: true });
 
@@ -51,9 +52,7 @@ const router = express.Router({ mergeParams: true });
  *                     type: string
  *                     description: "작성자 닉네임"
  */
-import { authenticateUser, AuthenticatedRequest } from "../middleware/userAuth";
-
-router.get("/", async (req, res) => {
+router.get("/", async (req: Request, res: Response) => {
   const { topicId } = req.params;
   const limit = parseInt(req.query.limit as string || '50', 10);
   const offset = parseInt(req.query.offset as string || '0', 10);
@@ -105,12 +104,11 @@ router.get("/", async (req, res) => {
  *       404:
  *         description: 댓글을 찾을 수 없음
  */
-router.delete("/:commentId", authenticateUser, async (req: AuthenticatedRequest, res) => {
+router.delete("/:commentId", authenticateUser, async (req: AuthenticatedRequest, res: Response) => {
   const { commentId } = req.params;
   const userId = req.user?.userId;
 
   try {
-    // Check if the comment exists and belongs to the user
     const [comments]: any = await pool.query(
       "SELECT user_id FROM tn_comment WHERE id = ?",
       [commentId]
@@ -124,7 +122,6 @@ router.delete("/:commentId", authenticateUser, async (req: AuthenticatedRequest,
       return res.status(403).json({ message: "댓글을 삭제할 권한이 없습니다." });
     }
 
-    // Soft delete the comment
     await pool.query(
       "UPDATE tn_comment SET status = 'DELETED' WHERE id = ?",
       [commentId]
@@ -171,25 +168,21 @@ router.post("/:commentId/report", authenticateUser, async (req: AuthenticatedReq
   try {
     await connection.beginTransaction();
 
-    // 1. 신고 기록 테이블에 추가 (중복 신고 방지)
     const [logResult]: any = await connection.query(
       "INSERT IGNORE INTO tn_comment_report_log (comment_id, user_id) VALUES (?, ?)",
       [commentId, userId]
     );
 
-    // 이미 신고한 경우, 아무 작업도 하지 않고 성공 응답
     if (logResult.affectedRows === 0) {
       await connection.rollback();
       return res.status(200).json({ message: "이미 신고한 댓글입니다." });
     }
 
-    // 2. 신고 카운트 증가
     await connection.query(
       "UPDATE tn_comment SET report_count = report_count + 1 WHERE id = ?",
       [commentId]
     );
 
-    // 3. 신고 횟수 확인
     const [comments]: any = await connection.query(
       "SELECT report_count FROM tn_comment WHERE id = ?",
       [commentId]
@@ -200,7 +193,6 @@ router.post("/:commentId/report", authenticateUser, async (req: AuthenticatedReq
       return res.status(404).json({ message: "댓글을 찾을 수 없습니다." });
     }
 
-    // 4. 임계값 도달 시 상태 변경
     if (comments[0].report_count >= REPORT_THRESHOLD) {
       await connection.query(
         "UPDATE tn_comment SET status = 'HIDDEN' WHERE id = ?",

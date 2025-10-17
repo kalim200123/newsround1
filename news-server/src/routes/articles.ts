@@ -1,9 +1,9 @@
-import { Router, Request, Response } from "express";
+import express, { Request, Response } from "express";
 import pool from "../config/db";
 import { authenticateUser, AuthenticatedRequest } from "../middleware/userAuth";
 import { FAVICON_URLS } from "../config/favicons";
 
-const router = Router();
+const router = express.Router();
 
 // Helper function to add favicon url to articles
 const addFaviconUrl = (article: any) => ({

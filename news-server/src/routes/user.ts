@@ -1,9 +1,9 @@
-import { Router, Request, Response } from "express";
+import express, { Request, Response } from "express";
 import bcrypt from "bcryptjs";
 import pool from "../config/db";
 import { authenticateUser, AuthenticatedRequest } from "../middleware/userAuth";
 
-const router = Router();
+const router = express.Router();
 
 /**
  * @swagger

@@ -1,4 +1,4 @@
-import { Router, Request, Response } from "express";
+import express, { Request, Response } from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import type { RowDataPacket } from "mysql2";
@@ -12,7 +12,7 @@ type ExistingUserRow = RowDataPacket & {
 
 import { validateSignup } from "../middleware/signupValidation";
 
-const router = Router();
+const router = express.Router();
 
 /**
  * @swagger
