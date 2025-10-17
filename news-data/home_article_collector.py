@@ -10,6 +10,7 @@ import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urlparse
 from dotenv import load_dotenv
+import concurrent.futures
 
 # .env 파일에서 환경 변수 로드
 load_dotenv()
@@ -90,65 +91,73 @@ def clean_title(title):
     publisher_regex = re.compile(r'\s*[-–—|:]\s*(중앙일보|조선일보|동아일보|한겨레|경향신문|오마이뉴스|joongang|chosun|donga|hani|khan)\s*$', re.I)
     return publisher_regex.sub('', title).strip()
 
+
+def fetch_and_parse_feed(feed_info):
+    """단일 RSS 피드를 가져와 파싱하고 기사 목록을 반환합니다."""
+    articles = []
+    try:
+        response = requests.get(feed_info['url'], timeout=15)
+        response.encoding = 'utf-8'
+        parsed_feed = feedparser.parse(response.text)
+
+        for item in parsed_feed.entries:
+            if not item.get('link') or not item.get('title'):
+                continue
+
+            final_url = resolve_google_news_url(item.link)
+            cleaned_title = clean_title(item.title)
+            final_title = html.unescape(cleaned_title)
+
+            published_time = None
+            if hasattr(item, 'published_parsed') and item.published_parsed:
+                published_time = datetime.fromtimestamp(time.mktime(item.published_parsed))
+            else:
+                published_time = datetime.now(timezone.utc)
+
+            thumbnail_url = None
+            source_name = feed_info['source']
+
+            if source_name != '중앙일보':
+                if hasattr(item, 'description'):
+                    soup = BeautifulSoup(item.description, 'html.parser')
+                    img_tag = soup.find('img')
+                    if img_tag and img_tag.get('src', '').startswith('http'):
+                        thumbnail_url = img_tag['src']
+                if not thumbnail_url:
+                    thumbnail_url = scrape_og_image(final_url)
+            
+            if not thumbnail_url:
+                thumbnail_url = LOGO_FALLBACK_MAP.get(source_name)
+
+            articles.append({
+                'source': feed_info['source'],
+                'source_domain': feed_info['source_domain'],
+                'category': feed_info['section'],
+                'title': final_title,
+                'url': final_url,
+                'published_at': published_time,
+                'thumbnail_url': thumbnail_url
+            })
+    except Exception as e:
+        print(f"{feed_info['source']}' 피드 처리 실패: {e}")
+    return articles
+
 # --- 메인 로직 ---
 def main():
-    print("최신 기사 수집 시작 (Python)")
+    print("최신 기사 병렬 수집 시작 (Python)")
     all_articles = []
 
-    for feed_info in FEEDS:
-        try:
-            response = requests.get(feed_info['url'], timeout=15)
-            # 인코딩을 UTF-8로 명시하여 깨짐 현상 방지
-            response.encoding = 'utf-8'
-            parsed_feed = feedparser.parse(response.text)
-            for item in parsed_feed.entries:
-                if not item.get('link') or not item.get('title'):
-                    continue
-
-                # 1. URL 처리
-                final_url = resolve_google_news_url(item.link)
-
-                # 2. 제목 처리
-                cleaned_title = clean_title(item.title)
-                final_title = html.unescape(cleaned_title)
-
-                # 3. 날짜 처리
-                published_time = None
-                if hasattr(item, 'published_parsed') and item.published_parsed:
-                    published_time = datetime.fromtimestamp(time.mktime(item.published_parsed))
-                else:
-                    published_time = datetime.now(timezone.utc)
-
-                # 4. 썸네일 처리
-                thumbnail_url = None
-                source_name = feed_info['source']
-
-                # 중앙일보가 아닌 경우에만 썸네일 스크레이핑 시도
-                if source_name != '중앙일보':
-                    if hasattr(item, 'description'):
-                        soup = BeautifulSoup(item.description, 'html.parser')
-                        img_tag = soup.find('img')
-                        if img_tag and img_tag.get('src', '').startswith('http'):
-                            thumbnail_url = img_tag['src']
-                    
-                    if not thumbnail_url:
-                        thumbnail_url = scrape_og_image(final_url)
-
-                # 최종적으로 썸네일이 없으면 로고로 대체 (중앙일보 포함)
-                if not thumbnail_url:
-                    thumbnail_url = LOGO_FALLBACK_MAP.get(source_name)
-
-                all_articles.append({
-                    'source': feed_info['source'],
-                    'source_domain': feed_info['source_domain'],
-                    'category': feed_info['section'],
-                    'title': final_title,
-                    'url': final_url,
-                    'published_at': published_time,
-                    'thumbnail_url': thumbnail_url
-                })
-        except Exception as e:
-            print(f"{feed_info['source']}' 피드 처리 실패: {e}")
+    # ThreadPoolExecutor를 사용하여 피드를 병렬로 처리
+    with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+        future_to_feed = {executor.submit(fetch_and_parse_feed, feed): feed for feed in FEEDS}
+        for future in concurrent.futures.as_completed(future_to_feed):
+            try:
+                articles_from_feed = future.result()
+                if articles_from_feed:
+                    all_articles.extend(articles_from_feed)
+            except Exception as exc:
+                feed_info = future_to_feed[future]
+                print(f"{feed_info['source']} 피드 처리 중 예외 발생: {exc}")
 
     print(f"총 {len(all_articles)}개 기사 파싱 완료.")
 

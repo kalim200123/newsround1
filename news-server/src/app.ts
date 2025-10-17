@@ -17,7 +17,7 @@ import userRouter from "./routes/user";
 import apiRouter from "./routes/api";
 import articlesRouter from "./routes/articles";
 import jobsRouter from "./routes/jobs";
-import commentsRouter from "./routes/comments";
+import chatRouter from "./routes/chat";
 
 dotenv.config();
 
@@ -38,7 +38,8 @@ app.use("/api/auth", authRouter);
 app.use("/api/user", userRouter);
 app.use("/api/jobs", jobsRouter);
 app.use("/api/articles", articlesRouter);
-app.use("/api/topics/:topicId/comments", commentsRouter);
+app.use("/api/topics/:topicId/chat", chatRouter); // 토픽에 종속된 채팅 내역 조회
+app.use("/api/chat", chatRouter); // 개별 채팅 메시지 관리 (삭제, 신고 등)
 app.use("/api", apiRouter);
 
 // 헬스 체크

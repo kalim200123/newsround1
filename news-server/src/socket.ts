@@ -63,7 +63,7 @@ const initializeSocket = (io: Server) => {
       // 2. 받은 메시지를 DB에 저장
       try {
         await pool.query(
-          "INSERT INTO tn_comment (topic_id, user_id, content) VALUES (?, ?, ?)",
+          "INSERT INTO tn_chat (topic_id, user_id, content) VALUES (?, ?, ?)",
           [topicId, user.userId, data.message]
         );
         console.log(`[DB] Message from ${user.name} to room ${data.room} saved to database.`);
