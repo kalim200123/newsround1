@@ -1,6 +1,6 @@
 import express, { Request, Response } from "express";
 import pool from "../config/db";
-import { authenticateUser, AuthenticatedRequest } from "../middleware/userAuth";
+import { authenticateUser, AuthenticatedRequest, optionalAuthenticateUser } from "../middleware/userAuth";
 import { FAVICON_URLS } from "../config/favicons";
 
 const router = express.Router();
@@ -154,7 +154,13 @@ router.get("/by-source", async (req: Request, res: Response) => {
  *     tags:
  *       - Articles
  *     summary: 인기 기사 목록 조회
- *     description: 최근 3일간의 기사들을 대상으로, 조회수(1점)와 추천수(3점)를 합산한 인기 점수가 높은 순으로 목록을 조회합니다.
+ *     description: "최근 3일간의 기사들을 대상으로, 조회수(1점)와 추천수(3점)를 합산한 인기 점수가 높은 순으로 10개의 목록을 조회합니다. 카테고리별 조회를 지원합니다."
+ *     parameters:
+ *       - in: query
+ *         name: category
+ *         schema:
+ *           type: string
+ *         description: "조회할 카테고리 (미지정 시 전체 카테고리 대상)"
  *     responses:
  *       200:
  *         description: 인기 기사 목록
@@ -171,8 +177,10 @@ router.get("/by-source", async (req: Request, res: Response) => {
  *                         type: number
  */
 router.get("/popular", async (req: Request, res: Response) => {
+  const { category } = req.query;
+
   try {
-    const query = `
+    let query = `
       SELECT 
         a.id, a.source, a.source_domain, a.title, a.url, a.published_at, a.thumbnail_url,
         (a.view_count + (COUNT(l.id) * 3)) AS popularity_score
@@ -182,13 +190,21 @@ router.get("/popular", async (req: Request, res: Response) => {
         tn_article_like l ON a.id = l.article_id
       WHERE 
         a.published_at >= NOW() - INTERVAL 3 DAY
-      GROUP BY 
-        a.id
-      ORDER BY 
-        popularity_score DESC
-      LIMIT 30;
     `;
-    const [rows] = await pool.query(query);
+    
+    const params: string[] = [];
+    if (category) {
+      query += ` AND a.category = ?`;
+      params.push(category as string);
+    }
+
+    query += `
+      GROUP BY a.id
+      ORDER BY popularity_score DESC, a.published_at DESC
+      LIMIT 10;
+    `;
+
+    const [rows] = await pool.query(query, params);
     const articlesWithFavicon = (rows as any[]).map(addFaviconUrl);
     res.json(articlesWithFavicon);
   } catch (error) {
@@ -267,20 +283,52 @@ router.post("/:articleId/like", authenticateUser, async (req: AuthenticatedReque
  *       200:
  *         description: 조회수 증가 성공
  */
-router.post("/:articleId/view", async (req: Request, res: Response) => {
+router.post("/:articleId/view", optionalAuthenticateUser, async (req: AuthenticatedRequest, res: Response) => {
   const { articleId } = req.params;
+  const userId = req.user?.userId;
+  const ip = req.ip;
+  const userIdentifier = userId ? `user_${userId}` : `ip_${ip}`;
+  const cooldownHours = 24;
+
+  const connection = await pool.getConnection();
   try {
-    const [result]: any = await pool.query(
+    await connection.beginTransaction();
+
+    const [recentViews]: any = await connection.query(
+      `SELECT id FROM tn_article_view_log 
+       WHERE article_id = ? AND user_identifier = ? AND created_at >= NOW() - INTERVAL ? HOUR`,
+      [articleId, userIdentifier, cooldownHours]
+    );
+
+    if (recentViews.length > 0) {
+      await connection.rollback();
+      return res.status(200).json({ message: "View already counted within the cooldown period." });
+    }
+
+    await connection.query(
+      "INSERT INTO tn_article_view_log (article_id, user_identifier) VALUES (?, ?)",
+      [articleId, userIdentifier]
+    );
+
+    const [updateResult]: any = await connection.query(
       "UPDATE tn_home_article SET view_count = view_count + 1 WHERE id = ?",
       [articleId]
     );
-    if (result.affectedRows === 0) {
+
+    await connection.commit();
+
+    if (updateResult.affectedRows === 0) {
       return res.status(404).json({ message: "Article not found." });
     }
-    res.status(200).json({ message: `View count for article ${articleId} incremented.` });
+
+    res.status(200).json({ message: "View count incremented." });
+
   } catch (error) {
+    await connection.rollback();
     console.error(`Error incrementing view count for article ${articleId}:`, error);
     res.status(500).json({ message: "Server error" });
+  } finally {
+    connection.release();
   }
 });
 

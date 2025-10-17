@@ -2,22 +2,22 @@ import cors from "cors";
 import dotenv from "dotenv";
 import express, { Express, NextFunction, Request, Response } from "express";
 import fs from "fs";
-import path from "path";
-import swaggerUi from "swagger-ui-express";
 import { createServer } from "http";
+import path from "path";
 import { Server } from "socket.io";
+import swaggerUi from "swagger-ui-express";
 
 import pool from "./config/db";
 import { specs } from "./config/swagger";
 import initializeSocket from "./socket";
 
 import adminRouter from "./routes/admin";
-import authRouter from "./routes/auth";
-import userRouter from "./routes/user";
 import apiRouter from "./routes/api";
 import articlesRouter from "./routes/articles";
-import jobsRouter from "./routes/jobs";
+import authRouter from "./routes/auth";
 import chatRouter from "./routes/chat";
+import jobsRouter from "./routes/jobs";
+import userRouter from "./routes/user";
 
 dotenv.config();
 
@@ -70,8 +70,8 @@ const httpServer = createServer(app);
 const io = new Server(httpServer, {
   cors: {
     origin: "*",
-    methods: ["GET", "POST"]
-  }
+    methods: ["GET", "POST"],
+  },
 });
 
 // 소켓 로직 초기화
