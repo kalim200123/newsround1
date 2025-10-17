@@ -3,3 +3,9 @@ mysql-connector-python
 python-dotenv
 beautifulsoup4
 requests
+numpy
+sentence-transformers
+scikit-learn
+konlpy
+tqdm
+python-dateutil
