@@ -6,6 +6,5 @@ requests
 numpy
 sentence-transformers
 scikit-learn
-konlpy
 tqdm
 python-dateutil
