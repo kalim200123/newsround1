@@ -1,5 +1,7 @@
-import cors from "cors";
 import dotenv from "dotenv";
+dotenv.config();
+
+import cors from "cors";
 import express, { Express, NextFunction, Request, Response } from "express";
 import fs from "fs";
 import { createServer } from "http";
@@ -18,8 +20,6 @@ import authRouter from "./routes/auth";
 import chatRouter from "./routes/chat";
 import jobsRouter from "./routes/jobs";
 import userRouter from "./routes/user";
-
-dotenv.config();
 
 const app: Express = express();
 const port = Number(process.env.PORT ?? 3000);

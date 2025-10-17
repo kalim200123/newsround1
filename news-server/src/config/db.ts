@@ -2,16 +2,7 @@ import mysql from "mysql2/promise";
 import fs from "fs";
 
 // DB 커넥션 풀(Connection Pool) 생성
-// 웹 서버처럼 여러 요청을 동시에 처리해야 하는 경우,
-// 매번 연결을 새로 만드는 대신 '커넥션 풀'을 만들어두고 재사용하는 것이 훨씬 효율적입니다.
-
-// DB_SSL_ENABLED 환경 변수가 'true'일 경우 SSL 연결 옵션을 추가합니다.
-// 클라우드 DB는 보안 연결을 위해 CA 인증서 경로를 지정해야 합니다.
-const sslConfig = process.env.DB_SSL_ENABLED === 'true' 
-  ? { ssl: { ca: fs.readFileSync('/etc/ssl/certs/ca-certificates.crt') } } 
-  : {};
-
-const pool = mysql.createPool({
+const config: mysql.PoolOptions = {
   host: process.env.DB_HOST,
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
@@ -20,8 +11,27 @@ const pool = mysql.createPool({
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,
-  ...sslConfig
-});
+};
+
+// For TiDB Cloud (and other SSL-required DBs), add SSL options.
+if (process.env.DB_SSL_ENABLED === 'true') {
+  const isProduction = process.env.NODE_ENV === 'production';
+
+  if (isProduction) {
+    // This path is for Render's environment.
+    try {
+      config.ssl = { ca: fs.readFileSync('/etc/ssl/certs/ca-certificates.crt') };
+    } catch (e) {
+      console.error("Could not read CA certificate for production SSL connection:", e);
+    }
+  } else {
+    // For local dev, this bypasses CA verification. Not for production use.
+    config.ssl = { rejectUnauthorized: false };
+    console.warn("SSL enabled for DB connection without CA verification. For development use only.");
+  }
+}
+
+const pool = mysql.createPool(config);
 
 // 생성한 커넥션 풀을 다른 파일에서 사용할 수 있도록 내보냅니다.
 export default pool;

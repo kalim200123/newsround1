@@ -1,10 +1,10 @@
 import { exec } from "child_process";
-import { Request, Response, Router } from "express";
+import express, { Request, Response } from "express";
 import path from "path";
 import pool from "../config/db";
 import { authenticateAdmin, handleAdminLogin } from "../middleware/auth";
 
-const router = Router();
+const router = express.Router();
 
 /**
  * @swagger

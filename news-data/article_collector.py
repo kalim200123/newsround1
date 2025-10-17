@@ -49,12 +49,13 @@ INCLUDE_ENGLISH_SYNONYMS = os.getenv("INCLUDE_EN_SYNONYMS", "true").lower() == "
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
 
 DB_CONFIG = {
-    "host": os.getenv("DB_HOST", "127.0.0.1"),
-    "port": int(os.getenv("DB_PORT", "3306")),
-    "user": os.getenv("DB_USER", "dn"),
-    "password": os.getenv("DB_PASSWORD", "dnpass"),
-    "database": os.getenv("DB_NAME", "different_news"),
-    "autocommit": True,
+    "host": os.getenv("DB_HOST"),
+    "port": int(os.getenv("DB_PORT", 3306)),
+    "user": os.getenv("DB_USER"),
+    "password": os.getenv("DB_PASSWORD"),
+    "database": os.getenv("DB_DATABASE"),
+    "ssl_ca": "/etc/ssl/certs/ca-certificates.crt",
+    "ssl_verify_cert": True
 }
 
 KST = timezone(timedelta(hours=9))

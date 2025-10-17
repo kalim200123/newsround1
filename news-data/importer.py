@@ -10,10 +10,13 @@ load_dotenv(dotenv_path=dotenv_path)
 
 # --- DB 접속 정보 ---
 DB_CONFIG = {
-    'user': os.getenv('DB_USER'),
-    'password': os.getenv('DB_PASSWORD'),
-    'host': os.getenv('DB_HOST'),
-    'database': os.getenv('DB_DATABASE')
+    "host": os.getenv("DB_HOST"),
+    "port": int(os.getenv("DB_PORT", 3306)),
+    "user": os.getenv("DB_USER"),
+    "password": os.getenv("DB_PASSWORD"),
+    "database": os.getenv("DB_DATABASE"),
+    "ssl_ca": "/etc/ssl/certs/ca-certificates.crt",
+    "ssl_verify_cert": True
 }
 
 def insert_topics_from_json(file_path='suggested_topics.json'):
