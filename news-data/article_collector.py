@@ -55,7 +55,8 @@ DB_CONFIG = {
     "password": os.getenv("DB_PASSWORD"),
     "database": os.getenv("DB_DATABASE"),
     "ssl_ca": "/etc/ssl/certs/ca-certificates.crt",
-    "ssl_verify_cert": True
+    "ssl_verify_cert": True,
+    "autocommit": True
 }
 
 KST = timezone(timedelta(hours=9))
