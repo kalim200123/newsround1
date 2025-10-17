@@ -1,6 +1,7 @@
 import { Request, Response, Router } from "express";
 import pool from "../config/db";
 import { AuthenticatedRequest, authenticateUser } from "../middleware/userAuth";
+import { FAVICON_URLS } from "../config/favicons";
 
 const router = Router();
 
@@ -20,7 +21,7 @@ router.get("/topics", async (req: Request, res: Response) => {
   try {
     connection = await pool.getConnection();
     const [rows] = await connection.query(
-      "SELECT id, display_name, summary, published_at FROM tn_topic WHERE status = 'published' ORDER BY published_at DESC"
+      "SELECT id, display_name, summary, published_at FROM tn_topic WHERE status = 'published' AND topic_type = 'CONTENT' ORDER BY published_at DESC"
     );
     res.json(rows);
   } catch (error) {
@@ -47,6 +48,20 @@ router.get("/topics", async (req: Request, res: Response) => {
  *     responses:
  *       200:
  *         description: 토픽 정보와 관련 기사 목록을 반환했습니다.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 topic:
+ *                   type: object
+ *                 articles:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       favicon_url:
+ *                         type: string
  *       404:
  *         description: 해당 토픽을 찾을 수 없습니다.
  */
@@ -60,13 +75,21 @@ router.get("/topics/:topicId", async (req: Request, res: Response) => {
     if (topicRows.length === 0) {
       return res.status(404).json({ message: "Topic not found" });
     }
+
     const [articleRows] = await pool.query(
       "SELECT id, source, source_domain, side, title, url, published_at, is_featured, thumbnail_url FROM tn_article WHERE topic_id = ? AND status = 'published' ORDER BY `display_order` ASC",
       [topicId]
     );
+
+    // Add favicon_url to each article
+    const articlesWithFavicon = (articleRows as any[]).map(article => ({
+      ...article,
+      favicon_url: FAVICON_URLS[article.source_domain] || null
+    }));
+
     const responseData = {
       topic: topicRows[0],
-      articles: articleRows,
+      articles: articlesWithFavicon,
     };
     res.json(responseData);
   } catch (error) {
