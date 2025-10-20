@@ -9,7 +9,7 @@ RUN apt-get update && apt-get install -y python3 python3-pip build-essential && 
 
 # 3. Install Python Dependencies (this layer is cached if requirements.txt doesn't change)
 COPY news-data/requirements.txt ./news-data/requirements.txt
-RUN pip3 install --verbose --no-cache-dir -r news-data/requirements.txt
+RUN pip3 install --verbose --no-cache-dir --break-system-packages -r news-data/requirements.txt
 
 # 4. Install Node.js Dependencies (this layer is cached if package.json doesn't change)
 COPY news-server/package.json ./news-server/package.json
