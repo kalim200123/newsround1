@@ -4,8 +4,8 @@ FROM node:18-slim
 # Set the working directory in the container
 WORKDIR /app
 
-# 2. Install Python
-RUN apt-get update && apt-get install -y python3 python3-pip && apt-get clean
+# 2. Install Python AND build tools
+RUN apt-get update && apt-get install -y python3 python3-pip build-essential && apt-get clean
 
 # 3. Install Python Dependencies (this layer is cached if requirements.txt doesn't change)
 COPY news-data/requirements.txt ./news-data/requirements.txt
