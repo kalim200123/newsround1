@@ -15,9 +15,18 @@ DB_CONFIG = {
     "user": os.getenv("DB_USER"),
     "password": os.getenv("DB_PASSWORD"),
     "database": os.getenv("DB_DATABASE"),
-    "ssl_ca": "/etc/ssl/certs/ca-certificates.crt",
-    "ssl_verify_cert": True
 }
+
+# 환경에 따라 SSL 설정을 동적으로 추가
+if os.getenv("DB_SSL_ENABLED") == 'true':
+    is_production = os.getenv('NODE_ENV') == 'production'
+    if is_production:
+        # Render와 같은 프로덕션 환경
+        DB_CONFIG["ssl_ca"] = "/etc/ssl/certs/ca-certificates.crt"
+        DB_CONFIG["ssl_verify_cert"] = True
+    else:
+        # 로컬 개발 환경 (인증서 검증 안 함)
+        DB_CONFIG["ssl_verify_cert"] = False
 
 def insert_topics_from_json(file_path='suggested_topics.json'):
     try:
