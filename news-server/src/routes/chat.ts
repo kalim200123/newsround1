@@ -67,7 +67,7 @@ router.get("/", async (req: Request, res: Response) => {
  *     tags:
  *       - Chat
  *     summary: 내 채팅 메시지 삭제
- *     description: 사용자가 자신이 작성한 메시지를 삭제합니다. (상태를 DELETED로 변경)
+ *     description: "사용자가 자신이 작성한 메시지를 삭제합니다. (상태를 DELETED로 변경)"
  *     security:
  *       - bearerAuth: []
  *     parameters:

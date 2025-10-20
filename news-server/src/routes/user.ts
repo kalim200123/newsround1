@@ -2,6 +2,8 @@ import express, { Request, Response } from "express";
 import bcrypt from "bcryptjs";
 import pool from "../config/db";
 import { authenticateUser, AuthenticatedRequest } from "../middleware/userAuth";
+import { validateUpdateUser } from "../middleware/updateUserValidation";
+import { validateChangePassword } from "../middleware/changePasswordValidation";
 
 const router = express.Router();
 
@@ -11,13 +13,13 @@ const router = express.Router();
  *   get:
  *     tags:
  *       - User
- *     summary: 내 정보 조회
- *     description: 현재 로그인된 사용자의 프로필 정보를 조회합니다.
+ *     summary: "내 정보 조회"
+ *     description: "현재 로그인된 사용자의 프로필 정보를 조회합니다."
  *     security:
  *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: 사용자 프로필 정보
+ *         description: "사용자 프로필 정보"
  *         content:
  *           application/json:
  *             schema:
@@ -32,25 +34,20 @@ const router = express.Router();
  *                 phone:
  *                   type: string
  *       401:
- *         description: 인증 실패
+ *         description: "인증 실패"
  *       404:
- *         description: 사용자를 찾을 수 없음
- *       500:
- *         description: 서버 오류
+ *         description: "사용자를 찾을 수 없음"
  */
 router.get("/me", authenticateUser, async (req: AuthenticatedRequest, res: Response) => {
   const userId = req.user?.userId;
-
   try {
     const [users]: any = await pool.query(
       "SELECT email, name, nickname, phone FROM tn_user WHERE id = ? AND status = 'ACTIVE'",
       [userId]
     );
-
     if (users.length === 0) {
       return res.status(404).json({ message: "사용자를 찾을 수 없습니다." });
     }
-
     res.json(users[0]);
   } catch (error) {
     console.error("Error fetching user profile:", error);
@@ -61,46 +58,11 @@ router.get("/me", authenticateUser, async (req: AuthenticatedRequest, res: Respo
 /**
  * @swagger
  * /api/user/me:
- *   delete:
- *     tags:
- *       - User
- *     summary: 회원 탈퇴
- *     description: 현재 로그인된 사용자의 계정을 비활성화(탈퇴) 처리합니다.
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: 회원 탈퇴 성공
- *       401:
- *         description: 인증 실패
- *       500:
- *         description: 서버 오류
- */
-import { validateUpdateUser } from "../middleware/updateUserValidation";
-
-router.delete("/me", authenticateUser, async (req: AuthenticatedRequest, res: Response) => {
-  const userId = req.user?.userId;
-
-  try {
-    await pool.query(
-      "UPDATE tn_user SET status = 'DELETED' WHERE id = ?",
-      [userId]
-    );
-    res.status(200).json({ message: "회원 탈퇴 처리가 완료되었습니다." });
-  } catch (error) {
-    console.error("Error deleting user account:", error);
-    res.status(500).json({ message: "서버 오류가 발생했습니다." });
-  }
-});
-
-/**
- * @swagger
- * /api/user/me:
  *   put:
  *     tags:
  *       - User
- *     summary: 내 정보 수정
- *     description: 현재 로그인된 사용자의 프로필 정보(닉네임, 휴대폰 번호)를 수정합니다.
+ *     summary: "내 정보 수정"
+ *     description: "현재 로그인된 사용자의 프로필 정보(닉네임, 휴대폰 번호)를 수정합니다."
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -118,18 +80,12 @@ router.delete("/me", authenticateUser, async (req: AuthenticatedRequest, res: Re
  *                 description: "새로운 휴대폰 번호"
  *     responses:
  *       200:
- *         description: 정보 수정 성공
+ *         description: "정보 수정 성공"
  *       400:
- *         description: 유효성 검사 실패
- *       401:
- *         description: 인증 실패
+ *         description: "유효성 검사 실패"
  *       409:
- *         description: 닉네임 또는 휴대폰 번호 중복
- *       500:
- *         description: 서버 오류
+ *         description: "닉네임 또는 휴대폰 번호 중복"
  */
-import { validateChangePassword } from "../middleware/changePasswordValidation";
-
 router.put("/me", authenticateUser, validateUpdateUser, async (req: AuthenticatedRequest, res: Response) => {
   const userId = req.user?.userId;
   const { nickname, phone } = req.body;
@@ -139,7 +95,6 @@ router.put("/me", authenticateUser, validateUpdateUser, async (req: Authenticate
   }
 
   try {
-    // 중복 확인
     if (nickname) {
       const [existingUsers]: any = await pool.query(
         "SELECT id FROM tn_user WHERE nickname = ? AND id != ?",
@@ -159,7 +114,6 @@ router.put("/me", authenticateUser, validateUpdateUser, async (req: Authenticate
       }
     }
 
-    // 정보 업데이트
     const fieldsToUpdate = [];
     const params = [];
     if (nickname) {
@@ -189,8 +143,8 @@ router.put("/me", authenticateUser, validateUpdateUser, async (req: Authenticate
  *   put:
  *     tags:
  *       - User
- *     summary: 비밀번호 변경
- *     description: 현재 로그인된 사용자의 비밀번호를 변경합니다.
+ *     summary: "비밀번호 변경"
+ *     description: "현재 로그인된 사용자의 비밀번호를 변경합니다."
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -207,26 +161,19 @@ router.put("/me", authenticateUser, validateUpdateUser, async (req: Authenticate
  *               currentPassword:
  *                 type: string
  *                 format: password
- *                 description: "현재 사용중인 비밀번호"
  *               newPassword:
  *                 type: string
  *                 format: password
- *                 description: "새로운 비밀번호"
  *               newPassword_confirmation:
  *                 type: string
  *                 format: password
- *                 description: "새로운 비밀번호 확인"
  *     responses:
  *       200:
- *         description: 비밀번호 변경 성공
+ *         description: "비밀번호 변경 성공"
  *       400:
- *         description: 유효성 검사 실패
+ *         description: "유효성 검사 실패"
  *       401:
- *         description: 현재 비밀번호가 일치하지 않음
- *       404:
- *         description: 사용자를 찾을 수 없음
- *       500:
- *         description: 서버 오류
+ *         description: "현재 비밀번호가 일치하지 않음"
  */
 router.put("/me/password", authenticateUser, validateChangePassword, async (req: AuthenticatedRequest, res: Response) => {
   const userId = req.user?.userId;
@@ -257,6 +204,37 @@ router.put("/me/password", authenticateUser, validateChangePassword, async (req:
 
   } catch (error) {
     console.error("Error changing password:", error);
+    res.status(500).json({ message: "서버 오류가 발생했습니다." });
+  }
+});
+
+/**
+ * @swagger
+ * /api/user/me:
+ *   delete:
+ *     tags:
+ *       - User
+ *     summary: "회원 탈퇴"
+ *     description: "현재 로그인된 사용자의 계정을 비활성화(탈퇴) 처리합니다."
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: "회원 탈퇴 성공"
+ *       401:
+ *         description: "인증 실패"
+ */
+router.delete("/me", authenticateUser, async (req: AuthenticatedRequest, res: Response) => {
+  const userId = req.user?.userId;
+
+  try {
+    await pool.query(
+      "UPDATE tn_user SET status = 'DELETED' WHERE id = ?",
+      [userId]
+    );
+    res.status(200).json({ message: "회원 탈퇴 처리가 완료되었습니다." });
+  } catch (error) {
+    console.error("Error deleting user account:", error);
     res.status(500).json({ message: "서버 오류가 발생했습니다." });
   }
 });
