@@ -3,6 +3,7 @@ import express, { Request, Response } from "express";
 import path from "path";
 import pool from "../config/db";
 import { authenticateAdmin, handleAdminLogin } from "../middleware/auth";
+import { AuthenticatedRequest } from "../middleware/userAuth";
 
 const router = express.Router();
 
@@ -77,6 +78,153 @@ router.get("/inquiries", async (req: Request, res: Response) => {
   } catch (error) {
     console.error("Error fetching inquiries:", error);
     res.status(500).json({ message: "Server error" });
+  }
+});
+
+/**
+ * @swagger
+ * /api/admin/inquiries/{inquiryId}:
+ *   get:
+ *     tags: [Admin]
+ *     summary: 특정 문의 상세 조회
+ *     description: "특정 문의의 상세 내용과, 답변이 있을 경우 답변 내용까지 함께 조회합니다."
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: inquiryId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: 문의 상세 내용
+ *       404:
+ *         description: 문의를 찾을 수 없음
+ */
+router.get("/inquiries/:inquiryId", async (req: Request, res: Response) => {
+  const { inquiryId } = req.params;
+
+  try {
+    // 1. 문의 원본 내용 조회 (사용자 정보 포함)
+    const [inquiryRows]: any = await pool.query(
+      `
+      SELECT 
+        i.id, i.subject, i.content, i.file_path, i.status, i.created_at,
+        u.nickname as user_nickname, u.email as user_email
+      FROM 
+        tn_inquiry i
+      LEFT JOIN 
+        tn_user u ON i.user_id = u.id
+      WHERE
+        i.id = ?
+      `,
+      [inquiryId]
+    );
+
+    if (inquiryRows.length === 0) {
+      return res.status(404).json({ message: "Inquiry not found." });
+    }
+
+    // 2. 답변 내용 조회
+    const [replyRows]: any = await pool.query(
+      "SELECT * FROM tn_inquiry_reply WHERE inquiry_id = ?",
+      [inquiryId]
+    );
+
+    res.json({
+      inquiry: inquiryRows[0],
+      reply: replyRows.length > 0 ? replyRows[0] : null,
+    });
+
+  } catch (error) {
+    console.error(`Error fetching inquiry details for ID ${inquiryId}:`, error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+/**
+ * @swagger
+ * /api/admin/inquiries/{inquiryId}/reply:
+ *   post:
+ *     tags: [Admin]
+ *     summary: 특정 문의에 대한 답변 작성
+ *     description: "관리자가 특정 문의에 대한 답변을 작성합니다. 답변이 등록되면 원본 문의의 상태는 'REPLIED'로 변경됩니다."
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: inquiryId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [content]
+ *             properties:
+ *               content:
+ *                 type: string
+ *                 description: "답변 내용"
+ *     responses:
+ *       201:
+ *         description: "답변이 성공적으로 등록되었습니다."
+ *       400:
+ *         description: "답변 내용이 비어있습니다."
+ *       409:
+ *         description: "이미 답변이 등록된 문의입니다."
+ */
+router.post("/inquiries/:inquiryId/reply", async (req: AuthenticatedRequest, res: Response) => {
+  const { inquiryId } = req.params;
+  const { content } = req.body;
+  const adminId = req.user?.userId; // 타입이 지정되었으므로 안전하게 접근
+
+  if (!content) {
+    return res.status(400).json({ message: "답변 내용을 입력해주세요." });
+  }
+
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+
+    // 이미 답변이 있는지 확인
+    const [existingReplies]: any = await connection.query(
+      "SELECT id FROM tn_inquiry_reply WHERE inquiry_id = ?",
+      [inquiryId]
+    );
+    if (existingReplies.length > 0) {
+      await connection.rollback();
+      return res.status(409).json({ message: "이미 답변이 등록된 문의입니다." });
+    }
+
+    // 1. 답변 저장
+    await connection.query(
+      "INSERT INTO tn_inquiry_reply (inquiry_id, admin_id, content) VALUES (?, ?, ?)",
+      [inquiryId, adminId, content]
+    );
+
+    // 2. 원본 문의 상태 변경
+    const [updateResult]: any = await connection.query(
+      "UPDATE tn_inquiry SET status = 'REPLIED' WHERE id = ?",
+      [inquiryId]
+    );
+
+    if (updateResult.affectedRows === 0) {
+      throw new Error("Failed to update inquiry status. Inquiry may not exist.");
+    }
+
+    await connection.commit();
+    res.status(201).json({ message: "답변이 성공적으로 등록되었습니다." });
+
+  } catch (error) {
+    await connection.rollback();
+    console.error(`Error replying to inquiry ${inquiryId}:`, error);
+    res.status(500).json({ message: "서버 오류가 발생했습니다." });
+  } finally {
+    connection.release();
   }
 });
 
