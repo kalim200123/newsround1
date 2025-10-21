@@ -1,12 +1,12 @@
-﻿{
+{
   "compilerOptions": {
-    "target": "ES2020" /* 理쒖쥌 蹂?섎맆 JavaScript 踰꾩쟾 */,
-    "module": "CommonJS" /* 紐⑤뱢 ?쒖뒪??*/,
-    "outDir": "./dist" /* 蹂?섎맂 .js ?뚯씪?ㅼ씠 ??λ맆 ?대뜑 */,
-    "rootDir": "./src" /* TypeScript ?뚯뒪肄붾뱶??理쒖긽???대뜑 */,
-    "strict": true /* 紐⑤뱺 ?꾧꺽?????寃???쒖꽦??*/,
-    "esModuleInterop": true /* ES 紐⑤뱢怨쇱쓽 ?명솚??吏??*/,
-    "skipLibCheck": true /* ?쇱씠釉뚮윭由????寃???ㅽ궢 */,
+    "target": "ES2020",
+    "module": "CommonJS",
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true
   }
