@@ -239,4 +239,118 @@ router.delete("/me", authenticateUser, async (req: AuthenticatedRequest, res: Re
   }
 });
 
+/**
+ * @swagger
+ * /api/user/me/liked-articles:
+ *   get:
+ *     tags:
+ *       - User
+ *     summary: "내가 '좋아요' 한 기사 목록 조회"
+ *     description: "현재 로그인한 사용자가 '좋아요'를 누른 모든 기사의 목록을 최신순으로 반환합니다."
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 25
+ *         description: "한 번에 가져올 기사 수"
+ *       - in: query
+ *         name: offset
+ *         schema:
+ *           type: integer
+ *           default: 0
+ *         description: "건너뛸 기사 수 (페이지네이션용)"
+ *     responses:
+ *       200:
+ *         description: "'좋아요' 한 기사 목록"
+ */
+router.get("/me/liked-articles", authenticateUser, async (req: AuthenticatedRequest, res: Response) => {
+  const userId = req.user?.userId;
+  const limit = parseInt(req.query.limit as string || '25', 10);
+  const offset = parseInt(req.query.offset as string || '0', 10);
+
+  try {
+    const [rows] = await pool.query(
+      `
+      SELECT 
+        a.id, a.title, a.url, a.thumbnail_url, a.source, a.source_domain, a.published_at
+      FROM 
+        tn_article_like l
+      JOIN 
+        tn_home_article a ON l.article_id = a.id
+      WHERE 
+        l.user_id = ?
+      ORDER BY 
+        l.created_at DESC
+      LIMIT ? OFFSET ?
+      `,
+      [userId, limit, offset]
+    );
+    res.json(rows);
+  } catch (error) {
+    console.error("Error fetching liked articles:", error);
+    res.status(500).json({ message: "서버 오류가 발생했습니다." });
+  }
+});
+
+/**
+ * @swagger
+ * /api/user/me/inquiries:
+ *   get:
+ *     tags:
+ *       - User
+ *     summary: "내 문의 내역 조회"
+ *     description: "현재 로그인한 사용자가 작성한 모든 문의와 그에 대한 답변을 최신순으로 조회합니다."
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *         description: "한 번에 가져올 문의 수"
+ *       - in: query
+ *         name: offset
+ *         schema:
+ *           type: integer
+ *           default: 0
+ *         description: "건너뛸 문의 수 (페이지네이션용)"
+ *     responses:
+ *       200:
+ *         description: "내 문의 내역 목록"
+ */
+router.get("/me/inquiries", authenticateUser, async (req: AuthenticatedRequest, res: Response) => {
+  const userId = req.user?.userId;
+  const limit = parseInt(req.query.limit as string || '10', 10);
+  const offset = parseInt(req.query.offset as string || '0', 10);
+
+  try {
+    const [rows] = await pool.query(
+      `
+      SELECT 
+        i.id, i.subject, i.content, i.file_path, i.status, i.created_at,
+        r.content AS reply_content,
+        r.created_at AS reply_created_at
+      FROM 
+        tn_inquiry i
+      LEFT JOIN 
+        tn_inquiry_reply r ON i.id = r.inquiry_id
+      WHERE 
+        i.user_id = ?
+      ORDER BY 
+        i.created_at DESC
+      LIMIT ? OFFSET ?
+      `,
+      [userId, limit, offset]
+    );
+    res.json(rows);
+  } catch (error) {
+    console.error("Error fetching user inquiries:", error);
+    res.status(500).json({ message: "서버 오류가 발생했습니다." });
+  }
+});
+
 export default router;
