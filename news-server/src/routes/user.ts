@@ -275,15 +275,21 @@ router.get("/me/liked-articles", authenticateUser, async (req: AuthenticatedRequ
     const [rows] = await pool.query(
       `
       SELECT 
-        a.id, a.title, a.url, a.thumbnail_url, a.source, a.source_domain, a.published_at
+        a.id, a.title, a.url, a.thumbnail_url, a.source, a.source_domain, a.published_at,
+        a.view_count,
+        COUNT(l2.id) AS like_count
       FROM 
-        tn_article_like l
+        tn_article_like l1
       JOIN 
-        tn_home_article a ON l.article_id = a.id
+        tn_article a ON l1.article_id = a.id
+      LEFT JOIN
+        tn_article_like l2 ON a.id = l2.article_id
       WHERE 
-        l.user_id = ?
+        l1.user_id = ?
+      GROUP BY
+        a.id
       ORDER BY 
-        l.created_at DESC
+        l1.created_at DESC
       LIMIT ? OFFSET ?
       `,
       [userId, limit, offset]

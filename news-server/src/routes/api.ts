@@ -104,7 +104,21 @@ router.get("/topics/:topicId", async (req: Request, res: Response) => {
     }
 
     const [articleRows] = await pool.query(
-      "SELECT id, source, source_domain, side, title, url, published_at, is_featured, thumbnail_url FROM tn_article WHERE topic_id = ? AND status = 'published' ORDER BY `display_order` ASC",
+      `
+      SELECT 
+        a.id, a.source, a.source_domain, a.side, a.title, a.url, a.published_at, a.is_featured, a.thumbnail_url, a.view_count,
+        COUNT(l.id) AS like_count
+      FROM 
+        tn_article a
+      LEFT JOIN 
+        tn_article_like l ON a.id = l.article_id
+      WHERE 
+        a.topic_id = ? AND a.status = 'published'
+      GROUP BY
+        a.id
+      ORDER BY 
+        a.display_order ASC
+      `,
       [topicId]
     );
 
@@ -219,10 +233,12 @@ router.get("/search", async (req: Request, res: Response) => {
 
   try {
     const [rows] = await pool.query(
-      `SELECT id, source, source_domain, title, url, published_at, thumbnail_url, description 
-       FROM tn_home_article 
-       WHERE title LIKE ? OR description LIKE ?
-       ORDER BY published_at DESC
+      `SELECT a.id, a.source, a.source_domain, a.title, a.url, a.published_at, a.thumbnail_url, a.description, COUNT(l.id) AS like_count
+       FROM tn_home_article a
+       LEFT JOIN tn_article_like l ON a.id = l.article_id
+       WHERE (a.title LIKE ? OR a.description LIKE ?)
+       GROUP BY a.id
+       ORDER BY a.published_at DESC
        LIMIT 50`,
       [searchQuery, searchQuery]
     );

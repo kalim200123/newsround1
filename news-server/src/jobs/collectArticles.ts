@@ -7,7 +7,7 @@ import path from "path";
  */
 export const collectLatestArticles = () => {
   // Render 환경에서는 프로젝트 루트에서 실행되므로, 상대 경로를 사용합니다.
-  const scriptPath = path.resolve(process.cwd(), "..", "news-data", "home_article_collector.py");
+  const scriptPath = path.resolve(process.cwd(), "news-data", "home_article_collector.py");
   
   console.log(`Executing python script: ${scriptPath}`);
 
