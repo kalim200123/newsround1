@@ -7,7 +7,7 @@ const routesGlob = path.join(__dirname, "../../src/routes/**/*.ts");
 
 const options: swaggerJsdoc.Options = {
   definition: swaggerDefinition,
-  apis: [routesGlob],
+  apis: ["./src/routes/**/*.ts"],
 };
 
 export const specs = swaggerJsdoc(options);

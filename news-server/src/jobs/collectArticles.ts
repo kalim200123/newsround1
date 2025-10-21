@@ -11,7 +11,7 @@ export const collectLatestArticles = () => {
   
   console.log(`Executing python script: ${scriptPath}`);
 
-  const pythonProcess = spawn("python", ["-u", scriptPath]);
+  const pythonProcess = spawn("python3", ["-u", scriptPath]);
 
   // 파이썬 스크립트의 출력을 Node.js 로그에 연결하여 Render 대시보드에서 확인할 수 있도록 합니다.
   pythonProcess.stdout.on("data", (data) => {

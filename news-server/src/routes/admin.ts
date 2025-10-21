@@ -29,6 +29,59 @@ router.get("/health", (req: Request, res: Response) => {
 
 /**
  * @swagger
+ * /api/admin/inquiries:
+ *   get:
+ *     tags: [Admin]
+ *     summary: 모든 문의 목록 조회
+ *     description: 사용자들이 제출한 모든 문의 목록을 최신순으로 조회합니다.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 25
+ *         description: "한 번에 가져올 문의 수"
+ *       - in: query
+ *         name: offset
+ *         schema:
+ *           type: integer
+ *           default: 0
+ *         description: "건너뛸 문의 수 (페이지네이션용)"
+ *     responses:
+ *       200:
+ *         description: 문의 목록
+ */
+router.get("/inquiries", async (req: Request, res: Response) => {
+  const limit = parseInt(req.query.limit as string || '25', 10);
+  const offset = parseInt(req.query.offset as string || '0', 10);
+
+  try {
+    const [rows] = await pool.query(
+      `
+      SELECT 
+        i.id, i.subject, i.status, i.created_at, 
+        u.nickname as user_nickname
+      FROM 
+        tn_inquiry i
+      LEFT JOIN 
+        tn_user u ON i.user_id = u.id
+      ORDER BY 
+        i.created_at DESC
+      LIMIT ? OFFSET ?
+      `,
+      [limit, offset]
+    );
+    res.json(rows);
+  } catch (error) {
+    console.error("Error fetching inquiries:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+/**
+ * @swagger
  * /api/admin/login:
  *   post:
  *     tags: [Admin]
