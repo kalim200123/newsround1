@@ -142,19 +142,28 @@ def fetch_and_parse_feed(feed_info):
             published_time = None
             source_name = feed_info['source']
 
+            # 1. 한겨레는 직접 스크래핑
             if source_name == '한겨레':
                 published_time = scrape_hankyoreh_publication_time(final_url)
 
+            # 2. 그 외, 파싱된 시간 정보 확인 (표준)
             if not published_time:
-                if hasattr(item, 'published_parsed') and item.published_parsed:
-                    published_time = datetime.fromtimestamp(time.mktime(item.published_parsed))
-                elif hasattr(item, 'published'):
+                time_struct = item.get('published_parsed') or item.get('updated_parsed')
+                if time_struct:
+                    published_time = datetime.fromtimestamp(time.mktime(time_struct))
+
+            # 3. 파싱된 시간이 없을 경우, 원본 문자열에서 직접 파싱 시도
+            if not published_time:
+                date_string = item.get('published') or item.get('updated') or item.get('dc_date')
+                if date_string:
                     try:
-                        published_time = dt_parse(item.published)
+                        published_time = dt_parse(date_string)
                     except (ValueError, TypeError):
-                        published_time = datetime.now(timezone.utc)
-                else:
-                    published_time = datetime.now(timezone.utc)
+                        published_time = None # 실패 시 다음 단계로
+            
+            # 4. 모든 시도가 실패하면 현재 시간으로 대체
+            if not published_time:
+                published_time = datetime.now(timezone.utc)
 
             thumbnail_url = None
 
