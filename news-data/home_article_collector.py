@@ -181,6 +181,10 @@ def fetch_and_parse_feed(feed_info):
             if not published_time:
                 published_time = datetime.now(timezone.utc)
 
+            # 시간 필터링: 2일 이상 지난 기사는 건너뛰기
+            if published_time < (datetime.now(timezone.utc) - timedelta(days=1)):
+                continue
+
             thumbnail_url = None
             if source_name != '중앙일보':
                 if hasattr(item, 'description'):

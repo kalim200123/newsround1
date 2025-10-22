@@ -361,6 +361,7 @@ router.post("/topics", async (req: Request, res: Response) => {
     exec(command, (error, stdout, stderr) => {
       if (error) {
         console.error(`Error executing article_collector.py: ${error}`);
+        console.error(`Python stderr: ${stderr}`);
         return;
       }
       console.log(`article_collector.py stdout: ${stdout}`);
@@ -429,9 +430,11 @@ router.patch("/topics/:topicId/publish", async (req: Request, res: Response) => 
     const pythonScriptPath = path.join(__dirname, "../../../news-data/article_collector.py");
             const command = `python3 "${pythonScriptPath}" ${topicId}`;
     
-            console.log(`Executing command: ${command}`);    exec(command, (error, stdout, stderr) => {
+            console.log(`Executing command: ${command}`);
+    exec(command, (error, stdout, stderr) => {
       if (error) {
         console.error(`Error executing article_collector.py: ${error}`);
+        console.error(`Python stderr: ${stderr}`);
         return;
       }
       console.log(`article_collector.py stdout: ${stdout}`);
