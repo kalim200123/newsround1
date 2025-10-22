@@ -334,6 +334,91 @@ router.post("/:articleId/view", optionalAuthenticateUser, async (req: Authentica
 
 /**
  * @swagger
+ * /api/articles/{articleId}/save:
+ *   post:
+ *     tags:
+ *       - Saved Articles
+ *     summary: 기사 저장
+ *     description: "로그인한 사용자가 특정 기사를 내 마이페이지에 저장합니다."
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: articleId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       201:
+ *         description: "기사 저장 성공"
+ *       401:
+ *         description: "인증 실패"
+ *       409:
+ *         description: "이미 저장된 기사"
+ */
+router.post("/:articleId/save", authenticateUser, async (req: AuthenticatedRequest, res: Response) => {
+  const articleId = req.params.articleId;
+  const userId = req.user?.userId;
+
+  try {
+    // INSERT IGNORE를 사용하여, 이미 저장된 경우(UNIQUE KEY 제약조건 위반) 오류를 발생시키지 않고 무시합니다.
+    const [result]: any = await pool.query(
+      "INSERT IGNORE INTO tn_user_saved_articles (user_id, article_id) VALUES (?, ?)",
+      [userId, articleId]
+    );
+
+    if (result.affectedRows === 0) {
+      // 0 rows affected means the article was already saved.
+      return res.status(409).json({ message: "Article already saved." });
+    }
+
+    res.status(201).json({ message: "Article saved successfully." });
+  } catch (error) {
+    console.error("Error saving article:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+/**
+ * @swagger
+ * /api/articles/{articleId}/save:
+ *   delete:
+ *     tags:
+ *       - Saved Articles
+ *     summary: 기사 저장 취소
+ *     description: "로그인한 사용자가 마이페이지에 저장했던 기사를 삭제합니다."
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: articleId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: "기사 저장 취소 성공"
+ *       401:
+ *         description: "인증 실패"
+ */
+router.delete("/:articleId/save", authenticateUser, async (req: AuthenticatedRequest, res: Response) => {
+  const articleId = req.params.articleId;
+  const userId = req.user?.userId;
+
+  try {
+    await pool.query(
+      "DELETE FROM tn_user_saved_articles WHERE user_id = ? AND article_id = ?",
+      [userId, articleId]
+    );
+    res.status(200).json({ message: "Article unsaved successfully." });
+  } catch (error) {
+    console.error("Error unsaving article:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+/**
+ * @swagger
  * /api/articles/exclusives:
  *   get:
  *     tags:

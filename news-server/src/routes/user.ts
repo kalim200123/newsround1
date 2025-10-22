@@ -45,7 +45,7 @@ router.get("/me", authenticateUser, async (req: AuthenticatedRequest, res: Respo
   const userId = req.user?.userId;
   try {
     const [users]: any = await pool.query(
-      "SELECT email, name, nickname, phone FROM tn_user WHERE id = ? AND status = 'ACTIVE'",
+      "SELECT email, name, nickname, phone, profile_image_url FROM tn_user WHERE id = ? AND status = 'ACTIVE'",
       [userId]
     );
     if (users.length === 0) {
