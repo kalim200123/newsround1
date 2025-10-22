@@ -1,0 +1,25 @@
+2025-10-22 16:14:03,389 [INFO] --- Article Collector (final) ---
+2025-10-22 16:14:03,396 [INFO] All done in 0.0s
+Traceback (most recent call last):
+  File "C:\Users\RST\anaconda3\envs\diffnews\Lib\site-packages\mysql\connector\connection_cext.py", line 354, in _open_connection
+    self._cmysql.connect(**cnx_kwargs)
+_mysql_connector.MySQLInterfaceError: Can't open named pipe to host: .  pipe: MySQL (2)
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\RST\.vscode\news\news-data\article_collector.py", line 692, in <module>
+    main()
+  File "C:\Users\RST\.vscode\news\news-data\article_collector.py", line 663, in main
+    cnx = mysql.connector.connect(**DB_CONFIG)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\RST\anaconda3\envs\diffnews\Lib\site-packages\mysql\connector\pooling.py", line 322, in connect
+    return CMySQLConnection(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\RST\anaconda3\envs\diffnews\Lib\site-packages\mysql\connector\connection_cext.py", line 142, in __init__
+    self.connect(**kwargs)
+  File "C:\Users\RST\anaconda3\envs\diffnews\Lib\site-packages\mysql\connector\abstracts.py", line 1604, in connect
+    self._open_connection()
+  File "C:\Users\RST\anaconda3\envs\diffnews\Lib\site-packages\mysql\connector\connection_cext.py", line 360, in _open_connection
+    raise get_mysql_exception(
+mysql.connector.errors.DatabaseError: 2017 (HY000): Can't open named pipe to host: .  pipe: MySQL (2)

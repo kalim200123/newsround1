@@ -10,8 +10,13 @@ import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urlparse
 from dotenv import load_dotenv
-from dateutil.parser import parse as dt_parse
 import concurrent.futures
+from dateutil.parser import parse as dt_parse
+import threading
+
+# requests.Session의 고급 설정을 위한 import
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 # .env 파일에서 환경 변수 로드
 load_dotenv()
@@ -35,17 +40,15 @@ DB_CONFIG = {
     "database": os.getenv("DB_DATABASE"),
 }
 
-# 환경에 따라 SSL 설정을 동적으로 추가
 if os.getenv("DB_SSL_ENABLED") == 'true':
     is_production = os.getenv('NODE_ENV') == 'production'
     if is_production:
-        # Render와 같은 프로덕션 환경
         DB_CONFIG["ssl_ca"] = "/etc/ssl/certs/ca-certificates.crt"
         DB_CONFIG["ssl_verify_cert"] = True
     else:
-        # 로컬 개발 환경 (인증서 검증 안 함)
         DB_CONFIG["ssl_verify_cert"] = False
 
+# 테스트를 위해 3개 언론사만 남김
 FEEDS = [
     # LEFT
     {'source': "경향신문", 'source_domain': "khan.co.kr", 'side': "LEFT", 'url': "https://www.khan.co.kr/rss/rssdata/politic_news.xml", 'section': "정치"},
@@ -56,30 +59,50 @@ FEEDS = [
     {'source': "한겨레",   'source_domain': "hani.co.kr", 'side': "LEFT", 'url': "https://www.hani.co.kr/rss/economy/", 'section': "경제"},
     {'source': "한겨레",   'source_domain': "hani.co.kr", 'side': "LEFT", 'url': "https://www.hani.co.kr/rss/society/", 'section': "사회"},
     {'source': "한겨레",   'source_domain': "hani.co.kr", 'side': "LEFT", 'url': "https://www.hani.co.kr/rss/culture/", 'section': "문화"},
-    # {'source': "오마이뉴스", 'source_domain': "ohmynews.com", 'side': "LEFT", 'url': "http://rss.ohmynews.com/rss/politics.xml", 'section': "정치"},
-    # {'source': "오마이뉴스", 'source_domain': "ohmynews.com", 'side': "LEFT", 'url': "http://rss.ohmynews.com/rss/economy.xml", 'section': "경제"},
-    # {'source': "오마이뉴스", 'source_domain': "ohmynews.com", 'side': "LEFT", 'url': "http://rss.ohmynews.com/rss/society.xml", 'section': "사회"},
-    # {'source': "오마이뉴스", 'source_domain': "ohmynews.com", 'side': "LEFT", 'url': "http://rss.ohmynews.com/rss/culture.xml", 'section': "문화"},
+    {'source': "오마이뉴스", 'source_domain': "ohmynews.com", 'side': "LEFT", 'url': "http://rss.ohmynews.com/rss/politics.xml", 'section': "정치"},
+    {'source': "오마이뉴스", 'source_domain': "ohmynews.com", 'side': "LEFT", 'url': "http://rss.ohmynews.com/rss/economy.xml", 'section': "경제"},
+    {'source': "오마이뉴스", 'source_domain': "ohmynews.com", 'side': "LEFT", 'url': "http://rss.ohmynews.com/rss/society.xml", 'section': "사회"},
+    {'source': "오마이뉴스", 'source_domain': "ohmynews.com", 'side': "LEFT", 'url': "http://rss.ohmynews.com/rss/culture.xml", 'section': "문화"},
     # RIGHT
-    # {'source': "조선일보", 'source_domain': "chosun.com", 'side': "RIGHT", 'url': "https://www.chosun.com/arc/outboundfeeds/rss/category/politics/?outputType=xml", 'section': "정치"},
-    # {'source': "조선일보", 'source_domain': "chosun.com", 'side': "RIGHT", 'url': "https://www.chosun.com/arc/outboundfeeds/rss/category/economy/?outputType=xml", 'section': "경제"},
-    # {'source': "조선일보", 'source_domain': "chosun.com", 'side': "RIGHT", 'url': "https://www.chosun.com/arc/outboundfeeds/rss/category/society/?outputType=xml", 'section': "사회"},
-    # {'source': "조선일보", 'source_domain': "chosun.com", 'side': "RIGHT", 'url': "https://www.chosun.com/arc/outboundfeeds/rss/category/culture/?outputType=xml", 'section': "문화"},
+    {'source': "조선일보", 'source_domain': "chosun.com", 'side': "RIGHT", 'url': "https://www.chosun.com/arc/outboundfeeds/rss/category/politics/?outputType=xml", 'section': "정치"},
+    {'source': "조선일보", 'source_domain': "chosun.com", 'side': "RIGHT", 'url': "https://www.chosun.com/arc/outboundfeeds/rss/category/economy/?outputType=xml", 'section': "경제"},
+    {'source': "조선일보", 'source_domain': "chosun.com", 'side': "RIGHT", 'url': "https://www.chosun.com/arc/outboundfeeds/rss/category/society/?outputType=xml", 'section': "사회"},
+    {'source': "조선일보", 'source_domain': "chosun.com", 'side': "RIGHT", 'url': "https://www.chosun.com/arc/outboundfeeds/rss/category/culture/?outputType=xml", 'section': "문화"},
     {'source': "중앙일보", 'source_domain': "joongang.co.kr", 'side': "RIGHT", 'url': "https://news.google.com/rss/search?q=site:joongang.co.kr%20정치&hl=ko&gl=KR&ceid=KR%3Ako", 'section': "정치"},
     {'source': "중앙일보", 'source_domain': "joongang.co.kr", 'side': "RIGHT", 'url': "https://news.google.com/rss/search?q=site:joongang.co.kr%20경제&hl=ko&gl=KR&ceid=KR%3Ako", 'section': "경제"},
     {'source': "중앙일보", 'source_domain': "joongang.co.kr", 'side': "RIGHT", 'url': "https://news.google.com/rss/search?q=site:joongang.co.kr%20사회&hl=ko&gl=KR&ceid=KR%3Ako", 'section': "사회"},
     {'source': "중앙일보", 'source_domain': "joongang.co.kr", 'side': "RIGHT", 'url': "https://news.google.com/rss/search?q=site:joongang.co.kr%20문화&hl=ko&gl=KR&ceid=KR%3Ako", 'section': "문화"},
-    # {'source': "동아일보", 'source_domain': "donga.com", 'side': "RIGHT", 'url': "https://rss.donga.com/politics.xml", 'section': "정치"},
-    # {'source': "동아일보", 'source_domain': "donga.com", 'side': "RIGHT", 'url': "https://rss.donga.com/economy.xml", 'section': "경제"},
-    # {'source': "동아일보", 'source_domain': "donga.com", 'side': "RIGHT", 'url': "https://rss.donga.com/national.xml", 'section': "사회"},
-    # {'source': "동아일보", 'source_domain': "donga.com", 'side': "RIGHT", 'url': "https://rss.donga.com/culture.xml", 'section': "문화"},
+    {'source': "동아일보", 'source_domain': "donga.com", 'side': "RIGHT", 'url': "https://rss.donga.com/politics.xml", 'section': "정치"},
+    {'source': "동아일보", 'source_domain': "donga.com", 'side': "RIGHT", 'url': "https://rss.donga.com/economy.xml", 'section': "경제"},
+    {'source': "동아일보", 'source_domain': "donga.com", 'side': "RIGHT", 'url': "https://rss.donga.com/national.xml", 'section': "사회"},
+    {'source': "동아일보", 'source_domain': "donga.com", 'side': "RIGHT", 'url': "https://rss.donga.com/culture.xml", 'section': "문화"},
 ]
+
+# --- 고급 HTTP 세션 설정 (article_collector.py에서 복사) ---
+retries = Retry(total=2, backoff_factor=0.5, status_forcelist=[429, 500, 502, 503, 504])
+_session_local = threading.local()
+
+def _create_session() -> requests.Session:
+    session = requests.Session()
+    session.headers.update({"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36"})
+    adapter = HTTPAdapter(max_retries=retries)
+    session.mount("http://", adapter)
+    session.mount("https://", adapter)
+    return session
+
+def get_http_session() -> requests.Session:
+    session = getattr(_session_local, "session", None)
+    if session is None:
+        session = _create_session()
+        _session_local.session = session
+    return session
 
 # --- 헬퍼 함수 ---
 def resolve_google_news_url(url):
     if 'news.google.com' in url:
         try:
-            response = requests.head(url, allow_redirects=True, timeout=5)
+            session = get_http_session()
+            response = session.head(url, allow_redirects=True, timeout=5)
             return response.url
         except requests.RequestException:
             return url
@@ -87,10 +110,8 @@ def resolve_google_news_url(url):
 
 def scrape_og_image(url):
     try:
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36'
-        }
-        response = requests.get(url, headers=headers, timeout=5)
+        session = get_http_session()
+        response = session.get(url, timeout=5)
         soup = BeautifulSoup(response.content, 'html.parser')
         og_image = soup.find('meta', property='og:image')
         if og_image and og_image.get('content', '').startswith('http'):
@@ -105,11 +126,10 @@ def clean_title(title):
     return publisher_regex.sub('', title).strip()
 
 def scrape_hankyoreh_publication_time(url):
-    """한겨레 기사 페이지에서 '등록' 시간을 스크래핑합니다."""
     try:
-        response = requests.get(url, headers={'User-Agent': 'Mozilla/5.0'}, timeout=5)
+        session = get_http_session()
+        response = session.get(url, timeout=5)
         soup = BeautifulSoup(response.content, 'html.parser')
-        # "등록" 텍스트를 포함하는 li 태그를 찾습니다.
         date_li = soup.find(lambda tag: tag.name == 'li' and '등록' in tag.get_text())
         if date_li:
             date_span = date_li.find('span')
@@ -120,10 +140,11 @@ def scrape_hankyoreh_publication_time(url):
     return None
 
 def fetch_and_parse_feed(feed_info):
-    """단일 RSS 피드를 가져와 파싱하고 기사 목록을 반환합니다."""
     articles = []
     try:
-        response = requests.get(feed_info['url'], timeout=15)
+        # 고급 세션을 사용하여 feedparser가 직접 URL을 처리하도록 함
+        session = get_http_session()
+        response = session.get(feed_info['url'], timeout=15)
         response.encoding = 'utf-8'
         parsed_feed = feedparser.parse(response.text)
 
@@ -135,38 +156,32 @@ def fetch_and_parse_feed(feed_info):
             cleaned_title = clean_title(item.title)
             final_title = html.unescape(cleaned_title)
             
-            # description 추출 (HTML 태그 제거)
             description_html = item.get('description', item.get('summary', ''))
             description_text = re.sub('<[^<]+?>', '', description_html).strip()
 
             published_time = None
             source_name = feed_info['source']
 
-            # 1. 한겨레는 직접 스크래핑
             if source_name == '한겨레':
                 published_time = scrape_hankyoreh_publication_time(final_url)
 
-            # 2. 그 외, 파싱된 시간 정보 확인 (표준)
             if not published_time:
                 time_struct = item.get('published_parsed') or item.get('updated_parsed')
                 if time_struct:
                     published_time = datetime.fromtimestamp(time.mktime(time_struct))
 
-            # 3. 파싱된 시간이 없을 경우, 원본 문자열에서 직접 파싱 시도
             if not published_time:
                 date_string = item.get('published') or item.get('updated') or item.get('dc_date')
                 if date_string:
                     try:
                         published_time = dt_parse(date_string)
                     except (ValueError, TypeError):
-                        published_time = None # 실패 시 다음 단계로
+                        published_time = None
             
-            # 4. 모든 시도가 실패하면 현재 시간으로 대체
             if not published_time:
                 published_time = datetime.now(timezone.utc)
 
             thumbnail_url = None
-
             if source_name != '중앙일보':
                 if hasattr(item, 'description'):
                     soup = BeautifulSoup(item.description, 'html.parser')
@@ -187,7 +202,7 @@ def fetch_and_parse_feed(feed_info):
                 'url': final_url,
                 'published_at': published_time,
                 'thumbnail_url': thumbnail_url,
-                'description': description_text # 추가
+                'description': description_text
             })
     except Exception as e:
         print(f"{feed_info['source']}' 피드 처리 실패: {e}")
@@ -198,7 +213,7 @@ def main():
     print("최신 기사 병렬 수집 시작 (Python)")
     all_articles = []
 
-    # ThreadPoolExecutor를 사용하여 피드를 병렬로 처리
+    print("Step 1: Starting parallel feed fetching...")
     with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
         future_to_feed = {executor.submit(fetch_and_parse_feed, feed): feed for feed in FEEDS}
         for future in concurrent.futures.as_completed(future_to_feed):
@@ -210,25 +225,26 @@ def main():
                 feed_info = future_to_feed[future]
                 print(f"{feed_info['source']} 피드 처리 중 예외 발생: {exc}")
 
-    print(f"총 {len(all_articles)}개 기사 파싱 완료.")
+    print(f"Step 2: Completed parsing for a total of {len(all_articles)} articles.")
 
-    # DB에 저장
     if not all_articles:
+        print("No new articles to save. Exiting.")
         return
 
     try:
+        print("Step 3: Attempting to connect to the database...")
         cnx = mysql.connector.connect(**DB_CONFIG)
         cursor = cnx.cursor()
+        print("Step 4: Database connection successful.")
 
-        print(f"{len(all_articles)}개의 기사를 DB에 저장 시도합니다.")
+        print(f"Step 5: Attempting to save {len(all_articles)} articles to the DB...")
 
         if all_articles:
-            # INSERT IGNORE를 사용하여 DB가 중복을 처리하도록 합니다.
             insert_query = "INSERT IGNORE INTO tn_home_article (source, source_domain, category, title, url, published_at, thumbnail_url, description) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)"
             data_to_insert = [(a['source'], a['source_domain'], a['category'], a['title'], a['url'], a['published_at'], a['thumbnail_url'], a['description']) for a in all_articles]
             cursor.executemany(insert_query, data_to_insert)
             cnx.commit()
-            print(f"{cursor.rowcount}개 기사 신규 저장 완료.")
+            print(f"Step 6: {cursor.rowcount} new articles saved successfully.")
 
     except mysql.connector.Error as err:
         print(f"DB 오류 발생: {err}")

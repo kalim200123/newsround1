@@ -12,6 +12,14 @@ article_collector_final.py
 """
 
 import os
+from dotenv import load_dotenv
+
+# .env 파일 로드. 스크립트의 위치에 관계없이 프로젝트 루트의 .env를 찾도록 설정
+dotenv_path = os.path.join(os.path.dirname(__file__), '..', '.env')
+load_dotenv(dotenv_path=dotenv_path)
+
+
+import os
 import sys
 import re
 import json

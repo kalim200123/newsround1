@@ -55,7 +55,7 @@ router.get("/topics", async (req: Request, res: Response) => {
   try {
     connection = await pool.getConnection();
     const [rows] = await connection.query(
-      "SELECT id, display_name, summary, published_at FROM tn_topic WHERE status = 'published' AND topic_type = 'CONTENT' ORDER BY published_at DESC"
+      "SELECT id, display_name, summary, published_at, view_count FROM tn_topic WHERE status = 'published' AND topic_type = 'CONTENT' ORDER BY published_at DESC"
     );
     res.json(rows);
   } catch (error) {
