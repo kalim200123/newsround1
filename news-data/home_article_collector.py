@@ -56,23 +56,23 @@ FEEDS = [
     {'source': "한겨레",   'source_domain': "hani.co.kr", 'side': "LEFT", 'url': "https://www.hani.co.kr/rss/economy/", 'section': "경제"},
     {'source': "한겨레",   'source_domain': "hani.co.kr", 'side': "LEFT", 'url': "https://www.hani.co.kr/rss/society/", 'section': "사회"},
     {'source': "한겨레",   'source_domain': "hani.co.kr", 'side': "LEFT", 'url': "https://www.hani.co.kr/rss/culture/", 'section': "문화"},
-    {'source': "오마이뉴스", 'source_domain': "ohmynews.com", 'side': "LEFT", 'url': "http://rss.ohmynews.com/rss/politics.xml", 'section': "정치"},
-    {'source': "오마이뉴스", 'source_domain': "ohmynews.com", 'side': "LEFT", 'url': "http://rss.ohmynews.com/rss/economy.xml", 'section': "경제"},
-    {'source': "오마이뉴스", 'source_domain': "ohmynews.com", 'side': "LEFT", 'url': "http://rss.ohmynews.com/rss/society.xml", 'section': "사회"},
-    {'source': "오마이뉴스", 'source_domain': "ohmynews.com", 'side': "LEFT", 'url': "http://rss.ohmynews.com/rss/culture.xml", 'section': "문화"},
+    # {'source': "오마이뉴스", 'source_domain': "ohmynews.com", 'side': "LEFT", 'url': "http://rss.ohmynews.com/rss/politics.xml", 'section': "정치"},
+    # {'source': "오마이뉴스", 'source_domain': "ohmynews.com", 'side': "LEFT", 'url': "http://rss.ohmynews.com/rss/economy.xml", 'section': "경제"},
+    # {'source': "오마이뉴스", 'source_domain': "ohmynews.com", 'side': "LEFT", 'url': "http://rss.ohmynews.com/rss/society.xml", 'section': "사회"},
+    # {'source': "오마이뉴스", 'source_domain': "ohmynews.com", 'side': "LEFT", 'url': "http://rss.ohmynews.com/rss/culture.xml", 'section': "문화"},
     # RIGHT
-    {'source': "조선일보", 'source_domain': "chosun.com", 'side': "RIGHT", 'url': "https://www.chosun.com/arc/outboundfeeds/rss/category/politics/?outputType=xml", 'section': "정치"},
-    {'source': "조선일보", 'source_domain': "chosun.com", 'side': "RIGHT", 'url': "https://www.chosun.com/arc/outboundfeeds/rss/category/economy/?outputType=xml", 'section': "경제"},
-    {'source': "조선일보", 'source_domain': "chosun.com", 'side': "RIGHT", 'url': "https://www.chosun.com/arc/outboundfeeds/rss/category/society/?outputType=xml", 'section': "사회"},
-    {'source': "조선일보", 'source_domain': "chosun.com", 'side': "RIGHT", 'url': "https://www.chosun.com/arc/outboundfeeds/rss/category/culture/?outputType=xml", 'section': "문화"},
+    # {'source': "조선일보", 'source_domain': "chosun.com", 'side': "RIGHT", 'url': "https://www.chosun.com/arc/outboundfeeds/rss/category/politics/?outputType=xml", 'section': "정치"},
+    # {'source': "조선일보", 'source_domain': "chosun.com", 'side': "RIGHT", 'url': "https://www.chosun.com/arc/outboundfeeds/rss/category/economy/?outputType=xml", 'section': "경제"},
+    # {'source': "조선일보", 'source_domain': "chosun.com", 'side': "RIGHT", 'url': "https://www.chosun.com/arc/outboundfeeds/rss/category/society/?outputType=xml", 'section': "사회"},
+    # {'source': "조선일보", 'source_domain': "chosun.com", 'side': "RIGHT", 'url': "https://www.chosun.com/arc/outboundfeeds/rss/category/culture/?outputType=xml", 'section': "문화"},
     {'source': "중앙일보", 'source_domain': "joongang.co.kr", 'side': "RIGHT", 'url': "https://news.google.com/rss/search?q=site:joongang.co.kr%20정치&hl=ko&gl=KR&ceid=KR%3Ako", 'section': "정치"},
     {'source': "중앙일보", 'source_domain': "joongang.co.kr", 'side': "RIGHT", 'url': "https://news.google.com/rss/search?q=site:joongang.co.kr%20경제&hl=ko&gl=KR&ceid=KR%3Ako", 'section': "경제"},
     {'source': "중앙일보", 'source_domain': "joongang.co.kr", 'side': "RIGHT", 'url': "https://news.google.com/rss/search?q=site:joongang.co.kr%20사회&hl=ko&gl=KR&ceid=KR%3Ako", 'section': "사회"},
     {'source': "중앙일보", 'source_domain': "joongang.co.kr", 'side': "RIGHT", 'url': "https://news.google.com/rss/search?q=site:joongang.co.kr%20문화&hl=ko&gl=KR&ceid=KR%3Ako", 'section': "문화"},
-    {'source': "동아일보", 'source_domain': "donga.com", 'side': "RIGHT", 'url': "https://rss.donga.com/politics.xml", 'section': "정치"},
-    {'source': "동아일보", 'source_domain': "donga.com", 'side': "RIGHT", 'url': "https://rss.donga.com/economy.xml", 'section': "경제"},
-    {'source': "동아일보", 'source_domain': "donga.com", 'side': "RIGHT", 'url': "https://rss.donga.com/national.xml", 'section': "사회"},
-    {'source': "동아일보", 'source_domain': "donga.com", 'side': "RIGHT", 'url': "https://rss.donga.com/culture.xml", 'section': "문화"},
+    # {'source': "동아일보", 'source_domain': "donga.com", 'side': "RIGHT", 'url': "https://rss.donga.com/politics.xml", 'section': "정치"},
+    # {'source': "동아일보", 'source_domain': "donga.com", 'side': "RIGHT", 'url': "https://rss.donga.com/economy.xml", 'section': "경제"},
+    # {'source': "동아일보", 'source_domain': "donga.com", 'side': "RIGHT", 'url': "https://rss.donga.com/national.xml", 'section': "사회"},
+    # {'source': "동아일보", 'source_domain': "donga.com", 'side': "RIGHT", 'url': "https://rss.donga.com/culture.xml", 'section': "문화"},
 ]
 
 # --- 헬퍼 함수 ---
@@ -104,6 +104,21 @@ def clean_title(title):
     publisher_regex = re.compile(r'\s*[-–—|:]\s*(중앙일보|조선일보|동아일보|한겨레|경향신문|오마이뉴스|joongang|chosun|donga|hani|khan)\s*$', re.I)
     return publisher_regex.sub('', title).strip()
 
+def scrape_hankyoreh_publication_time(url):
+    """한겨레 기사 페이지에서 '등록' 시간을 스크래핑합니다."""
+    try:
+        response = requests.get(url, headers={'User-Agent': 'Mozilla/5.0'}, timeout=5)
+        soup = BeautifulSoup(response.content, 'html.parser')
+        # "등록" 텍스트를 포함하는 li 태그를 찾습니다.
+        date_li = soup.find(lambda tag: tag.name == 'li' and '등록' in tag.get_text())
+        if date_li:
+            date_span = date_li.find('span')
+            if date_span:
+                return dt_parse(date_span.get_text())
+    except Exception as e:
+        print(f"[Scraper] Failed to scrape Hankyoreh date for {url}: {e}")
+    return None
+
 def fetch_and_parse_feed(feed_info):
     """단일 RSS 피드를 가져와 파싱하고 기사 목록을 반환합니다."""
     articles = []
@@ -125,19 +140,23 @@ def fetch_and_parse_feed(feed_info):
             description_text = re.sub('<[^<]+?>', '', description_html).strip()
 
             published_time = None
-            if hasattr(item, 'published_parsed') and item.published_parsed:
-                published_time = datetime.fromtimestamp(time.mktime(item.published_parsed))
-            elif hasattr(item, 'published'):
-                try:
-                    # dateutil.parser로 비표준 형식 파싱 시도
-                    published_time = dt_parse(item.published)
-                except (ValueError, TypeError):
+            source_name = feed_info['source']
+
+            if source_name == '한겨레':
+                published_time = scrape_hankyoreh_publication_time(final_url)
+
+            if not published_time:
+                if hasattr(item, 'published_parsed') and item.published_parsed:
+                    published_time = datetime.fromtimestamp(time.mktime(item.published_parsed))
+                elif hasattr(item, 'published'):
+                    try:
+                        published_time = dt_parse(item.published)
+                    except (ValueError, TypeError):
+                        published_time = datetime.now(timezone.utc)
+                else:
                     published_time = datetime.now(timezone.utc)
-            else:
-                published_time = datetime.now(timezone.utc)
 
             thumbnail_url = None
-            source_name = feed_info['source']
 
             if source_name != '중앙일보':
                 if hasattr(item, 'description'):
