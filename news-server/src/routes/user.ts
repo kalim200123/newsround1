@@ -4,6 +4,9 @@ import pool from "../config/db";
 import { authenticateUser, AuthenticatedRequest } from "../middleware/userAuth";
 import { validateUpdateUser } from "../middleware/updateUserValidation";
 import { validateChangePassword } from "../middleware/changePasswordValidation";
+import path from "path";
+
+import fs from "fs";
 
 const router = express.Router();
 
@@ -88,13 +91,24 @@ router.get("/me", authenticateUser, async (req: AuthenticatedRequest, res: Respo
  */
 router.put("/me", authenticateUser, validateUpdateUser, async (req: AuthenticatedRequest, res: Response) => {
   const userId = req.user?.userId;
-  const { nickname, phone } = req.body;
+  const { nickname, phone, profile_image_url } = req.body;
 
-  if (!nickname && !phone) {
+  if (!nickname && !phone && !profile_image_url) {
     return res.status(400).json({ message: "수정할 정보를 입력해주세요." });
   }
 
   try {
+    // 프로필 이미지 URL 유효성 검사
+    if (profile_image_url) {
+      const avatarDir = path.join(__dirname, "../../public/avatars");
+      const files = fs.readdirSync(avatarDir);
+      const validUrls = files.map(file => `/public/avatars/${file}`);
+      if (!validUrls.includes(profile_image_url)) {
+        return res.status(400).json({ field: 'profile_image_url', message: "유효하지 않은 프로필 이미지입니다." });
+      }
+    }
+
+    // 중복 확인
     if (nickname) {
       const [existingUsers]: any = await pool.query(
         "SELECT id FROM tn_user WHERE nickname = ? AND id != ?",
@@ -114,6 +128,7 @@ router.put("/me", authenticateUser, validateUpdateUser, async (req: Authenticate
       }
     }
 
+    // 정보 업데이트
     const fieldsToUpdate = [];
     const params = [];
     if (nickname) {
@@ -123,6 +138,10 @@ router.put("/me", authenticateUser, validateUpdateUser, async (req: Authenticate
     if (phone) {
       fieldsToUpdate.push("phone = ?");
       params.push(phone);
+    }
+    if (profile_image_url) {
+      fieldsToUpdate.push("profile_image_url = ?");
+      params.push(profile_image_url);
     }
     params.push(userId);
 

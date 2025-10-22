@@ -2,8 +2,42 @@ import { Request, Response, Router } from "express";
 import pool from "../config/db";
 import { AuthenticatedRequest, authenticateUser, optionalAuthenticateUser } from "../middleware/userAuth";
 import { FAVICON_URLS } from "../config/favicons";
+import fs from "fs";
+import path from "path";
 
 const router = Router();
+
+/**
+ * @swagger
+ * /api/avatars:
+ *   get:
+ *     tags: [User]
+ *     summary: 선택 가능한 프로필 아바타 목록 조회
+ *     description: "사용자가 프로필 사진으로 선택할 수 있는 모든 아바타 이미지의 URL 목록을 반환합니다."
+ *     responses:
+ *       200:
+ *         description: "아바타 이미지 URL 배열"
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: string
+ */
+router.get("/avatars", (req: Request, res: Response) => {
+  const avatarDir = path.join(__dirname, "../../public/avatars");
+  try {
+    const files = fs.readdirSync(avatarDir);
+    // 'default.svg'를 제외하고, 전체 URL 경로로 매핑
+    const avatarUrls = files
+      .filter(file => file !== 'default.svg')
+      .map(file => `/public/avatars/${file}`);
+    res.json(avatarUrls);
+  } catch (error) {
+    console.error("Error reading avatars directory:", error);
+    res.status(500).json({ message: "아바타 목록을 불러오는 중 오류가 발생했습니다." });
+  }
+});
 
 /**
  * @swagger

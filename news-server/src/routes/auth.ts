@@ -119,9 +119,10 @@ router.post("/signup", validateSignup, async (req: Request, res: Response) => {
     const saltRounds = 10;
     const passwordHash = await bcrypt.hash(password, saltRounds);
 
+    const defaultProfileImageUrl = "/public/avatars/default.svg";
     await pool.query(
-      "INSERT INTO tn_user (name, nickname, email, password, phone) VALUES (?, ?, ?, ?, ?)",
-      [trimmedName, trimmedNickname, trimmedEmail, passwordHash, trimmedPhone || null]
+      "INSERT INTO tn_user (name, nickname, email, password, phone, profile_image_url) VALUES (?, ?, ?, ?, ?, ?)",
+      [trimmedName, trimmedNickname, trimmedEmail, passwordHash, trimmedPhone || null, defaultProfileImageUrl]
     );
 
     res.status(201).json({ message: "회원가입이 완료되었습니다." });

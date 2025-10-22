@@ -30,6 +30,7 @@ const port = Number(process.env.PORT ?? 3000);
 // 전역 미들웨어
 app.use(cors());
 app.use(express.json());
+app.use("/public", express.static("public"));
 app.use(express.urlencoded({ extended: true }));
 
 // Swagger UI
