@@ -80,7 +80,7 @@ router.get("/topics", async (req: Request, res: Response) => {
 router.get("/topics/popular-ranking", async (req: Request, res: Response) => {
   try {
     const [rows] = await pool.query(
-      `SELECT id, display_name, summary, published_at 
+      `SELECT id, display_name, summary, published_at, view_count, popularity_score 
        FROM tn_topic 
        WHERE status = 'published' AND topic_type = 'CONTENT'
        ORDER BY popularity_score DESC, published_at DESC
