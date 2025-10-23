@@ -259,30 +259,6 @@ router.use(authenticateAdmin);
 
 /**
  * @swagger
- * /api/admin/topics/suggested:
- *   get:
- *     tags: [Admin]
- *     summary: 제안됨 상태의 토픽 후보 목록 조회
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: 제안된 토픽 목록
- *       401:
- *         description: 인증 실패
- */
-router.get("/topics/suggested", async (req: Request, res: Response) => {
-  try {
-    const [rows] = await pool.query("SELECT * FROM tn_topic WHERE status = 'suggested' ORDER BY created_at DESC");
-    res.json(rows);
-  } catch (error) {
-    console.error("Error fetching suggested topics:", error);
-    res.status(500).json({ message: "Server error", detail: (error as Error).message });
-  }
-});
-
-/**
- * @swagger
  * /api/admin/topics/published:
  *   get:
  *     tags: [Admin]
@@ -373,126 +349,6 @@ router.post("/topics", async (req: Request, res: Response) => {
       .json({ message: `Topic ${newTopicId} has been created and published. Article collection started.` });
   } catch (error) {
     console.error("Error creating new topic:", error);
-    res.status(500).json({ message: "Server error", detail: (error as Error).message });
-  }
-});
-
-/**
- * @swagger
- * /api/admin/topics/{topicId}/publish:
- *   patch:
- *     tags: [Admin]
- *     summary: 제안된 토픽을 발행됨 상태로 변경
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: topicId
- *         required: true
- *         schema:
- *           type: integer
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required: [displayName, searchKeywords]
- *             properties:
- *               displayName:
- *                 type: string
- *               searchKeywords:
- *                 type: string
- *               summary:
- *                 type: string
- *     responses:
- *       200:
- *         description: 토픽 발행 성공
- */
-router.patch("/topics/:topicId/publish", async (req: Request, res: Response) => {
-  const { topicId } = req.params;
-  const { displayName, searchKeywords, summary } = req.body;
-
-  if (!displayName || !searchKeywords) {
-    return res.status(400).json({ message: "Display name and search keywords are required." });
-  }
-
-  try {
-    const [result]: any = await pool.query(
-      "UPDATE tn_topic SET status = 'published', collection_status = 'pending', display_name = ?, search_keywords = ?, summary = ?, published_at = NOW() WHERE id = ? AND status = 'suggested'",
-      [displayName, searchKeywords, summary, topicId]
-    );
-
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ message: "Topic not found or already handled." });
-    }
-
-        const pythonScriptPath = path.join(__dirname, "../../../news-data/article_collector.py");
-
-        const command = `python3`;
-
-        const args = ["-u", pythonScriptPath, topicId];
-
-    
-
-        console.log(`Executing: ${command} ${args.join(' ')}`);
-
-        const pythonProcess = spawn(command, args);
-
-    
-
-        pythonProcess.stdout.on("data", (data) => {
-
-          console.log(`[article_collector.py stdout]: ${data.toString().trim()}`);
-
-        });
-
-        pythonProcess.stderr.on("data", (data) => {
-
-          console.error(`[article_collector.py stderr]: ${data.toString().trim()}`);
-
-        });
-
-    res.json({ message: `Topic ${topicId} has been published. Article collection started in the background.` });
-  } catch (error) {
-    console.error("Error publishing topic:", error);
-    res.status(500).json({ message: "Server error", detail: (error as Error).message });
-  }
-});
-
-/**
- * @swagger
- * /api/admin/topics/{topicId}/reject:
- *   patch:
- *     tags: [Admin]
- *     summary: 제안된 토픽을 거절됨 상태로 변경
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: topicId
- *         required: true
- *         schema:
- *           type: integer
- *     responses:
- *       200:
- *         description: 토픽 거절 성공
- */
-router.patch("/topics/:topicId/reject", async (req: Request, res: Response) => {
-  const { topicId } = req.params;
-  try {
-    const [result]: any = await pool.query(
-      "UPDATE tn_topic SET status = 'rejected' WHERE id = ? AND status = 'suggested'",
-      [topicId]
-    );
-
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ message: "Topic not found or already handled." });
-    }
-
-    res.json({ message: `Topic ${topicId} has been rejected.` });
-  } catch (error) {
-    console.error("Error rejecting topic:", error);
     res.status(500).json({ message: "Server error", detail: (error as Error).message });
   }
 });
@@ -886,7 +742,7 @@ router.post("/topics/:topicId/recollect", async (req: Request, res: Response) =>
     }
 
     const pythonScriptPath = path.join(__dirname, "../../../news-data/article_collector.py");
-    const command = `python "${pythonScriptPath}" ${topicId}`;
+    const command = `python3 "${pythonScriptPath}" ${topicId}`;
 
     exec(command, (error, stdout, stderr) => {
       if (error) {

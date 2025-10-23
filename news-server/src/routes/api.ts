@@ -221,12 +221,12 @@ router.post("/topics/:topicId/view", optionalAuthenticateUser, async (req: Authe
       [topicId]
     );
 
-    await connection.commit();
-
     if (updateResult.affectedRows === 0) {
+      await connection.rollback();
       return res.status(404).json({ message: "Topic not found." });
     }
 
+    await connection.commit();
     res.status(200).json({ message: "Topic view count incremented." });
 
   } catch (error) {

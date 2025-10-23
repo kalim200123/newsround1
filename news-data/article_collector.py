@@ -43,7 +43,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import threading
 
 # ---------------- Config ----------------
-MODEL_NAME = os.getenv("EMBED_MODEL", "intfloat/multilingual-e5-small")
+MODEL_NAME = os.getenv("EMBED_MODEL", "intfloat/multilingual-e5-base")
 TIME_WINDOW_HOURS = int(os.getenv("TIME_WINDOW_HOURS", "72"))
 TARGET_PER_SIDE = int(os.getenv("TARGET_ARTICLES_PER_SIDE", "10"))
 SIMILARITY_THRESHOLD = float(os.getenv("SIMILARITY_THRESHOLD", "0.80"))
