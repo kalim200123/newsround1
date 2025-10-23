@@ -259,6 +259,146 @@ router.use(authenticateAdmin);
 
 /**
  * @swagger
+ * /api/admin/topics/suggested:
+ *   get:
+ *     tags: [Admin]
+ *     summary: 제안됨 상태의 토픽 후보 목록 조회 (현재 비활성화)
+ *     description: "토픽 자동 발굴 기능이 비활성화되어, 이 API는 항상 빈 목록을 반환합니다."
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: 빈 토픽 목록
+ */
+router.get("/topics/suggested", async (req: Request, res: Response) => {
+  // 토픽 자동 발굴 기능이 비활성화되었으므로 항상 빈 배열을 반환합니다.
+  res.json([]);
+});
+
+/**
+ * @swagger
+ * /api/admin/topics/published:
+ *   get:
+ *     tags: [Admin]
+ *     summary: 발행됨 상태의 모든 토픽 목록 조회
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: 발행된 토픽 목록
+ *       401:
+ *         description: 인증 실패
+ */
+router.get("/topics/published", async (req: Request, res: Response) => {
+  try {
+    const [rows] = await pool.query(
+      "SELECT id, display_name, published_at FROM tn_topic WHERE status = 'published' AND topic_type = 'CONTENT' ORDER BY published_at DESC"
+    );
+    res.json(rows);
+  } catch (error) {
+    console.error("Error fetching published topics:", error);
+    res.status(500).json({ message: "Server error", detail: (error as Error).message });
+  }
+});
+
+/**
+ * @swagger
+ * /api/admin/topics/{topicId}/publish:
+ *   patch:
+ *     tags: [Admin]
+ *     summary: 제안된 토픽을 발행됨 상태로 변경
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: topicId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [displayName, searchKeywords]
+ *             properties:
+ *               displayName:
+ *                 type: string
+ *               searchKeywords:
+ *                 type: string
+ *               summary:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: 토픽 발행 성공
+ */
+router.patch("/topics/:topicId/publish", async (req: Request, res: Response) => {
+  const { topicId } = req.params;
+  const { displayName, searchKeywords, summary } = req.body;
+
+  if (!displayName || !searchKeywords) {
+    return res.status(400).json({ message: "Display name and search keywords are required." });
+  }
+
+  try {
+    const [result]: any = await pool.query(
+      "UPDATE tn_topic SET status = 'published', collection_status = 'pending', display_name = ?, search_keywords = ?, summary = ?, published_at = NOW() WHERE id = ? AND status = 'suggested'",
+      [displayName, searchKeywords, summary, topicId]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: "Topic not found or already handled." });
+    }
+    
+    // 기사 수집 스크립트 자동 실행 로직은 제거됨. 관리자가 로컬에서 수동 실행.
+    res.json({ message: `Topic ${topicId} has been published. Please collect articles manually.` });
+
+  } catch (error) {
+    console.error("Error publishing topic:", error);
+    res.status(500).json({ message: "Server error", detail: (error as Error).message });
+  }
+});
+
+/**
+ * @swagger
+ * /api/admin/topics/{topicId}/reject:
+ *   patch:
+ *     tags: [Admin]
+ *     summary: 제안된 토픽을 거절됨 상태로 변경
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: topicId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: 토픽 거절 성공
+ */
+router.patch("/topics/:topicId/reject", async (req: Request, res: Response) => {
+  const { topicId } = req.params;
+  try {
+    const [result]: any = await pool.query(
+      "UPDATE tn_topic SET status = 'rejected' WHERE id = ? AND status = 'suggested'",
+      [topicId]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: "Topic not found or already handled." });
+    }
+
+    res.json({ message: `Topic ${topicId} has been rejected.` });
+  } catch (error) {
+    console.error("Error rejecting topic:", error);
+    res.status(500).json({ message: "Server error", detail: (error as Error).message });
+  }
+});
+
+/**
+ * @swagger
  * /api/admin/topics/published:
  *   get:
  *     tags: [Admin]

@@ -40,6 +40,18 @@ DB_CONFIG = {
     "database": os.getenv("DB_DATABASE"),
 }
 
+KST = timezone(timedelta(hours=9))
+
+# --- 헬퍼 함수 ---
+
+def normalize_datetime_to_utc(dt: datetime) -> datetime:
+    """시간대 정보가 없는 datetime은 KST로 간주하고, 모든 datetime을 UTC로 변환합니다."""
+    if dt.tzinfo is None:
+        # 시간대 정보가 없으면 KST로 설정
+        dt = dt.replace(tzinfo=KST)
+    # UTC로 변환
+    return dt.astimezone(timezone.utc)
+
 if os.getenv("DB_SSL_ENABLED") == 'true':
     is_production = os.getenv('NODE_ENV') == 'production'
     if is_production:
@@ -159,32 +171,39 @@ def fetch_and_parse_feed(feed_info):
             description_html = item.get('description', item.get('summary', ''))
             description_text = re.sub('<[^<]+?>', '', description_html).strip()
 
-            published_time = None
+            # --- 날짜 처리 시작 ---
+            published_time_utc = None
+            parsed_time = None
             source_name = feed_info['source']
 
+            # 1. 한겨레는 직접 스크래핑
             if source_name == '한겨레':
-                published_time = scrape_hankyoreh_publication_time(final_url)
+                parsed_time = scrape_hankyoreh_publication_time(final_url)
 
-            if not published_time:
+            # 2. 파싱된 시간 정보 확인 (표준)
+            if not parsed_time:
                 time_struct = item.get('published_parsed') or item.get('updated_parsed')
                 if time_struct:
-                    published_time = datetime.fromtimestamp(time.mktime(time_struct))
+                    parsed_time = datetime.fromtimestamp(time.mktime(time_struct))
 
-            if not published_time:
+            # 3. 원본 문자열에서 직접 파싱 시도
+            if not parsed_time:
                 date_string = item.get('published') or item.get('updated') or item.get('dc_date')
                 if date_string:
                     try:
-                        published_time = dt_parse(date_string)
+                        parsed_time = dt_parse(date_string)
                     except (ValueError, TypeError):
-                        published_time = None
+                        pass # 실패 시 None 유지
             
-            # 모든 시도가 실패하면 현재 시간으로 대체
-            if not published_time:
-                published_time = datetime.now()
+            # 4. 파싱된 시간이 있다면 UTC로 변환, 없으면 현재 시간(UTC)으로 대체
+            if parsed_time:
+                published_time_utc = normalize_datetime_to_utc(parsed_time)
+            else:
+                published_time_utc = datetime.now(timezone.utc)
+            # --- 날짜 처리 끝 ---
 
-            # 시간 필터링: 비교를 위해 모든 시간 정보를 naive로 통일
-            cutoff_time = datetime.now() - timedelta(days=1)
-            if published_time.replace(tzinfo=None) < cutoff_time:
+            # 시간 필터링: 1일 이상 지난 기사는 건너뛰기 (UTC 기준)
+            if published_time_utc < (datetime.now(timezone.utc) - timedelta(days=1)):
                 continue
 
             thumbnail_url = None
@@ -206,7 +225,7 @@ def fetch_and_parse_feed(feed_info):
                 'category': feed_info['section'],
                 'title': final_title,
                 'url': final_url,
-                'published_at': published_time,
+                'published_at': published_time_utc, # 수정된 변수 사용
                 'thumbnail_url': thumbnail_url,
                 'description': description_text
             })

@@ -141,13 +141,34 @@ logging.basicConfig(
     ]
 )
 
+KST = timezone(timedelta(hours=9))
+
 def now_kst() -> datetime:
     return datetime.now(KST)
-
 
 def now_kst_naive() -> datetime:
     return datetime.now(KST).replace(tzinfo=None)
 
+def normalize_datetime_to_utc(dt: datetime) -> datetime:
+    """시간대 정보가 없는 datetime은 KST로 간주하고, 모든 datetime을 UTC로 변환합니다."""
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=KST)
+    return dt.astimezone(timezone.utc)
+
+def scrape_hankyoreh_publication_time(url: str) -> Optional[datetime]:
+    """한겨레 기사 페이지에서 '등록' 시간을 스크래핑합니다."""
+    try:
+        session = get_http_session()
+        response = session.get(url, timeout=REQUEST_TIMEOUT)
+        soup = BeautifulSoup(response.text, "html.parser")
+        date_li = soup.find(lambda tag: tag.name == 'li' and '등록' in tag.get_text())
+        if date_li:
+            date_span = date_li.find('span')
+            if date_span:
+                return dt_parse(date_span.get_text())
+    except Exception as e:
+        logging.warning(f"[Scrape] Failed to scrape Hankyoreh date for {url}: {e}")
+    return None
 
 def to_kst_naive(dt: Optional[datetime]) -> Optional[datetime]:
     if dt is None:
@@ -482,22 +503,33 @@ def pull_feeds() -> List[Article]:
             if not link:
                 continue
 
-            published_str = getattr(entry, "published", None) or getattr(entry, "updated", None)
             published_dt: Optional[datetime] = None
-            is_hankyoreh = f.source_domain == 'hani.co.kr'
+            source_name = f.source
 
-            if published_str and not is_hankyoreh:
-                try:
-                    parsed_dt = dt_parse(published_str)
-                    if parsed_dt.tzinfo is not None:
-                        published_dt = parsed_dt.astimezone(KST).replace(tzinfo=None)
-                    else:
-                        published_dt = parsed_dt
-                except Exception:
-                    published_dt = None  # 파싱 실패 시 None으로 유지
+            # 1. 한겨레는 직접 스크래핑
+            if source_name == '한겨레':
+                published_dt = scrape_hankyoreh_publication_time(link)
 
-            if published_dt and not is_hankyoreh:
-                published_dt = to_kst_naive(published_dt)
+            # 2. 파싱된 시간 정보 확인 (표준)
+            if not published_dt:
+                time_struct = entry.get('published_parsed') or entry.get('updated_parsed')
+                if time_struct:
+                    published_dt = datetime.fromtimestamp(time.mktime(time_struct))
+
+            # 3. 원본 문자열에서 직접 파싱 시도
+            if not published_dt:
+                date_string = entry.get('published') or entry.get('updated') or entry.get('dc_date')
+                if date_string:
+                    try:
+                        published_dt = dt_parse(date_string)
+                    except (ValueError, TypeError):
+                        pass # 실패 시 None 유지
+            
+            # 4. 파싱된 시간이 있다면 UTC로 변환, 없으면 현재 시간(UTC)으로 대체
+            if published_dt:
+                published_dt = normalize_datetime_to_utc(published_dt)
+            else:
+                published_dt = datetime.now(timezone.utc)
 
             desc = re.sub(r"<[^>]+>", " ", getattr(entry, "summary", "") or "")
             all_articles.append(Article(
