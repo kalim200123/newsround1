@@ -273,13 +273,13 @@ def scrape_thumbnail_url(article_url: str) -> Optional[str]:
     if og and og.get("content"):
         normalized = _normalize_image_url(og.get("content"), article_url)
         if normalized:
-            return normalized
+            return _get_donga_high_res_url(normalized)
 
     twitter = soup.find("meta", attrs={"name": "twitter:image"})
     if twitter and twitter.get("content"):
         normalized = _normalize_image_url(twitter.get("content"), article_url)
         if normalized:
-            return normalized
+            return _get_donga_high_res_url(normalized)
 
     return None
 
@@ -318,6 +318,13 @@ def _normalize_image_url(candidate: Optional[str], base_url: str) -> Optional[st
     if candidate.startswith("//"):
         candidate = f"https:{candidate}"
     return urljoin(base_url, candidate)
+
+def _get_donga_high_res_url(url: str) -> str:
+    """동아일보 저화질 썸네일 URL을 고화질 URL로 변환 시도"""
+    if "dimg.donga.com" in url:
+        # /i/150/150/90/ 같은 부분을 제거
+        return re.sub(r'/i/\d+/\d+/\d+/', '/', url)
+    return url
 
 
 def _extract_image_from_json(obj):

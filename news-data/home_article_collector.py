@@ -4,11 +4,12 @@ import sys
 import time
 import html
 from datetime import datetime, timezone, timedelta
+from typing import Optional, Dict, List, Any
 import feedparser
 import mysql.connector
 import requests
 from bs4 import BeautifulSoup
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urljoin
 from dotenv import load_dotenv
 import concurrent.futures
 from dateutil.parser import parse as dt_parse
@@ -41,18 +42,6 @@ DB_CONFIG = {
     "database": os.getenv("DB_DATABASE"),
 }
 
-KST = timezone(timedelta(hours=9))
-
-# --- 헬퍼 함수 ---
-
-def normalize_datetime_to_utc(dt: datetime) -> datetime:
-    """시간대 정보가 없는(naive) datetime은 KST로 간주하고, 모든 datetime을 UTC로 변환합니다."""
-    if dt.tzinfo is None or dt.tzinfo.utcoffset(dt) is None:
-        # 시간대 정보가 없으면 KST로 설정
-        dt = dt.replace(tzinfo=KST)
-    # UTC로 변환
-    return dt.astimezone(timezone.utc)
-
 if os.getenv("DB_SSL_ENABLED") == 'true':
     is_production = os.getenv('NODE_ENV') == 'production'
     if is_production:
@@ -61,37 +50,38 @@ if os.getenv("DB_SSL_ENABLED") == 'true':
     else:
         DB_CONFIG["ssl_verify_cert"] = False
 
-# 테스트를 위해 3개 언론사만 남김
-FEEDS = [
+KST = timezone(timedelta(hours=9))
+
+FEEDS: List[Dict[str, Any]] = [
     # LEFT
-    {'source': "경향신문", 'source_domain': "khan.co.kr", 'side': "LEFT", 'url': "https://www.khan.co.kr/rss/rssdata/politic_news.xml", 'section': "정치"},
-    {'source': "경향신문", 'source_domain': "khan.co.kr", 'side': "LEFT", 'url': "https://www.khan.co.kr/rss/rssdata/economy_news.xml", 'section': "경제"},
-    {'source': "경향신문", 'source_domain': "khan.co.kr", 'side': "LEFT", 'url': "https://www.khan.co.kr/rss/rssdata/society_news.xml", 'section': "사회"},
-    {'source': "경향신문", 'source_domain': "khan.co.kr", 'side': "LEFT", 'url': "https://www.khan.co.kr/rss/rssdata/culture_news.xml", 'section': "문화"},
-    {'source': "한겨레",   'source_domain': "hani.co.kr", 'side': "LEFT", 'url': "https://www.hani.co.kr/rss/politics/", 'section': "정치"},
-    {'source': "한겨레",   'source_domain': "hani.co.kr", 'side': "LEFT", 'url': "https://www.hani.co.kr/rss/economy/", 'section': "경제"},
-    {'source': "한겨레",   'source_domain': "hani.co.kr", 'side': "LEFT", 'url': "https://www.hani.co.kr/rss/society/", 'section': "사회"},
-    {'source': "한겨레",   'source_domain': "hani.co.kr", 'side': "LEFT", 'url': "https://www.hani.co.kr/rss/culture/", 'section': "문화"},
-    {'source': "오마이뉴스", 'source_domain': "ohmynews.com", 'side': "LEFT", 'url': "http://rss.ohmynews.com/rss/politics.xml", 'section': "정치"},
-    {'source': "오마이뉴스", 'source_domain': "ohmynews.com", 'side': "LEFT", 'url': "http://rss.ohmynews.com/rss/economy.xml", 'section': "경제"},
-    {'source': "오마이뉴스", 'source_domain': "ohmynews.com", 'side': "LEFT", 'url': "http://rss.ohmynews.com/rss/society.xml", 'section': "사회"},
-    {'source': "오마이뉴스", 'source_domain': "ohmynews.com", 'side': "LEFT", 'url': "http://rss.ohmynews.com/rss/culture.xml", 'section': "문화"},
+    {'source': "경향신문", 'source_domain': "khan.co.kr", 'url': "https://www.khan.co.kr/rss/rssdata/politic_news.xml", 'section': "정치"},
+    {'source': "경향신문", 'source_domain': "khan.co.kr", 'url': "https://www.khan.co.kr/rss/rssdata/economy_news.xml", 'section': "경제"},
+    {'source': "경향신문", 'source_domain': "khan.co.kr", 'url': "https://www.khan.co.kr/rss/rssdata/society_news.xml", 'section': "사회"},
+    {'source': "경향신문", 'source_domain': "khan.co.kr", 'url': "https://www.khan.co.kr/rss/rssdata/culture_news.xml", 'section': "문화"},
+    {'source': "한겨레",   'source_domain': "hani.co.kr", 'url': "https://www.hani.co.kr/rss/politics/", 'section': "정치"},
+    {'source': "한겨레",   'source_domain': "hani.co.kr", 'url': "https://www.hani.co.kr/rss/economy/", 'section': "경제"},
+    {'source': "한겨레",   'source_domain': "hani.co.kr", 'url': "https://www.hani.co.kr/rss/society/", 'section': "사회"},
+    {'source': "한겨레",   'source_domain': "hani.co.kr", 'url': "https://www.hani.co.kr/rss/culture/", 'section': "문화"},
+    {'source': "오마이뉴스", 'source_domain': "ohmynews.com", 'url': "http://rss.ohmynews.com/rss/politics.xml", 'section': "정치"},
+    {'source': "오마이뉴스", 'source_domain': "ohmynews.com", 'url': "http://rss.ohmynews.com/rss/economy.xml", 'section': "경제"},
+    {'source': "오마이뉴스", 'source_domain': "ohmynews.com", 'url': "http://rss.ohmynews.com/rss/society.xml", 'section': "사회"},
+    {'source': "오마이뉴스", 'source_domain': "ohmynews.com", 'url': "http://rss.ohmynews.com/rss/culture.xml", 'section': "문화"},
     # RIGHT
-    {'source': "조선일보", 'source_domain': "chosun.com", 'side': "RIGHT", 'url': "https://www.chosun.com/arc/outboundfeeds/rss/category/politics/?outputType=xml", 'section': "정치"},
-    {'source': "조선일보", 'source_domain': "chosun.com", 'side': "RIGHT", 'url': "https://www.chosun.com/arc/outboundfeeds/rss/category/economy/?outputType=xml", 'section': "경제"},
-    {'source': "조선일보", 'source_domain': "chosun.com", 'side': "RIGHT", 'url': "https://www.chosun.com/arc/outboundfeeds/rss/category/society/?outputType=xml", 'section': "사회"},
-    {'source': "조선일보", 'source_domain': "chosun.com", 'side': "RIGHT", 'url': "https://www.chosun.com/arc/outboundfeeds/rss/category/culture/?outputType=xml", 'section': "문화"},
-    {'source': "중앙일보", 'source_domain': "joongang.co.kr", 'side': "RIGHT", 'url': "https://news.google.com/rss/search?q=site:joongang.co.kr%20정치&hl=ko&gl=KR&ceid=KR%3Ako", 'section': "정치"},
-    {'source': "중앙일보", 'source_domain': "joongang.co.kr", 'side': "RIGHT", 'url': "https://news.google.com/rss/search?q=site:joongang.co.kr%20경제&hl=ko&gl=KR&ceid=KR%3Ako", 'section': "경제"},
-    {'source': "중앙일보", 'source_domain': "joongang.co.kr", 'side': "RIGHT", 'url': "https://news.google.com/rss/search?q=site:joongang.co.kr%20사회&hl=ko&gl=KR&ceid=KR%3Ako", 'section': "사회"},
-    {'source': "중앙일보", 'source_domain': "joongang.co.kr", 'side': "RIGHT", 'url': "https://news.google.com/rss/search?q=site:joongang.co.kr%20문화&hl=ko&gl=KR&ceid=KR%3Ako", 'section': "문화"},
-    {'source': "동아일보", 'source_domain': "donga.com", 'side': "RIGHT", 'url': "https://rss.donga.com/politics.xml", 'section': "정치"},
-    {'source': "동아일보", 'source_domain': "donga.com", 'side': "RIGHT", 'url': "https://rss.donga.com/economy.xml", 'section': "경제"},
-    {'source': "동아일보", 'source_domain': "donga.com", 'side': "RIGHT", 'url': "https://rss.donga.com/national.xml", 'section': "사회"},
-    {'source': "동아일보", 'source_domain': "donga.com", 'side': "RIGHT", 'url': "https://rss.donga.com/culture.xml", 'section': "문화"},
+    {'source': "조선일보", 'source_domain': "chosun.com", 'url': "https://www.chosun.com/arc/outboundfeeds/rss/category/politics/?outputType=xml", 'section': "정치"},
+    {'source': "조선일보", 'source_domain': "chosun.com", 'url': "https://www.chosun.com/arc/outboundfeeds/rss/category/economy/?outputType=xml", 'section': "경제"},
+    {'source': "조선일보", 'source_domain': "chosun.com", 'url': "https://www.chosun.com/arc/outboundfeeds/rss/category/society/?outputType=xml", 'section': "사회"},
+    {'source': "조선일보", 'source_domain': "chosun.com", 'url': "https://www.chosun.com/arc/outboundfeeds/rss/category/culture/?outputType=xml", 'section': "문화"},
+    {'source': "중앙일보", 'source_domain': "joongang.co.kr", 'url': "https://news.google.com/rss/search?q=site:joongang.co.kr%20정치&hl=ko&gl=KR&ceid=KR%3Ako", 'section': "정치"},
+    {'source': "중앙일보", 'source_domain': "joongang.co.kr", 'url': "https://news.google.com/rss/search?q=site:joongang.co.kr%20경제&hl=ko&gl=KR&ceid=KR%3Ako", 'section': "경제"},
+    {'source': "중앙일보", 'source_domain': "joongang.co.kr", 'url': "https://news.google.com/rss/search?q=site:joongang.co.kr%20사회&hl=ko&gl=KR&ceid=KR%3Ako", 'section': "사회"},
+    {'source': "중앙일보", 'source_domain': "joongang.co.kr", 'url': "https://news.google.com/rss/search?q=site:joongang.co.kr%20문화&hl=ko&gl=KR&ceid=KR%3Ako", 'section': "문화"},
+    {'source': "동아일보", 'source_domain': "donga.com", 'url': "https://rss.donga.com/politics.xml", 'section': "정치"},
+    {'source': "동아일보", 'source_domain': "donga.com", 'url': "https://rss.donga.com/economy.xml", 'section': "경제"},
+    {'source': "동아일보", 'source_domain': "donga.com", 'url': "https://rss.donga.com/national.xml", 'section': "사회"},
+    {'source': "동아일보", 'source_domain': "donga.com", 'url': "https://rss.donga.com/culture.xml", 'section': "문화"},
 ]
 
-# --- 고급 HTTP 세션 설정 (article_collector.py에서 복사) ---
+# --- 고급 HTTP 세션 설정 ---
 retries = Retry(total=2, backoff_factor=0.5, status_forcelist=[429, 500, 502, 503, 504])
 _session_local = threading.local()
 
@@ -111,7 +101,12 @@ def get_http_session() -> requests.Session:
     return session
 
 # --- 헬퍼 함수 ---
-def resolve_google_news_url(url):
+def normalize_datetime_to_utc(dt: datetime) -> datetime:
+    if dt.tzinfo is None or dt.tzinfo.utcoffset(dt) is None:
+        dt = dt.replace(tzinfo=KST)
+    return dt.astimezone(timezone.utc)
+
+def resolve_google_news_url(url: str) -> str:
     if 'news.google.com' in url:
         try:
             session = get_http_session()
@@ -121,7 +116,7 @@ def resolve_google_news_url(url):
             return url
     return url
 
-def scrape_og_image(url):
+def scrape_og_image(url: str) -> Optional[str]:
     try:
         session = get_http_session()
         response = session.get(url, timeout=5)
@@ -133,12 +128,12 @@ def scrape_og_image(url):
         pass
     return None
 
-def clean_title(title):
+def clean_title(title: str) -> str:
     if not title: return ''
     publisher_regex = re.compile(r'\s*[-–—|:]\s*(중앙일보|조선일보|동아일보|한겨레|경향신문|오마이뉴스|joongang|chosun|donga|hani|khan)\s*$', re.I)
     return publisher_regex.sub('', title).strip()
 
-def scrape_hankyoreh_publication_time(url):
+def scrape_hankyoreh_publication_time(url: str) -> Optional[datetime]:
     try:
         session = get_http_session()
         response = session.get(url, timeout=5)
@@ -152,10 +147,24 @@ def scrape_hankyoreh_publication_time(url):
         print(f"[Scraper] Failed to scrape Hankyoreh date for {url}: {e}")
     return None
 
-def fetch_and_parse_feed(feed_info):
+def _normalize_image_url(candidate: Optional[str], base_url: str) -> Optional[str]:
+    if not candidate:
+        return None
+    candidate = candidate.strip()
+    if not candidate:
+        return None
+    if candidate.startswith("//"):
+        candidate = f"https:{candidate}"
+    return urljoin(base_url, candidate)
+
+def _get_donga_high_res_url(url: str) -> str:
+    if "dimg.donga.com" in url:
+        return re.sub(r'/i/\d+/\d+/\d+/', '/', url)
+    return url
+
+def fetch_and_parse_feed(feed_info: Dict[str, Any]) -> List[Dict[str, Any]]:
     articles = []
     try:
-        # 고급 세션을 사용하여 feedparser가 직접 URL을 처리하도록 함
         session = get_http_session()
         response = session.get(feed_info['url'], timeout=15)
         response.encoding = 'utf-8'
@@ -172,24 +181,20 @@ def fetch_and_parse_feed(feed_info):
             description_html = item.get('description', item.get('summary', ''))
             description_text = re.sub('<[^<]+?>', '', description_html).strip()
 
-            # --- 날짜 처리 시작 (UTC 기준으로 통일) ---
-            published_time_utc = None
+            published_time_utc: Optional[datetime] = None
             source_name = feed_info['source']
 
-            # 1. 한겨레는 직접 스크래핑 (가장 우선순위 높음)
             if source_name == '한겨레':
                 scraped_time = scrape_hankyoreh_publication_time(final_url)
                 if scraped_time:
                     published_time_utc = normalize_datetime_to_utc(scraped_time)
 
-            # 2. feedparser가 분석한 표준 시간 구조체(UTC)를 사용
             if not published_time_utc:
                 time_struct = item.get('published_parsed') or item.get('updated_parsed')
                 if time_struct:
                     utc_timestamp = calendar.timegm(time_struct)
                     published_time_utc = datetime.fromtimestamp(utc_timestamp, tz=timezone.utc)
 
-            # 3. 위의 방법들이 실패하면, 원본 날짜 문자열을 직접 분석
             if not published_time_utc:
                 date_string = item.get('published') or item.get('updated') or item.get('dc_date')
                 if date_string:
@@ -197,26 +202,34 @@ def fetch_and_parse_feed(feed_info):
                         parsed_time = dt_parse(date_string)
                         published_time_utc = normalize_datetime_to_utc(parsed_time)
                     except (ValueError, TypeError):
-                        pass # 실패 시 None 유지
+                        pass
             
-            # 4. 모든 시도가 실패하면 현재 시간(UTC)으로 대체
             if not published_time_utc:
                 published_time_utc = datetime.now(timezone.utc)
-            # --- 날짜 처리 끝 ---
 
-            # 시간 필터링: 1일 이상 지난 기사는 건너뛰기 (UTC 기준)
             if published_time_utc < (datetime.now(timezone.utc) - timedelta(days=1)):
                 continue
 
-            thumbnail_url = None
-            if source_name != '중앙일보':
-                if hasattr(item, 'description'):
-                    soup = BeautifulSoup(item.description, 'html.parser')
-                    img_tag = soup.find('img')
-                    if img_tag and img_tag.get('src', '').startswith('http'):
-                        thumbnail_url = img_tag['src']
-                if not thumbnail_url:
-                    thumbnail_url = scrape_og_image(final_url)
+            thumbnail_url: Optional[str] = None
+            if hasattr(item, 'media_thumbnail') and item.media_thumbnail:
+                thumbnail_url = item.media_thumbnail[0].get('url')
+            if not thumbnail_url and hasattr(item, 'media_content') and item.media_content:
+                for media in item.media_content:
+                    if media.get('medium') == 'image' and media.get('url'):
+                        thumbnail_url = media.get('url')
+                        break
+            if not thumbnail_url and description_html:
+                img_match = re.search(r'<img[^>]+src=["\"]([^"\"]+)["\"]', description_html)
+                if img_match:
+                    thumbnail_url = img_match.group(1)
+
+            if not thumbnail_url and feed_info['source'] != '중앙일보':
+                thumbnail_url = scrape_og_image(final_url)
+
+            if thumbnail_url:
+                thumbnail_url = _normalize_image_url(thumbnail_url, final_url)
+                if thumbnail_url and "donga.com" in final_url:
+                    thumbnail_url = _get_donga_high_res_url(thumbnail_url)
             
             if not thumbnail_url:
                 thumbnail_url = LOGO_FALLBACK_MAP.get(source_name)
@@ -227,7 +240,7 @@ def fetch_and_parse_feed(feed_info):
                 'category': feed_info['section'],
                 'title': final_title,
                 'url': final_url,
-                'published_at': published_time_utc, # 수정된 변수 사용
+                'published_at': published_time_utc,
                 'thumbnail_url': thumbnail_url,
                 'description': description_text
             })
@@ -268,7 +281,7 @@ def main():
 
         if all_articles:
             insert_query = "INSERT IGNORE INTO tn_home_article (source, source_domain, category, title, url, published_at, thumbnail_url, description) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)"
-            data_to_insert = [(a['source'], a['source_domain'], a['category'], a['title'], a['url'], a['published_at'], a['thumbnail_url'], a['description']) for a in all_articles]
+            data_to_insert = [(a['source'], a['source_domain'], a['category'], a['title'], a['url'], a['published_at'].strftime('%Y-%m-%dT%H:%M:%SZ'), a['thumbnail_url'], a['description']) for a in all_articles]
             cursor.executemany(insert_query, data_to_insert)
             cnx.commit()
             print(f"Step 6: {cursor.rowcount} new articles saved successfully.")
