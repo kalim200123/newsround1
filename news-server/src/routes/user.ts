@@ -1,10 +1,10 @@
-import express, { Request, Response } from "express";
 import bcrypt from "bcryptjs";
-import pool from "../config/db";
-import { authenticateUser, AuthenticatedRequest } from "../middleware/userAuth";
-import { validateUpdateUser } from "../middleware/updateUserValidation";
-import { validateChangePassword } from "../middleware/changePasswordValidation";
+import express, { Response } from "express";
 import path from "path";
+import pool from "../config/db";
+import { validateChangePassword } from "../middleware/changePasswordValidation";
+import { validateUpdateUser } from "../middleware/updateUserValidation";
+import { AuthenticatedRequest, authenticateUser } from "../middleware/userAuth";
 
 import fs from "fs";
 
@@ -65,7 +65,7 @@ router.get("/me", authenticateUser, async (req: AuthenticatedRequest, res: Respo
  *     tags:
  *       - User
  *     summary: "내 정보 수정"
- *     description: "현재 로그인된 사용자의 프로필 정보(닉네임, 휴대폰 번호, 프로필 이미지)를 수정합니다."
+ *     description: "현재 로그인된 사용자의 프로필 정보(닉네임, 프로필 이미지, 자기소개)를 수정합니다."
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -105,20 +105,20 @@ router.put("/me", authenticateUser, validateUpdateUser, async (req: Authenticate
     if (profile_image_url) {
       const avatarDir = path.join(__dirname, "../../public/avatars");
       const files = fs.readdirSync(avatarDir);
-      const validUrls = files.map(file => `/public/avatars/${file}`);
+      const validUrls = files.map((file) => `/public/avatars/${file}`);
       if (!validUrls.includes(profile_image_url)) {
-        return res.status(400).json({ field: 'profile_image_url', message: "유효하지 않은 프로필 이미지입니다." });
+        return res.status(400).json({ field: "profile_image_url", message: "유효하지 않은 프로필 이미지입니다." });
       }
     }
 
     // 닉네임 중복 확인
     if (nickname) {
-      const [existingUsers]: any = await pool.query(
-        "SELECT id FROM tn_user WHERE nickname = ? AND id != ?",
-        [nickname, userId]
-      );
+      const [existingUsers]: any = await pool.query("SELECT id FROM tn_user WHERE nickname = ? AND id != ?", [
+        nickname,
+        userId,
+      ]);
       if (existingUsers.length > 0) {
-        return res.status(409).json({ field: 'nickname', message: "이미 사용 중인 닉네임입니다." });
+        return res.status(409).json({ field: "nickname", message: "이미 사용 중인 닉네임입니다." });
       }
     }
 
@@ -143,7 +143,6 @@ router.put("/me", authenticateUser, validateUpdateUser, async (req: Authenticate
     await pool.query(query, params);
 
     res.status(200).json({ message: "내 정보가 성공적으로 수정되었습니다." });
-
   } catch (error) {
     console.error("Error updating user profile:", error);
     res.status(500).json({ message: "서버 오류가 발생했습니다." });
@@ -188,38 +187,39 @@ router.put("/me", authenticateUser, validateUpdateUser, async (req: Authenticate
  *       401:
  *         description: "현재 비밀번호가 일치하지 않음"
  */
-router.put("/me/password", authenticateUser, validateChangePassword, async (req: AuthenticatedRequest, res: Response) => {
-  const userId = req.user?.userId;
-  const { currentPassword, newPassword } = req.body;
+router.put(
+  "/me/password",
+  authenticateUser,
+  validateChangePassword,
+  async (req: AuthenticatedRequest, res: Response) => {
+    const userId = req.user?.userId;
+    const { currentPassword, newPassword } = req.body;
 
-  try {
-    const [users]: any = await pool.query("SELECT password FROM tn_user WHERE id = ?", [userId]);
+    try {
+      const [users]: any = await pool.query("SELECT password FROM tn_user WHERE id = ?", [userId]);
 
-    if (users.length === 0) {
-      return res.status(404).json({ message: "사용자를 찾을 수 없습니다." });
+      if (users.length === 0) {
+        return res.status(404).json({ message: "사용자를 찾을 수 없습니다." });
+      }
+      const user = users[0];
+
+      const isPasswordCorrect = await bcrypt.compare(currentPassword, user.password);
+      if (!isPasswordCorrect) {
+        return res.status(401).json({ field: "currentPassword", message: "현재 비밀번호가 일치하지 않습니다." });
+      }
+
+      const saltRounds = 10;
+      const newPasswordHash = await bcrypt.hash(newPassword, saltRounds);
+
+      await pool.query("UPDATE tn_user SET password = ? WHERE id = ?", [newPasswordHash, userId]);
+
+      res.status(200).json({ message: "비밀번호가 성공적으로 변경되었습니다." });
+    } catch (error) {
+      console.error("Error changing password:", error);
+      res.status(500).json({ message: "서버 오류가 발생했습니다." });
     }
-    const user = users[0];
-
-    const isPasswordCorrect = await bcrypt.compare(currentPassword, user.password);
-    if (!isPasswordCorrect) {
-      return res.status(401).json({ field: 'currentPassword', message: "현재 비밀번호가 일치하지 않습니다." });
-    }
-
-    const saltRounds = 10;
-    const newPasswordHash = await bcrypt.hash(newPassword, saltRounds);
-
-    await pool.query(
-      "UPDATE tn_user SET password = ? WHERE id = ?",
-      [newPasswordHash, userId]
-    );
-
-    res.status(200).json({ message: "비밀번호가 성공적으로 변경되었습니다." });
-
-  } catch (error) {
-    console.error("Error changing password:", error);
-    res.status(500).json({ message: "서버 오류가 발생했습니다." });
   }
-});
+);
 
 /**
  * @swagger
@@ -241,10 +241,7 @@ router.delete("/me", authenticateUser, async (req: AuthenticatedRequest, res: Re
   const userId = req.user?.userId;
 
   try {
-    await pool.query(
-      "UPDATE tn_user SET status = 'DELETED' WHERE id = ?",
-      [userId]
-    );
+    await pool.query("UPDATE tn_user SET status = 'DELETED' WHERE id = ?", [userId]);
     res.status(200).json({ message: "회원 탈퇴 처리가 완료되었습니다." });
   } catch (error) {
     console.error("Error deleting user account:", error);
@@ -281,8 +278,8 @@ router.delete("/me", authenticateUser, async (req: AuthenticatedRequest, res: Re
  */
 router.get("/me/liked-articles", authenticateUser, async (req: AuthenticatedRequest, res: Response) => {
   const userId = req.user?.userId;
-  const limit = parseInt(req.query.limit as string || '25', 10);
-  const offset = parseInt(req.query.offset as string || '0', 10);
+  const limit = parseInt((req.query.limit as string) || "25", 10);
+  const offset = parseInt((req.query.offset as string) || "0", 10);
 
   try {
     const [rows] = await pool.query(
@@ -343,8 +340,8 @@ router.get("/me/liked-articles", authenticateUser, async (req: AuthenticatedRequ
  */
 router.get("/me/inquiries", authenticateUser, async (req: AuthenticatedRequest, res: Response) => {
   const userId = req.user?.userId;
-  const limit = parseInt(req.query.limit as string || '10', 10);
-  const offset = parseInt(req.query.offset as string || '0', 10);
+  const limit = parseInt((req.query.limit as string) || "10", 10);
+  const offset = parseInt((req.query.offset as string) || "0", 10);
 
   try {
     const [rows] = await pool.query(

@@ -1,9 +1,9 @@
 import { Request, Response, Router } from "express";
-import pool from "../config/db";
-import { AuthenticatedRequest, authenticateUser, optionalAuthenticateUser } from "../middleware/userAuth";
-import { FAVICON_URLS } from "../config/favicons";
 import fs from "fs";
 import path from "path";
+import pool from "../config/db";
+import { FAVICON_URLS } from "../config/favicons";
+import { AuthenticatedRequest, optionalAuthenticateUser } from "../middleware/userAuth";
 
 const router = Router();
 
@@ -28,10 +28,7 @@ router.get("/avatars", (req: Request, res: Response) => {
   const avatarDir = path.join(__dirname, "../../public/avatars");
   try {
     const files = fs.readdirSync(avatarDir);
-    // 'default.svg'를 제외하고, 전체 URL 경로로 매핑
-    const avatarUrls = files
-      .filter(file => file !== 'default.svg')
-      .map(file => `/public/avatars/${file}`);
+    const avatarUrls = files.map((file) => `/public/avatars/${file}`);
     res.json(avatarUrls);
   } catch (error) {
     console.error("Error reading avatars directory:", error);
@@ -157,9 +154,9 @@ router.get("/topics/:topicId", async (req: Request, res: Response) => {
     );
 
     // Add favicon_url to each article
-    const articlesWithFavicon = (articleRows as any[]).map(article => ({
+    const articlesWithFavicon = (articleRows as any[]).map((article) => ({
       ...article,
-      favicon_url: FAVICON_URLS[article.source_domain] || null
+      favicon_url: FAVICON_URLS[article.source_domain] || null,
     }));
 
     const responseData = {
@@ -211,15 +208,14 @@ router.post("/topics/:topicId/view", optionalAuthenticateUser, async (req: Authe
       return res.status(200).json({ message: "View already counted within the cooldown period." });
     }
 
-    await connection.query(
-      "INSERT INTO tn_topic_view_log (topic_id, user_identifier) VALUES (?, ?)",
-      [topicId, userIdentifier]
-    );
+    await connection.query("INSERT INTO tn_topic_view_log (topic_id, user_identifier) VALUES (?, ?)", [
+      topicId,
+      userIdentifier,
+    ]);
 
-    const [updateResult]: any = await connection.query(
-      "UPDATE tn_topic SET view_count = view_count + 1 WHERE id = ?",
-      [topicId]
-    );
+    const [updateResult]: any = await connection.query("UPDATE tn_topic SET view_count = view_count + 1 WHERE id = ?", [
+      topicId,
+    ]);
 
     if (updateResult.affectedRows === 0) {
       await connection.rollback();
@@ -228,7 +224,6 @@ router.post("/topics/:topicId/view", optionalAuthenticateUser, async (req: Authe
 
     await connection.commit();
     res.status(200).json({ message: "Topic view count incremented." });
-
   } catch (error) {
     await connection.rollback();
     console.error(`Error incrementing topic view count for topic ${topicId}:`, error);
@@ -259,7 +254,7 @@ router.post("/topics/:topicId/view", optionalAuthenticateUser, async (req: Authe
 router.get("/search", async (req: Request, res: Response) => {
   const query = req.query.q as string;
 
-  if (!query || query.trim() === '') {
+  if (!query || query.trim() === "") {
     return res.status(400).json({ message: "검색어를 입력해주세요." });
   }
 
@@ -276,9 +271,9 @@ router.get("/search", async (req: Request, res: Response) => {
        LIMIT 50`,
       [searchQuery, searchQuery]
     );
-    const articlesWithFavicon = (rows as any[]).map(article => ({
+    const articlesWithFavicon = (rows as any[]).map((article) => ({
       ...article,
-      favicon_url: FAVICON_URLS[article.source_domain] || null
+      favicon_url: FAVICON_URLS[article.source_domain] || null,
     }));
     res.json(articlesWithFavicon);
   } catch (error) {
@@ -286,7 +281,5 @@ router.get("/search", async (req: Request, res: Response) => {
     res.status(500).json({ message: "Server error" });
   }
 });
-
-
 
 export default router;

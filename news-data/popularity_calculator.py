@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 def calculate_and_update_popularity():
     """
     최근 3일간의 활동을 기반으로 모든 'CONTENT' 타입 토픽의 인기 점수를 다시 계산하고 DB를 업데이트합니다.
-    - 인기 점수 = (토픽 조회수*1) + (기사 조회수*1) + (채팅 수*3) + (좋아요 수*5)
+    - 인기 점수 = (토픽 조회수*1) + (기사 조회수*1) + (기사 좋아요*2) + (기사 저장*3)
     """
     
     # .env 파일 로드
@@ -45,20 +45,20 @@ def calculate_and_update_popularity():
                 t.id,
                 t.view_count AS topic_views,
                 COALESCE(SUM(a.view_count), 0) AS total_article_views,
-                COALESCE(c.chat_count, 0) AS total_chats,
-                COALESCE(l.like_count, 0) AS total_likes
+                COALESCE(l.like_count, 0) AS total_likes,
+                COALESCE(s.saved_count, 0) AS total_saved_articles
             FROM
                 tn_topic t
             LEFT JOIN
                 tn_article a ON t.id = a.topic_id AND a.status = 'published' AND a.published_at >= NOW() - INTERVAL 3 DAY
             LEFT JOIN
-                (SELECT topic_id, COUNT(id) AS chat_count FROM tn_chat WHERE created_at >= NOW() - INTERVAL 3 DAY GROUP BY topic_id) c ON t.id = c.topic_id
-            LEFT JOIN
                 (SELECT a.topic_id, COUNT(l.id) as like_count FROM tn_article_like l JOIN tn_article a ON l.article_id = a.id WHERE l.created_at >= NOW() - INTERVAL 3 DAY GROUP BY a.topic_id) l ON t.id = l.topic_id
+            LEFT JOIN
+                (SELECT a.topic_id, COUNT(s.id) as saved_count FROM tn_user_saved_articles s JOIN tn_article a ON s.article_id = a.id WHERE s.created_at >= NOW() - INTERVAL 3 DAY GROUP BY a.topic_id) s ON t.id = s.topic_id
             WHERE
                 t.status = 'published' AND t.topic_type = 'CONTENT'
             GROUP BY
-                t.id, c.chat_count, l.like_count;
+                t.id, l.like_count, s.saved_count;
         """
         
         cursor.execute(query)
@@ -70,8 +70,8 @@ def calculate_and_update_popularity():
         for topic in topics_to_update:
             score = (int(topic['topic_views']) * 1) + \
                     (int(topic['total_article_views']) * 1) + \
-                    (int(topic['total_chats']) * 3) + \
-                    (int(topic['total_likes']) * 5)
+                    (int(topic['total_likes']) * 2) + \
+                    (int(topic['total_saved_articles']) * 3)
             
             update_queries.append((score, topic['id']))
 
