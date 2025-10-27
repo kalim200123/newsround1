@@ -1,7 +1,7 @@
 import express, { Request, Response } from "express";
 import pool from "../config/db";
-import { authenticateUser, AuthenticatedRequest, optionalAuthenticateUser } from "../middleware/userAuth";
 import { FAVICON_URLS } from "../config/favicons";
+import { AuthenticatedRequest, authenticateUser, optionalAuthenticateUser } from "../middleware/userAuth";
 
 const router = express.Router();
 
@@ -82,7 +82,8 @@ router.get("/by-category", async (req: Request, res: Response) => {
   }
 
   try {
-    const query = "SELECT id, source, source_domain, title, url, published_at, thumbnail_url FROM tn_home_article WHERE category = ? ORDER BY published_at DESC LIMIT ? OFFSET ?";
+    const query =
+      "SELECT id, source, source_domain, title, url, published_at, thumbnail_url FROM tn_home_article WHERE category = ? ORDER BY published_at DESC LIMIT ? OFFSET ?";
     const [rows] = await pool.query(query, [name, Number(limit), Number(offset)]);
     const articlesWithFavicon = (rows as any[]).map(addFaviconUrl);
     res.json(articlesWithFavicon);
@@ -137,7 +138,8 @@ router.get("/by-source", async (req: Request, res: Response) => {
   }
 
   try {
-    const query = "SELECT id, source, source_domain, title, url, published_at, thumbnail_url FROM tn_home_article WHERE source = ? ORDER BY published_at DESC LIMIT ? OFFSET ?";
+    const query =
+      "SELECT id, source, source_domain, title, url, published_at, thumbnail_url FROM tn_home_article WHERE source = ? ORDER BY published_at DESC LIMIT ? OFFSET ?";
     const [rows] = await pool.query(query, [name, Number(limit), Number(offset)]);
     const articlesWithFavicon = (rows as any[]).map(addFaviconUrl);
     res.json(articlesWithFavicon);
@@ -154,7 +156,7 @@ router.get("/by-source", async (req: Request, res: Response) => {
  *     tags:
  *       - Articles
  *     summary: "인기 기사 목록 조회"
- *     description: "최근 3일간의 기사들을 대상으로, 조회수(1점)와 추천수(3점)를 합산한 인기 점수가 높은 순으로 10개의 목록을 조회합니다. 카테고리별 조회를 지원합니다."
+ *     description: "최근 3일간의 기사들을 대상으로, 조회수(1점)와 좋아요수(3점)를 합산한 인기 점수가 높은 순으로 10개의 목록을 조회합니다. 카테고리별 조회를 지원합니다."
  *     parameters:
  *       - in: query
  *         name: category
@@ -191,7 +193,7 @@ router.get("/popular", async (req: Request, res: Response) => {
       WHERE 
         a.published_at >= NOW() - INTERVAL 3 DAY
     `;
-    
+
     const params: string[] = [];
     if (category) {
       query += ` AND a.category = ?`;
@@ -219,8 +221,14 @@ router.get("/popular", async (req: Request, res: Response) => {
  *   post:
  *     tags:
  *       - Articles
- *     summary: "기사 추천"
- *     description: "특정 기사에 대한 사용자의 '좋아요'를 추가합니다. 이미 '좋아요'를 누른 경우에도 성공으로 처리됩니다."
+ *     summary: "기사 추천 또는 추천 취소 (토글)"
+ *     description: |
+ *       사용자가 특정 기사에 대해 '좋아요'를 누르거나, 이미 누른 '좋아요'를 취소합니다.
+ *       - **DB Schema:** `tn_article_like`
+ *       - `id`: (PK) '좋아요' 고유 ID
+ *       - `user_id`: (FK) 사용자 ID
+ *       - `article_id`: (FK) 기사 ID
+ *       - `created_at`: '좋아요' 누른 시각
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -231,7 +239,7 @@ router.get("/popular", async (req: Request, res: Response) => {
  *           type: integer
  *     responses:
  *       200:
- *         description: "추천 성공. 최신 '좋아요' 상태를 반환합니다."
+ *         description: "요청 성공. 최신 '좋아요' 상태를 반환합니다."
  *         content:
  *           application/json:
  *             schema:
@@ -246,7 +254,6 @@ router.get("/popular", async (req: Request, res: Response) => {
  *                       type: integer
  *                     isLiked:
  *                       type: boolean
- *                       example: true
  *       404:
  *         description: "기사를 찾을 수 없음"
  */
@@ -256,17 +263,33 @@ router.post("/:articleId/like", authenticateUser, async (req: AuthenticatedReque
 
   const connection = await pool.getConnection();
   try {
+    await connection.beginTransaction();
+
     // 1. 기사 존재 여부 확인
     const [articleRows]: any = await connection.query("SELECT id FROM tn_article WHERE id = ?", [articleId]);
     if (articleRows.length === 0) {
+      await connection.rollback();
       return res.status(404).json({ message: "Article not found." });
     }
 
-    // 2. 좋아요 추가 (INSERT IGNORE로 중복 방지)
-    await connection.query(
-      "INSERT IGNORE INTO tn_article_like (user_id, article_id) VALUES (?, ?)",
+    // 2. 좋아요 취소 시도
+    const [deleteResult]: any = await connection.query(
+      "DELETE FROM tn_article_like WHERE user_id = ? AND article_id = ?",
       [userId, articleId]
     );
+
+    let isLiked: boolean;
+    if (deleteResult.affectedRows > 0) {
+      // 성공 시: 좋아요 취소됨
+      isLiked = false;
+    } else {
+      // 실패 시: 좋아요 추가
+      await connection.query(
+        "INSERT INTO tn_article_like (user_id, article_id) VALUES (?, ?)",
+        [userId, articleId]
+      );
+      isLiked = true;
+    }
 
     // 3. 최신 좋아요 수 조회
     const [likeCountRows]: any = await connection.query(
@@ -275,16 +298,20 @@ router.post("/:articleId/like", authenticateUser, async (req: AuthenticatedReque
     );
     const likeCount = likeCountRows[0].likeCount;
 
+    await connection.commit();
+
     // 4. 최종 상태 반환
     res.status(200).json({
       data: {
         articleId: parseInt(articleId, 10),
         likes: likeCount,
-        isLiked: true,
+        isLiked: isLiked,
       },
     });
+
   } catch (error) {
-    console.error("Error adding article like:", error);
+    await connection.rollback();
+    console.error("Error handling article like toggle:", error);
     res.status(500).json({ message: "Server error" });
   } finally {
     connection.release();
@@ -297,8 +324,14 @@ router.post("/:articleId/like", authenticateUser, async (req: AuthenticatedReque
  *   delete:
  *     tags:
  *       - Articles
- *     summary: "기사 추천 취소"
- *     description: "특정 기사에 대한 사용자의 '좋아요'를 취소합니다. '좋아요'를 누르지 않은 상태에서 요청해도 성공으로 처리됩니다."
+ *     summary: "기사 추천 취소 (마이페이지용)"
+ *     description: |
+ *       특정 기사에 대한 사용자의 '좋아요'를 취소합니다. 마이페이지 등에서 명시적으로 '좋아요'를 삭제할 때 사용합니다.
+ *       - **DB Schema:** `tn_article_like`
+ *       - `id`: (PK) '좋아요' 고유 ID
+ *       - `user_id`: (FK) 사용자 ID
+ *       - `article_id`: (FK) 기사 ID
+ *       - `created_at`: '좋아요' 누른 시각
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -400,10 +433,10 @@ router.post("/:articleId/view", optionalAuthenticateUser, async (req: Authentica
       return res.status(200).json({ message: "View already counted within the cooldown period." });
     }
 
-    await connection.query(
-      "INSERT INTO tn_article_view_log (article_id, user_identifier) VALUES (?, ?)",
-      [articleId, userIdentifier]
-    );
+    await connection.query("INSERT INTO tn_article_view_log (article_id, user_identifier) VALUES (?, ?)", [
+      articleId,
+      userIdentifier,
+    ]);
 
     const [updateResult]: any = await connection.query(
       "UPDATE tn_article SET view_count = view_count + 1 WHERE id = ?",
@@ -417,7 +450,6 @@ router.post("/:articleId/view", optionalAuthenticateUser, async (req: Authentica
     }
 
     res.status(200).json({ message: "View count incremented." });
-
   } catch (error) {
     await connection.rollback();
     console.error(`Error incrementing view count for article ${articleId}:`, error);
@@ -434,7 +466,16 @@ router.post("/:articleId/view", optionalAuthenticateUser, async (req: Authentica
  *     tags:
  *       - Saved Articles
  *     summary: 기사 저장
- *     description: "로그인한 사용자가 특정 기사를 내 마이페이지에 저장합니다."
+ *     description: |
+ *       로그인한 사용자가 특정 기사를 내 마이페이지에 저장합니다.
+ *       - **DB Schema:** `tn_user_saved_articles`
+ *       - `id`: (PK) 저장된 기사 고유 ID
+ *       - `user_id`: (FK) 사용자 ID
+ *       - `article_id`: (FK) 기사 ID
+ *       - `category_id`: (FK, nullable) 사용자가 지정한 카테고리 ID
+ *       - `created_at`: 저장한 시각
+ *     security:
+ *       - bearerAuth: []
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -514,7 +555,16 @@ router.post("/:articleId/save", authenticateUser, async (req: AuthenticatedReque
  *     tags:
  *       - Saved Articles
  *     summary: 기사 저장 취소
- *     description: "로그인한 사용자가 마이페이지에 저장했던 기사를 삭제합니다."
+ *     description: |
+ *       로그인한 사용자가 마이페이지에 저장했던 기사를 삭제합니다.
+ *       - **DB Schema:** `tn_user_saved_articles`
+ *       - `id`: (PK) 저장된 기사 고유 ID
+ *       - `user_id`: (FK) 사용자 ID
+ *       - `article_id`: (FK) 기사 ID
+ *       - `category_id`: (FK, nullable) 사용자가 지정한 카테고리 ID
+ *       - `created_at`: 저장한 시각
+ *     security:
+ *       - bearerAuth: []
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -534,10 +584,10 @@ router.delete("/:articleId/save", authenticateUser, async (req: AuthenticatedReq
   const userId = req.user?.userId;
 
   try {
-    const [result]: any = await pool.query(
-      "DELETE FROM tn_user_saved_articles WHERE user_id = ? AND article_id = ?",
-      [userId, articleId]
-    );
+    const [result]: any = await pool.query("DELETE FROM tn_user_saved_articles WHERE user_id = ? AND article_id = ?", [
+      userId,
+      articleId,
+    ]);
 
     if (result.affectedRows === 0) {
       return res.status(404).json({ message: "Saved article not found." });
@@ -582,11 +632,12 @@ router.delete("/:articleId/save", authenticateUser, async (req: AuthenticatedReq
  *                 $ref: '#/components/schemas/ArticleWithFavicon'
  */
 router.get("/exclusives", async (req: Request, res: Response) => {
-  const limit = parseInt(req.query.limit as string || '30', 10);
-  const offset = parseInt(req.query.offset as string || '0', 10);
+  const limit = parseInt((req.query.limit as string) || "30", 10);
+  const offset = parseInt((req.query.offset as string) || "0", 10);
 
   try {
-    const query = "SELECT id, source, source_domain, url, published_at, title, thumbnail_url FROM tn_home_article WHERE title LIKE '%[단독]%' ORDER BY published_at DESC LIMIT ? OFFSET ?";
+    const query =
+      "SELECT id, source, source_domain, url, published_at, title, thumbnail_url FROM tn_home_article WHERE title LIKE '%[단독]%' ORDER BY published_at DESC LIMIT ? OFFSET ?";
     const [rows] = await pool.query(query, [limit, offset]);
     const articlesWithFavicon = (rows as any[]).map(addFaviconUrl);
     res.json(articlesWithFavicon);
@@ -628,11 +679,12 @@ router.get("/exclusives", async (req: Request, res: Response) => {
  *                 $ref: '#/components/schemas/ArticleWithFavicon'
  */
 router.get("/breaking", async (req: Request, res: Response) => {
-  const limit = parseInt(req.query.limit as string || '30', 10);
-  const offset = parseInt(req.query.offset as string || '0', 10);
+  const limit = parseInt((req.query.limit as string) || "30", 10);
+  const offset = parseInt((req.query.offset as string) || "0", 10);
 
   try {
-    const query = "SELECT id, source, source_domain, url, published_at, title, thumbnail_url FROM tn_home_article WHERE title LIKE '%[속보]%' ORDER BY published_at DESC LIMIT ? OFFSET ?";
+    const query =
+      "SELECT id, source, source_domain, url, published_at, title, thumbnail_url FROM tn_home_article WHERE title LIKE '%[속보]%' ORDER BY published_at DESC LIMIT ? OFFSET ?";
     const [rows] = await pool.query(query, [limit, offset]);
     const articlesWithFavicon = (rows as any[]).map(addFaviconUrl);
     res.json(articlesWithFavicon);
