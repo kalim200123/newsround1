@@ -110,16 +110,15 @@ def resolve_google_news_url(url: str) -> str:
     if 'news.google.com' in url:
         try:
             session = get_http_session()
-            response = session.head(url, allow_redirects=True, timeout=5)
+            response = session.head(url, allow_redirects=True, timeout=8)
             return response.url
         except requests.RequestException:
             return url
     return url
-
 def scrape_og_image(url: str) -> Optional[str]:
     try:
         session = get_http_session()
-        response = session.get(url, timeout=5)
+        response = session.get(url, timeout=8)
         soup = BeautifulSoup(response.content, 'html.parser')
         og_image = soup.find('meta', property='og:image')
         if og_image and og_image.get('content', '').startswith('http'):
@@ -136,7 +135,7 @@ def clean_title(title: str) -> str:
 def scrape_hankyoreh_publication_time(url: str) -> Optional[datetime]:
     try:
         session = get_http_session()
-        response = session.get(url, timeout=5)
+        response = session.get(url, timeout=10)
         soup = BeautifulSoup(response.content, 'html.parser')
         date_li = soup.find(lambda tag: tag.name == 'li' and '등록' in tag.get_text())
         if date_li:

@@ -465,7 +465,7 @@ router.post("/topics", async (req: Request, res: Response) => {
     }
 
     const pythonScriptPath = path.join(__dirname, "../../../news-data/article_collector.py");
-    const command = `C:\\Users\\RST\\anaconda3\\envs\\diffnews\\python.exe`;
+    const command = process.env.PYTHON_EXECUTABLE_PATH || "python3";
     const args = ["-u", pythonScriptPath, newTopicId.toString()];
 
     console.log(`Executing: ${command} ${args.join(" ")}`);
@@ -874,7 +874,7 @@ router.post("/topics/:topicId/recollect", async (req: Request, res: Response) =>
     }
 
     const pythonScriptPath = path.join(__dirname, "../../../news-data/article_collector.py");
-    const command = `C:\\Users\\RST\\anaconda3\\envs\\diffnews\\python.exe`;
+    const command = process.env.PYTHON_EXECUTABLE_PATH || "python3";
     const args = ["-u", pythonScriptPath, topicId];
 
     console.log(`Executing: ${command} ${args.join(" ")}`);
