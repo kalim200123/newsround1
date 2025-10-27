@@ -476,8 +476,6 @@ router.post("/:articleId/view", optionalAuthenticateUser, async (req: Authentica
  *       - `created_at`: 저장한 시각
  *     security:
  *       - bearerAuth: []
- *     security:
- *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: articleId
@@ -563,8 +561,6 @@ router.post("/:articleId/save", authenticateUser, async (req: AuthenticatedReque
  *       - `article_id`: (FK) 기사 ID
  *       - `category_id`: (FK, nullable) 사용자가 지정한 카테고리 ID
  *       - `created_at`: 저장한 시각
- *     security:
- *       - bearerAuth: []
  *     security:
  *       - bearerAuth: []
  *     parameters:
