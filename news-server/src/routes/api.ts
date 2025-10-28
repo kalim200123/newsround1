@@ -147,8 +147,8 @@ router.get("/topics/:topicId", optionalAuthenticateUser, async (req: Authenticat
       SELECT 
         a.id, a.source, a.source_domain, a.side, a.title, a.url, a.published_at, a.is_featured, a.thumbnail_url, a.view_count,
         COUNT(l_total.id) AS like_count,
-        IF(l_user.id IS NOT NULL, TRUE, FALSE) AS isLiked,
-        IF(s_user.id IS NOT NULL, TRUE, FALSE) AS isSaved
+        MAX(IF(l_user.id IS NOT NULL, 1, 0)) AS isLiked,
+        MAX(IF(s_user.id IS NOT NULL, 1, 0)) AS isSaved
       FROM 
         tn_article a
       LEFT JOIN 

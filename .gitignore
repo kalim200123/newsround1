@@ -41,3 +41,6 @@ __pycache__/
 # Ignore all vscode files except extensions.json
 .vscode/*
 !.vscode/extensions.json
+
+# Nest.js migration project
+/news-server-nest/
