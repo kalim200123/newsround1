@@ -221,7 +221,7 @@ router.get("/popular", async (req: Request, res: Response) => {
  *   post:
  *     tags:
  *       - Articles
- *     summary: "기사 추천 또는 추천 취소 (토글)"
+ *     summary: "기사 좋아요 또는 좋아요 취소 (토글)"
  *     description: |
  *       사용자가 특정 기사에 대해 '좋아요'를 누르거나, 이미 누른 '좋아요'를 취소합니다.
  *       - **DB Schema:** `tn_article_like`
@@ -284,10 +284,7 @@ router.post("/:articleId/like", authenticateUser, async (req: AuthenticatedReque
       isLiked = false;
     } else {
       // 실패 시: 좋아요 추가
-      await connection.query(
-        "INSERT INTO tn_article_like (user_id, article_id) VALUES (?, ?)",
-        [userId, articleId]
-      );
+      await connection.query("INSERT INTO tn_article_like (user_id, article_id) VALUES (?, ?)", [userId, articleId]);
       isLiked = true;
     }
 
@@ -308,7 +305,6 @@ router.post("/:articleId/like", authenticateUser, async (req: AuthenticatedReque
         isLiked: isLiked,
       },
     });
-
   } catch (error) {
     await connection.rollback();
     console.error("Error handling article like toggle:", error);
@@ -324,7 +320,7 @@ router.post("/:articleId/like", authenticateUser, async (req: AuthenticatedReque
  *   delete:
  *     tags:
  *       - Articles
- *     summary: "기사 추천 취소 (마이페이지용)"
+ *     summary: "기사 좋아요 취소 (마이페이지용)"
  *     description: |
  *       특정 기사에 대한 사용자의 '좋아요'를 취소합니다. 마이페이지 등에서 명시적으로 '좋아요'를 삭제할 때 사용합니다.
  *       - **DB Schema:** `tn_article_like`
@@ -342,7 +338,7 @@ router.post("/:articleId/like", authenticateUser, async (req: AuthenticatedReque
  *           type: integer
  *     responses:
  *       200:
- *         description: "추천 취소 성공. 최신 '좋아요' 상태를 반환합니다."
+ *         description: "좋아요 취소 성공. 최신 '좋아요' 상태를 반환합니다."
  *         content:
  *           application/json:
  *             schema:
@@ -366,10 +362,7 @@ router.delete("/:articleId/like", authenticateUser, async (req: AuthenticatedReq
   const connection = await pool.getConnection();
   try {
     // 1. 좋아요 삭제
-    await connection.query(
-      "DELETE FROM tn_article_like WHERE user_id = ? AND article_id = ?",
-      [userId, articleId]
-    );
+    await connection.query("DELETE FROM tn_article_like WHERE user_id = ? AND article_id = ?", [userId, articleId]);
 
     // 2. 최신 좋아요 수 조회
     const [likeCountRows]: any = await connection.query(

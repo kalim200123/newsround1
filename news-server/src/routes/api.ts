@@ -103,6 +103,8 @@ router.get("/topics/popular-ranking", async (req: Request, res: Response) => {
  *         required: true
  *         schema: { type: "integer" }
  *         description: 조회할 토픽의 고유 ID
+ *     security:
+ *       - bearerAuth: [] # 이 API가 인증 토큰을 사용할 수 있음을 명시
  *     responses:
  *       200:
  *         description: 토픽 정보와 관련 기사 목록을 반환했습니다.

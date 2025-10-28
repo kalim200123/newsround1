@@ -32,17 +32,20 @@ export const authenticateUser = (req: AuthenticatedRequest, res: Response, next:
 export const optionalAuthenticateUser = (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   const authHeader = req.headers.authorization;
 
-  if (authHeader && authHeader.startsWith('Bearer ')) {
-    const token = authHeader.split(' ')[1];
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    // No token, just proceed
+    return next();
+  }
+
+  const token = authHeader.split(' ')[1];
+
+  try {
     const jwtSecret = process.env.USER_JWT_SECRET || "default_fallback_secret";
-    
-    jwt.verify(token, jwtSecret, (err: any, decoded: any) => {
-      if (!err && decoded) {
-        req.user = decoded as jwt.JwtPayload & { userId: number; name: string };
-      }
-      next();
-    });
-  } else {
+    const decoded = jwt.verify(token, jwtSecret) as { userId: number; name: string };
+    req.user = decoded;
+    next();
+  } catch (error) {
+    // Invalid token, just proceed without user info
     next();
   }
 };
