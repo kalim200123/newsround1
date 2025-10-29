@@ -265,12 +265,13 @@ router.post("/:articleId/like", authenticateUser, async (req: AuthenticatedReque
   try {
     await connection.beginTransaction();
 
-    // 1. 기사 존재 여부 확인
-    const [articleRows]: any = await connection.query("SELECT id FROM tn_article WHERE id = ?", [articleId]);
+    // 1. 기사 존재 여부 및 topic_id 확인
+    const [articleRows]: any = await connection.query("SELECT id, topic_id FROM tn_article WHERE id = ?", [articleId]);
     if (articleRows.length === 0) {
       await connection.rollback();
       return res.status(404).json({ message: "Article not found." });
     }
+    const topicId = articleRows[0].topic_id;
 
     // 2. 좋아요 취소 시도
     const [deleteResult]: any = await connection.query(
@@ -284,7 +285,7 @@ router.post("/:articleId/like", authenticateUser, async (req: AuthenticatedReque
       isLiked = false;
     } else {
       // 실패 시: 좋아요 추가
-      await connection.query("INSERT INTO tn_article_like (user_id, article_id) VALUES (?, ?)", [userId, articleId]);
+      await connection.query("INSERT INTO tn_article_like (user_id, article_id, topic_id) VALUES (?, ?, ?)", [userId, articleId, topicId]);
       isLiked = true;
     }
 
