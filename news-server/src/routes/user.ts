@@ -2,6 +2,7 @@ import bcrypt from "bcryptjs";
 import express, { Response } from "express";
 import path from "path";
 import pool from "../config/db";
+import { FAVICON_URLS } from "../config/favicons";
 import { validateChangePassword } from "../middleware/changePasswordValidation";
 import { validateUpdateUser } from "../middleware/updateUserValidation";
 import { AuthenticatedRequest, authenticateUser } from "../middleware/userAuth";
@@ -380,6 +381,68 @@ router.put("/me/notification-settings", authenticateUser, async (req: Authentica
     res.status(500).json({ message: "서버 오류가 발생했습니다." });
   } finally {
     connection.release();
+  }
+});
+
+/**
+ * @swagger
+ * /api/user/me/liked-articles:
+ *   get:
+ *     tags: [User]
+ *     summary: "내가 '좋아요' 누른 기사 목록 조회"
+ *     description: "현재 로그인한 사용자가 '좋아요'를 누른 모든 기사 목록을 최신순으로 조회합니다."
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *         description: "한 번에 가져올 기사 수"
+ *       - in: query
+ *         name: offset
+ *         schema:
+ *           type: integer
+ *           default: 0
+ *         description: "건너뛸 기사 수 (페이지네이션용)"
+ *     responses:
+ *       200:
+ *         description: "좋아요 누른 기사 목록"
+ */
+router.get("/me/liked-articles", authenticateUser, async (req: AuthenticatedRequest, res: Response) => {
+  const userId = req.user?.userId;
+  const limit = parseInt(req.query.limit as string || '20', 10);
+  const offset = parseInt(req.query.offset as string || '0', 10);
+
+  try {
+    const query = `
+      SELECT
+        a.*,
+        (SELECT COUNT(*) FROM tn_article_like WHERE article_id = a.id) as like_count
+      FROM
+        tn_article_like ul
+      JOIN
+        tn_article a ON ul.article_id = a.id
+      WHERE
+        ul.user_id = ?
+      ORDER BY
+        ul.created_at DESC
+      LIMIT ? OFFSET ?;
+    `;
+
+    const [rows] = await pool.query(query, [userId, limit, offset]);
+    
+    const articlesWithFavicon = (rows as any[]).map(article => ({
+      ...article,
+      isLiked: true, // 이 API는 좋아요 누른 기사만 반환하므로 항상 true
+      favicon_url: FAVICON_URLS[article.source_domain] || null,
+    }));
+
+    res.json(articlesWithFavicon);
+  } catch (error) {
+    console.error("Error fetching liked articles:", error);
+    res.status(500).json({ message: "Server error" });
   }
 });
 

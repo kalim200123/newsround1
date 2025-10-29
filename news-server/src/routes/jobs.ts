@@ -1,6 +1,7 @@
 import express, { Router, Request, Response } from "express";
 import { spawn } from "child_process";
 import path from "path";
+import os from "os";
 import { collectLatestArticles } from "../jobs/collectArticles";
 
 const router = express.Router();
@@ -11,8 +12,8 @@ if (!JOB_SECRET) {
     console.warn('경고: JOB_TRIGGER_SECRET 환경 변수가 설정되지 않았습니다. 작업 트리거 API가 비활성화됩니다.');
 }
 
-// 일관성을 위해 admin.ts와 동일한 방식으로 Python 명령어를 결정합니다.
-const pythonCommand = process.env.PYTHON_EXECUTABLE_PATH || "python";
+// 환경 변수가 있으면 사용하고, 없으면 OS에 따라 기본값(win32: python, other: python3)을 사용합니다.
+const pythonCommand = process.env.PYTHON_EXECUTABLE_PATH || (os.platform() === 'win32' ? 'python' : 'python3');
 
 // 각 작업의 동시 실행을 방지하기 위한 잠금 플래그
 let isPopularityJobRunning = false;

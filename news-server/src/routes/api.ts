@@ -93,6 +93,33 @@ router.get("/topics/popular-ranking", async (req: Request, res: Response) => {
 
 /**
  * @swagger
+ * /api/topics/latest:
+ *   get:
+ *     tags: [Topics]
+ *     summary: 최신 토픽 10개 조회
+ *     description: "가장 최근에 발행된 토픽 10개의 목록을 반환합니다."
+ *     responses:
+ *       200:
+ *         description: "최신 토픽 10개 목록"
+ */
+router.get("/topics/latest", async (req: Request, res: Response) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT id, display_name, summary, published_at, view_count, popularity_score 
+       FROM tn_topic 
+       WHERE status = 'published' AND topic_type = 'CONTENT'
+       ORDER BY published_at DESC
+       LIMIT 10`
+    );
+    res.json(rows);
+  } catch (error) {
+    console.error("Error fetching latest topics:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+/**
+ * @swagger
  * /api/topics/{topicId}:
  *   get:
  *     tags: [Topics]

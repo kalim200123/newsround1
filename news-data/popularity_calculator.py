@@ -1,19 +1,18 @@
 import os
 import mysql.connector
 from dotenv import load_dotenv
+from datetime import datetime, timezone
 
 def calculate_and_update_popularity():
     """
-    최근 3일간의 활동을 기반으로 모든 'CONTENT' 타입 토픽의 인기 점수를 다시 계산하고 DB를 업데이트합니다.
-    - 인기 점수 = (토픽 조회수*1) + (기사 조회수*1) + (기사 좋아요*2) + (기사 저장*3)
+    최근 3일간의 활동과 시간 감쇠(Gravity) 모델을 기반으로 토픽의 인기 점수를 계산하고 DB를 업데이트합니다.
+    - 최종 점수 = Raw Score / (Age in hours + 2)^1.5
+    - Raw Score = (토픽 조회수*1) + (기사 조회수*1) + (기사 좋아요*3) + (기사 저장*4)
     """
     
-    # .env 파일 로드
-    # 이 스크립트는 news-server에서 실행되므로, news-server의 .env를 사용합니다.
     dotenv_path = os.path.join(os.path.dirname(__file__), '../news-server', '.env')
     load_dotenv(dotenv_path=dotenv_path)
 
-    # DB 설정
     DB_CONFIG = {
         "host": os.getenv("DB_HOST"),
         "port": int(os.getenv("DB_PORT", 3306)),
@@ -22,7 +21,6 @@ def calculate_and_update_popularity():
         "database": os.getenv("DB_DATABASE"),
     }
 
-    # 환경에 따라 SSL 설정을 동적으로 추가
     if os.getenv("DB_SSL_ENABLED") == 'true':
         is_production = os.getenv('NODE_ENV') == 'production'
         if is_production:
@@ -38,15 +36,14 @@ def calculate_and_update_popularity():
         cursor = cnx.cursor(dictionary=True)
         print("DB Connected.")
 
-        # 1. 점수 계산에 필요한 모든 지표를 JOIN하여 한번에 가져오는 쿼리
-        # 복잡성을 줄이기 위해, 각 토픽별로 기사 좋아요 수를 합산하는 서브쿼리를 사용합니다.
         query = """
             SELECT
                 t.id,
-                t.view_count AS topic_views,
+                t.published_at,
+                MAX(t.view_count) AS topic_views,
                 COALESCE(SUM(a.view_count), 0) AS total_article_views,
-                COALESCE(l.like_count, 0) AS total_likes,
-                COALESCE(s.saved_count, 0) AS total_saved_articles
+                MAX(COALESCE(l.like_count, 0)) AS total_likes,
+                MAX(COALESCE(s.saved_count, 0)) AS total_saved_articles
             FROM
                 tn_topic t
             LEFT JOIN
@@ -58,25 +55,38 @@ def calculate_and_update_popularity():
             WHERE
                 t.status = 'published' AND t.topic_type = 'CONTENT'
             GROUP BY
-                t.id, l.like_count, s.saved_count;
+                t.id, t.published_at;
         """
         
         cursor.execute(query)
         topics_to_update = cursor.fetchall()
         print(f"Found {len(topics_to_update)} topics to update.")
 
-        # 2. 각 토픽에 대해 점수 계산 및 업데이트
         update_queries = []
+        GRAVITY = 1.5
+        now_utc = datetime.now(timezone.utc)
+
         for topic in topics_to_update:
-            score = (int(topic['topic_views']) * 1) + \
-                    (int(topic['total_article_views']) * 1) + \
-                    (int(topic['total_likes']) * 2) + \
-                    (int(topic['total_saved_articles']) * 3)
-            
-            update_queries.append((score, topic['id']))
+            raw_score = (int(topic['topic_views']) * 1) + \
+                        (int(topic['total_article_views']) * 1) + \
+                        (int(topic['total_likes']) * 3) + \
+                        (int(topic['total_saved_articles']) * 4)
+
+            if raw_score == 0:
+                final_score = 0
+            else:
+                published_at = topic['published_at']
+                if published_at.tzinfo is None:
+                    published_at = published_at.replace(tzinfo=timezone.utc)
+                
+                age_in_hours = (now_utc - published_at).total_seconds() / 3600
+                
+                # Hacker News Gravity Formula
+                final_score = raw_score / ((age_in_hours + 2) ** GRAVITY)
+
+            update_queries.append((final_score, topic['id']))
 
         if update_queries:
-            # 모든 토픽의 점수를 0으로 초기화 (3일이 지나 인기가 없어진 토픽 처리)
             cursor.execute("UPDATE tn_topic SET popularity_score = 0 WHERE topic_type = 'CONTENT'")
             print(f"Reset scores for content topics.")
 
@@ -96,6 +106,7 @@ def calculate_and_update_popularity():
             print("DB Connection Closed.")
             
     print("--- Popularity Score Calculation End ---")
+
 
 if __name__ == '__main__':
     calculate_and_update_popularity()

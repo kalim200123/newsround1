@@ -1,5 +1,6 @@
 import { spawn } from "child_process";
 import path from "path";
+import os from "os";
 
 // 작업이 이미 실행 중인지 확인하기 위한 잠금 플래그
 let isJobRunning = false;
@@ -21,7 +22,7 @@ export const collectLatestArticles = () => {
   console.log(`Executing python script: ${scriptPath}`);
 
   // 일관성을 위해 다른 파일들과 동일한 방식으로 Python 명령어를 결정합니다.
-  const pythonCommand = process.env.PYTHON_EXECUTABLE_PATH || "python";
+  const pythonCommand = process.env.PYTHON_EXECUTABLE_PATH || (os.platform() === 'win32' ? 'python' : 'python3');
 
   isJobRunning = true; // 작업 시작 시 잠금 설정
 

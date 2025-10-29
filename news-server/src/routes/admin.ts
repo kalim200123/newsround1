@@ -2,6 +2,7 @@ import { spawn } from "child_process";
 import express, { Request, Response } from "express";
 import fs from "fs";
 import path from "path";
+import os from "os";
 import pool from "../config/db";
 import { authenticateAdmin, handleAdminLogin } from "../middleware/auth";
 import { AuthenticatedRequest } from "../middleware/userAuth";
@@ -460,16 +461,12 @@ router.post("/topics", async (req: Request, res: Response) => {
     );
     const newTopicId = result.insertId;
 
-    if (!newTopicId) {
-      throw new Error("Failed to create new topic, no insertId returned.");
-    }
-
     const pythonScriptPath = path.join(__dirname, "../../../news-data/article_collector.py");
-    const command = process.env.PYTHON_EXECUTABLE_PATH || "python";
+    const pythonCommand = process.env.PYTHON_EXECUTABLE_PATH || (os.platform() === 'win32' ? 'python' : 'python3');
     const args = ["-u", pythonScriptPath, newTopicId.toString()];
 
-    console.log(`Executing: ${command} ${args.join(" ")}`);
-    const pythonProcess = spawn(command, args);
+    console.log(`Executing: ${pythonCommand} ${args.join(" ")}`);
+    const pythonProcess = spawn(pythonCommand, args);
 
     pythonProcess.stdout.on("data", (data) => {
       console.log(`[article_collector.py stdout]: ${data.toString().trim()}`);
@@ -905,12 +902,12 @@ router.post("/topics/:topicId/recollect", async (req: Request, res: Response) =>
       await pool.query("UPDATE tn_topic SET collection_status = 'pending', updated_at = NOW() WHERE id = ?", [topicId]);
     }
 
+    const pythonCommand = process.env.PYTHON_EXECUTABLE_PATH || (os.platform() === 'win32' ? 'python' : 'python3');
     const pythonScriptPath = path.join(__dirname, "../../../news-data/article_collector.py");
-    const command = process.env.PYTHON_EXECUTABLE_PATH || "python";
     const args = ["-u", pythonScriptPath, topicId];
 
-    console.log(`Executing: ${command} ${args.join(" ")}`);
-    const pythonProcess = spawn(command, args);
+    console.log(`Executing: ${pythonCommand} ${args.join(" ")}`);
+    const pythonProcess = spawn(pythonCommand, args);
 
     pythonProcess.stdout.on("data", (data) => {
       console.log(`[recollect stdout]: ${data.toString().trim()}`);
