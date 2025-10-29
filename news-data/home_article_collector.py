@@ -297,6 +297,11 @@ def main():
 
     print(f"Step 2: Completed parsing for a total of {len(all_articles)} articles.")
 
+    # 여러 피드에서 동일한 기사가 수집되었을 수 있으므로 URL 기준으로 중복 제거
+    unique_articles_map = {article['url']: article for article in all_articles}
+    all_articles = list(unique_articles_map.values())
+    print(f"Step 2.5: Found {len(all_articles)} unique articles after de-duplication.")
+
     if not all_articles:
         print("No new articles to save. Exiting.")
         return
@@ -316,13 +321,13 @@ def main():
         print(f"Step 5: Found {len(new_articles)} new articles to save and notify.")
 
         if new_articles:
-            # 알림 발송 로직 (DB 저장 전)
-            for article in new_articles:
-                title = article.get('title', '')
-                if '[속보]' in title:
-                    send_notification('BREAKING_NEWS', article)
-                elif '[단독]' in title:
-                    send_notification('EXCLUSIVE_NEWS', article)
+            # 알림 발송 로직 (DB 저장 전) - 임시 주석 처리
+            # for article in new_articles:
+            #     title = article.get('title', '')
+            #     if '[속보]' in title:
+            #         send_notification('BREAKING_NEWS', article)
+            #     elif '[단독]' in title:
+            #         send_notification('EXCLUSIVE_NEWS', article)
 
             # DB 저장 로직
             insert_query = "INSERT INTO tn_home_article (source, source_domain, category, title, url, published_at, thumbnail_url, description) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)"
