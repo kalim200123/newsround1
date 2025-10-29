@@ -28,7 +28,8 @@ router.get("/avatars", (req: Request, res: Response) => {
   const avatarDir = path.join(__dirname, "../../public/avatars");
   try {
     const files = fs.readdirSync(avatarDir);
-    const avatarUrls = files.map((file) => `/public/avatars/${file}`);
+    const baseUrl = `${req.protocol}://${req.get("host")}`;
+    const avatarUrls = files.map((file) => `${baseUrl}/public/avatars/${file}`);
     res.json(avatarUrls);
   } catch (error) {
     console.error("Error reading avatars directory:", error);

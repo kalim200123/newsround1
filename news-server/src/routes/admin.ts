@@ -455,8 +455,8 @@ router.post("/topics", async (req: Request, res: Response) => {
 
   try {
     const [result]: any = await pool.query(
-      "INSERT INTO tn_topic (core_keyword, sub_description, display_name, search_keywords, summary, status, collection_status, published_at) VALUES (?, ?, ?, ?, ?, 'published', 'pending', NOW())",
-      [displayName, "관리자 직접 생성", displayName, searchKeywords, summary || ""]
+      "INSERT INTO tn_topic (display_name, search_keywords, summary, status, collection_status, published_at) VALUES (?, ?, ?, 'published', 'pending', NOW())",
+      [displayName, searchKeywords, summary || ""]
     );
     const newTopicId = result.insertId;
 
@@ -474,9 +474,41 @@ router.post("/topics", async (req: Request, res: Response) => {
     pythonProcess.stdout.on("data", (data) => {
       console.log(`[article_collector.py stdout]: ${data.toString().trim()}`);
     });
-    pythonProcess.stderr.on("data", (data) => {
-      console.error(`[article_collector.py stderr]: ${data.toString().trim()}`);
-    });
+    // --- Real-time notification ---
+    const io = req.app.get('io');
+    const userSocketMap = req.app.get('userSocketMap');
+
+    if (io && userSocketMap) {
+      try {
+        // 'NEW_TOPIC' 알림을 켜놓은 사용자 + 설정하지 않은 사용자 (기본값 true) 찾기
+        const [usersToNotify]: any = await pool.query(`
+          SELECT u.id FROM tn_user u
+          LEFT JOIN tn_user_notification_settings s 
+            ON u.id = s.user_id AND s.notification_type = 'NEW_TOPIC'
+          WHERE s.is_enabled IS NULL OR s.is_enabled = 1
+        `);
+
+        const notification = {
+          type: 'NEW_TOPIC',
+          data: {
+            id: newTopicId,
+            displayName: displayName,
+            summary: summary || "",
+          }
+        };
+
+        for (const user of usersToNotify) {
+          const socketId = userSocketMap.get(user.id);
+          if (socketId) {
+            io.to(socketId).emit('new_notification', notification);
+            console.log(`Sent NEW_TOPIC notification to user ${user.id} on socket ${socketId}`);
+          }
+        }
+      } catch (notificationError) {
+        console.error("Failed to send new topic notifications:", notificationError);
+      }
+    }
+    // --------------------------
 
     res.status(201).json({ message: `Topic ${newTopicId} has been created and published`, topicId: newTopicId });
   } catch (error) {

@@ -1,3 +1,11 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+home_article_collector.py
+- Collects articles for the home page from various RSS feeds.
+- Identifies breaking/exclusive news and triggers real-time notifications.
+"""
+
 import os
 import re
 import sys
@@ -41,6 +49,8 @@ DB_CONFIG = {
     "password": os.getenv("DB_PASSWORD"),
     "database": os.getenv("DB_DATABASE"),
 }
+
+INTERNAL_API_URL = os.getenv("INTERNAL_NOTIFICATION_API_URL", "http://localhost:3000/api/internal/send-notification")
 
 if os.getenv("DB_SSL_ENABLED") == 'true':
     is_production = os.getenv('NODE_ENV') == 'production'
@@ -129,7 +139,7 @@ def scrape_og_image(url: str) -> Optional[str]:
 
 def clean_title(title: str) -> str:
     if not title: return ''
-    publisher_regex = re.compile(r'\s*[-–—|:]\s*(중앙일보|조선일보|동아일보|한겨레|경향신문|오마이뉴스|joongang|chosun|donga|hani|khan)\s*$', re.I)
+    publisher_regex = re.compile(r'\s*[-–—|]\s*(중앙일보|조선일보|동아일보|한겨레|경향신문|오마이뉴스|joongang|chosun|donga|hani|khan)\s*$', re.I)
     return publisher_regex.sub('', title).strip()
 
 def scrape_hankyoreh_publication_time(url: str) -> Optional[datetime]:
@@ -247,6 +257,27 @@ def fetch_and_parse_feed(feed_info: Dict[str, Any]) -> List[Dict[str, Any]]:
         print(f"{feed_info['source']}' 피드 처리 실패: {e}")
     return articles
 
+# --- 알림 발송 함수 ---
+def send_notification(notification_type: str, article: Dict[str, Any]):
+    """내부 알림 API를 호출하여 실시간 알림을 요청합니다."""
+    if not INTERNAL_API_URL:
+        return
+
+    payload = {
+        "notification_type": notification_type,
+        "data": {
+            "title": article.get('title'),
+            "url": article.get('url'),
+            "source": article.get('source'),
+        }
+    }
+    try:
+        response = requests.post(INTERNAL_API_URL, json=payload, timeout=5)
+        response.raise_for_status() # 2xx 응답이 아니면 에러 발생
+        print(f"[Notification] Sent {notification_type} notification for article: {article.get('title')}")
+    except requests.RequestException as e:
+        print(f"[Notification] Failed to send notification: {e}", file=sys.stderr)
+
 # --- 메인 로직 ---
 def main():
     print("최신 기사 병렬 수집 시작 (Python)")
@@ -273,14 +304,29 @@ def main():
     try:
         print("Step 3: Attempting to connect to the database...")
         cnx = mysql.connector.connect(**DB_CONFIG)
-        cursor = cnx.cursor()
+        cursor = cnx.cursor(dictionary=True)
         print("Step 4: Database connection successful.")
 
-        print(f"Step 5: Attempting to save {len(all_articles)} articles to the DB...")
+        # 기존에 저장된 URL 목록을 가져와서 중복 체크
+        cursor.execute("SELECT url FROM tn_home_article")
+        existing_urls = {row['url'] for row in cursor.fetchall()}
+        
+        new_articles = [a for a in all_articles if a['url'] not in existing_urls]
 
-        if all_articles:
-            insert_query = "INSERT IGNORE INTO tn_home_article (source, source_domain, category, title, url, published_at, thumbnail_url, description) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)"
-            data_to_insert = [(a['source'], a['source_domain'], a['category'], a['title'], a['url'], a['published_at'].strftime('%Y-%m-%dT%H:%M:%SZ'), a['thumbnail_url'], a['description']) for a in all_articles]
+        print(f"Step 5: Found {len(new_articles)} new articles to save and notify.")
+
+        if new_articles:
+            # 알림 발송 로직 (DB 저장 전)
+            for article in new_articles:
+                title = article.get('title', '')
+                if '[속보]' in title:
+                    send_notification('BREAKING_NEWS', article)
+                elif '[단독]' in title:
+                    send_notification('EXCLUSIVE_NEWS', article)
+
+            # DB 저장 로직
+            insert_query = "INSERT INTO tn_home_article (source, source_domain, category, title, url, published_at, thumbnail_url, description) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)"
+            data_to_insert = [(a['source'], a['source_domain'], a['category'], a['title'], a['url'], a['published_at'].strftime('%Y-%m-%dT%H:%M:%SZ'), a['thumbnail_url'], a['description']) for a in new_articles]
             cursor.executemany(insert_query, data_to_insert)
             cnx.commit()
             print(f"Step 6: {cursor.rowcount} new articles saved successfully.")

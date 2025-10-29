@@ -11,12 +11,9 @@ export const swaggerDefinition = {
     { name: "Articles", description: "기사 관련 API" },
     { name: "Saved Articles", description: "저장된 기사 관련 API" },
     { name: "Admin", description: "관리자 콘솔용 API" },
-    { name: "Scrape", description: "실시간 RSS 스크래핑 API" },
     { name: "Jobs", description: "백그라운드 작업 API" },
   ],
-  servers: [
-    { url: "/", description: "API 서버" },
-  ],
+  servers: [{ url: "/", description: "API 서버" }],
   components: {
     securitySchemes: {
       bearerAuth: {

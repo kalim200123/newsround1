@@ -13,7 +13,7 @@ import swaggerUi from "swagger-ui-express";
 
 import pool from "./config/db";
 import { specs } from "./config/swagger";
-import initializeSocket from "./socket";
+import initializeSocket, { userSocketMap } from "./socket";
 
 import adminRouter from "./routes/admin";
 import apiRouter from "./routes/api";
@@ -23,6 +23,7 @@ import chatRouter from "./routes/chat";
 import inquiryRouter from "./routes/inquiry";
 import savedRouter from "./routes/saved";
 import jobsRouter from "./routes/jobs";
+import internalRouter from "./routes/internal";
 import userRouter from "./routes/user";
 
 const app: Express = express();
@@ -53,6 +54,7 @@ app.use("/api/topics/:topicId/chat", chatRouter); // 토픽에 종속된 채팅 
 app.use("/api/chat", chatRouter); // 개별 채팅 메시지 관리 (삭제, 신고 등)
 app.use("/api/inquiry", inquiryRouter);
 app.use("/api/saved", savedRouter);
+app.use("/api/internal", internalRouter);
 app.use("/api", apiRouter);
 
 // 헬스 체크
@@ -89,6 +91,10 @@ const io = new Server(httpServer, {
 
 // 소켓 로직 초기화
 initializeSocket(io);
+
+// 모든 라우터에서 io 객체를 쓸 수 있도록 app에 등록
+app.set("io", io);
+app.set("userSocketMap", userSocketMap);
 
 // 서버 기동
 httpServer.listen(port, async () => {

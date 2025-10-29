@@ -12,9 +12,12 @@ interface AuthenticatedSocket extends Socket {
   };
 }
 
+// userId와 socket.id를 매핑하기 위한 인-메모리 맵
+export const userSocketMap = new Map<number, string>();
+
 const initializeSocket = (io: Server) => {
 
-  // [추가] 소켓 미들웨어: 모든 연결에 대해 JWT 인증 수행
+  // 소켓 미들웨어: 모든 연결에 대해 JWT 인증 수행
   io.use((socket: AuthenticatedSocket, next) => {
     const token = socket.handshake.auth.token;
 
@@ -28,26 +31,26 @@ const initializeSocket = (io: Server) => {
         console.error("[Socket Auth] Invalid token:", err.message);
         return next(new Error("Authentication error: Invalid token"));
       }
-      // 소켓 객체에 사용자 정보를 저장하여, 나중에 활용
       socket.user = decoded;
       next();
     });
   });
 
-  // 사용자가 소켓 서버에 새로 연결되었을 때 실행됩니다.
   io.on("connection", (socket: AuthenticatedSocket) => {
     const user = socket.user;
-    // 인증 미들웨어를 통과했으므로, user 객체는 항상 존재합니다.
-    console.log(`[Socket] Authenticated user connected: ${user?.name} (${socket.id})`);
+    if (!user) return; // Should not happen due to middleware
+
+    console.log(`[Socket] Authenticated user connected: ${user.name} (${socket.id})`);
+    // 사용자가 연결되면 맵에 추가
+    userSocketMap.set(user.userId, socket.id);
 
     socket.on("join_room", (room: string) => {
       socket.join(room);
-      console.log(`[Socket] User ${user?.name} joined room: ${room}`);
+      console.log(`[Socket] User ${user.name} joined room: ${room}`);
     });
 
-    // [수정] author를 클라이언트에서 받지 않고, 인증된 토큰의 사용자 정보를 사용
     socket.on("send_message", async (data: { room: string; message: string; }) => {
-      if (!user) return; // 타입스크립트용 안전장치
+      if (!user) return;
 
       const topicId = parseInt(data.room, 10);
       if (isNaN(topicId)) {
@@ -56,10 +59,8 @@ const initializeSocket = (io: Server) => {
         return;
       }
 
-      // 1. 다른 사용자에게 메시지 실시간 전송
-      // 임시 ID와 현재 시각을 포함하여 즉각적인 UI 반응성을 지원
       socket.to(data.room).emit("receive_message", {
-        id: Date.now(), // 임시 클라이언트 식별용 ID
+        id: Date.now(),
         content: data.message,
         created_at: new Date().toISOString(),
         user_id: user.userId,
@@ -67,13 +68,11 @@ const initializeSocket = (io: Server) => {
         profile_image_url: user.profile_image_url,
       });
 
-      // 2. 받은 메시지를 DB에 저장
       try {
         await pool.query(
           "INSERT INTO tn_chat (topic_id, user_id, content) VALUES (?, ?, ?)",
           [topicId, user.userId, data.message]
         );
-        console.log(`[DB] Message from ${user.name} to room ${data.room} saved to database.`);
       } catch (dbError) {
         console.error(`[DB] Failed to save message for room ${data.room}:`, dbError);
         socket.emit("error_message", { message: "Failed to save message." });
@@ -81,11 +80,15 @@ const initializeSocket = (io: Server) => {
     });
 
     socket.on("disconnect", () => {
-      console.log(`[Socket] User ${user?.name} disconnected: ${socket.id}`);
+      console.log(`[Socket] User ${user.name} disconnected: ${socket.id}`);
+      // 사용자가 연결을 끊으면 맵에서 제거
+      if (userSocketMap.get(user.userId) === socket.id) {
+        userSocketMap.delete(user.userId);
+      }
     });
 
     socket.on("error", (error) => {
-      console.error(`[Socket] Error for user ${user?.name}:`, error);
+      console.error(`[Socket] Error for user ${user.name}:`, error);
     });
   });
 };

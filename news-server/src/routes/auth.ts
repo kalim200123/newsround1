@@ -237,9 +237,14 @@ router.post("/login", validateLogin, async (req: Request, res: Response) => {
 
     const token = jwt.sign({ userId: user.id, name: user.name }, jwtSecret, { expiresIn: "12h" });
 
+    if (user.profile_image_url) {
+      const baseUrl = `${req.protocol}://${req.get("host")}`;
+      user.profile_image_url = `${baseUrl}${user.profile_image_url}`;
+    }
+
     res.json({
       token,
-      user: { id: user.id, name: user.name, email: user.email, nickname: user.nickname },
+      user: { id: user.id, name: user.name, email: user.email, nickname: user.nickname, profile_image_url: user.profile_image_url },
     });
   } catch (error) {
     console.error("Error during login:", error);

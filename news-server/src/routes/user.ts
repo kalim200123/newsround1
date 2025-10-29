@@ -51,7 +51,12 @@ router.get("/me", authenticateUser, async (req: AuthenticatedRequest, res: Respo
     if (users.length === 0) {
       return res.status(404).json({ message: "사용자를 찾을 수 없습니다." });
     }
-    res.json(users[0]);
+    const user = users[0];
+    if (user.profile_image_url) {
+      const baseUrl = `${req.protocol}://${req.get("host")}`;
+      user.profile_image_url = `${baseUrl}${user.profile_image_url}`;
+    }
+    res.json(user);
   } catch (error) {
     console.error("Error fetching user profile:", error);
     res.status(500).json({ message: "서버 오류가 발생했습니다." });
@@ -94,7 +99,17 @@ router.get("/me", authenticateUser, async (req: AuthenticatedRequest, res: Respo
  */
 router.put("/me", authenticateUser, validateUpdateUser, async (req: AuthenticatedRequest, res: Response) => {
   const userId = req.user?.userId;
-  const { nickname, profile_image_url, introduction } = req.body;
+  const { nickname, introduction } = req.body;
+  let { profile_image_url } = req.body;
+
+  if (profile_image_url) {
+    try {
+      const url = new URL(profile_image_url);
+      profile_image_url = url.pathname;
+    } catch (error) {
+      // Not a full URL, assume it's a relative path
+    }
+  }
 
   if (!nickname && !profile_image_url && introduction === undefined) {
     return res.status(400).json({ message: "수정할 정보를 입력해주세요." });
@@ -251,121 +266,120 @@ router.delete("/me", authenticateUser, async (req: AuthenticatedRequest, res: Re
 
 /**
  * @swagger
- * /api/user/me/liked-articles:
+ * /api/user/me/notification-settings:
  *   get:
  *     tags:
  *       - User
- *     summary: "내가 '좋아요' 한 기사 목록 조회"
- *     description: "현재 로그인한 사용자가 '좋아요'를 누른 모든 기사의 목록을 최신순으로 반환합니다."
+ *     summary: "내 알림 설정 조회"
+ *     description: "현재 로그인한 사용자의 모든 알림 타입에 대한 수신 여부 설정을 반환합니다. 설정한 적 없는 항목은 기본값(true)으로 표시됩니다."
  *     security:
  *       - bearerAuth: []
- *     parameters:
- *       - in: query
- *         name: limit
- *         schema:
- *           type: integer
- *           default: 25
- *         description: "한 번에 가져올 기사 수"
- *       - in: query
- *         name: offset
- *         schema:
- *           type: integer
- *           default: 0
- *         description: "건너뛸 기사 수 (페이지네이션용)"
  *     responses:
  *       200:
- *         description: "'좋아요' 한 기사 목록"
+ *         description: "알림 설정 목록"
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   notification_type:
+ *                     type: string
+ *                     example: "NEW_TOPIC"
+ *                   is_enabled:
+ *                     type: boolean
+ *                     example: true
  */
-router.get("/me/liked-articles", authenticateUser, async (req: AuthenticatedRequest, res: Response) => {
+router.get("/me/notification-settings", authenticateUser, async (req: AuthenticatedRequest, res: Response) => {
   const userId = req.user?.userId;
-  const limit = parseInt((req.query.limit as string) || "25", 10);
-  const offset = parseInt((req.query.offset as string) || "0", 10);
+  const NOTIFICATION_TYPES = ['NEW_TOPIC', 'BREAKING_NEWS', 'EXCLUSIVE_NEWS'];
 
   try {
-    const [rows] = await pool.query(
-      `
-      SELECT 
-        a.id, a.title, a.url, a.thumbnail_url, a.source, a.source_domain, a.published_at,
-        a.view_count,
-        COUNT(l2.id) AS like_count
-      FROM 
-        tn_article_like l1
-      JOIN 
-        tn_article a ON l1.article_id = a.id
-      LEFT JOIN
-        tn_article_like l2 ON a.id = l2.article_id
-      WHERE 
-        l1.user_id = ?
-      GROUP BY
-        a.id
-      ORDER BY 
-        l1.created_at DESC
-      LIMIT ? OFFSET ?
-      `,
-      [userId, limit, offset]
+    const [rows]: any = await pool.query(
+      "SELECT notification_type, is_enabled FROM tn_user_notification_settings WHERE user_id = ?",
+      [userId]
     );
-    res.json(rows);
+
+    const settingsMap = new Map(rows.map((row: { notification_type: string; is_enabled: number }) => [row.notification_type, !!row.is_enabled]));
+
+    const fullSettings = NOTIFICATION_TYPES.map(type => ({
+      notification_type: type,
+      is_enabled: settingsMap.has(type) ? settingsMap.get(type) : true, // DB에 설정 없으면 기본값 true
+    }));
+
+    res.json(fullSettings);
   } catch (error) {
-    console.error("Error fetching liked articles:", error);
+    console.error("Error fetching notification settings:", error);
     res.status(500).json({ message: "서버 오류가 발생했습니다." });
   }
 });
 
 /**
  * @swagger
- * /api/user/me/inquiries:
- *   get:
- *     tags:
+ * /api/user/me/notification-settings:
+ *   put:
+ *     tags: 
  *       - User
- *     summary: "내 문의 내역 조회"
- *     description: "현재 로그인한 사용자가 작성한 모든 문의와 그에 대한 답변을 최신순으로 조회합니다."
+ *     summary: "내 알림 설정 저장"
+ *     description: "현재 로그인한 사용자의 알림 설정을 업데이트합니다. 변경할 설정만 배열에 담아 보냅니다."
  *     security:
  *       - bearerAuth: []
- *     parameters:
- *       - in: query
- *         name: limit
- *         schema:
- *           type: integer
- *           default: 10
- *         description: "한 번에 가져올 문의 수"
- *       - in: query
- *         name: offset
- *         schema:
- *           type: integer
- *           default: 0
- *         description: "건너뛸 문의 수 (페이지네이션용)"
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: array
+ *             items:
+ *               type: object
+ *               required: [notification_type, is_enabled]
+ *               properties:
+ *                 notification_type:
+ *                   type: string
+ *                   enum: [NEW_TOPIC, BREAKING_NEWS, EXCLUSIVE_NEWS]
+ *                 is_enabled:
+ *                   type: boolean
  *     responses:
  *       200:
- *         description: "내 문의 내역 목록"
+ *         description: "설정 저장 성공"
+ *       400:
+ *         description: "요청 데이터 형식 오류"
  */
-router.get("/me/inquiries", authenticateUser, async (req: AuthenticatedRequest, res: Response) => {
+router.put("/me/notification-settings", authenticateUser, async (req: AuthenticatedRequest, res: Response) => {
   const userId = req.user?.userId;
-  const limit = parseInt((req.query.limit as string) || "10", 10);
-  const offset = parseInt((req.query.offset as string) || "0", 10);
+  const settings = req.body;
 
+  if (!Array.isArray(settings)) {
+    return res.status(400).json({ message: "Request body must be an array of settings." });
+  }
+
+  const connection = await pool.getConnection();
   try {
-    const [rows] = await pool.query(
-      `
-      SELECT 
-        i.id, i.subject, i.content, i.file_path, i.status, i.created_at,
-        r.content AS reply_content,
-        r.created_at AS reply_created_at
-      FROM 
-        tn_inquiry i
-      LEFT JOIN 
-        tn_inquiry_reply r ON i.id = r.inquiry_id
-      WHERE 
-        i.user_id = ?
-      ORDER BY 
-        i.created_at DESC
-      LIMIT ? OFFSET ?
-      `,
-      [userId, limit, offset]
-    );
-    res.json(rows);
+    await connection.beginTransaction();
+
+    const query = `
+      INSERT INTO tn_user_notification_settings (user_id, notification_type, is_enabled)
+      VALUES (?, ?, ?)
+      ON DUPLICATE KEY UPDATE is_enabled = VALUES(is_enabled)
+    `;
+
+    for (const setting of settings) {
+      if (typeof setting.notification_type !== 'string' || typeof setting.is_enabled !== 'boolean') {
+        throw new Error('Invalid setting format');
+      }
+      await connection.query(query, [userId, setting.notification_type, setting.is_enabled]);
+    }
+
+    await connection.commit();
+    res.status(200).json({ message: "Notification settings updated successfully." });
+
   } catch (error) {
-    console.error("Error fetching user inquiries:", error);
+    await connection.rollback();
+    console.error("Error updating notification settings:", error);
     res.status(500).json({ message: "서버 오류가 발생했습니다." });
+  } finally {
+    connection.release();
   }
 });
 
