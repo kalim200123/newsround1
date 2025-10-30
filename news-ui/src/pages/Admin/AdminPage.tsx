@@ -30,7 +30,7 @@ const formatPublishedAt = (value?: string | null) => {
 };
 
 const TOPIC_PROMPT =
-  "현재 대한민국에서 가장 인기있는 토픽 5개와 각 토픽에 대한 단어형 키워드 3~5개, 중도 입장에서의 요약을 작성해줘.";
+  "현재 대한민국에서 가장 인기있는 토픽 5개(한경오합쳐서 기사 10개, 조중동에 기사 10개 정도는 있어야 함)와 각 토픽에 대한 단어형 키워드 3~5개, 중도 입장에서의 요약을 작성해줘.";
 
 export default function AdminPage() {
   const [publishedTopics, setPublishedTopics] = useState<Topic[]>([]);

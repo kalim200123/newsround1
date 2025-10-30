@@ -111,7 +111,7 @@ const AdminTopicDetailPage = () => {
   useEffect(() => {
     const fetchTopicList = async () => {
       try {
-        const response = await axios.get(`/api/admin/topics/published`);
+        const response = await axios.get(`/api/admin/topics/list-by-popularity`);
         setTopicList(response.data);
       } catch (error) {
         console.error("발행 토픽 목록을 불러오지 못했습니다.", error);

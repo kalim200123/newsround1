@@ -1,11 +1,10 @@
 import { spawn } from "child_process";
 import express, { Request, Response } from "express";
 import fs from "fs";
-import path from "path";
 import os from "os";
+import path from "path";
 import pool from "../config/db";
 import { authenticateAdmin, handleAdminLogin } from "../middleware/auth";
-import { AuthenticatedRequest } from "../middleware/userAuth";
 
 const router = express.Router();
 
@@ -462,7 +461,7 @@ router.post("/topics", async (req: Request, res: Response) => {
     const newTopicId = result.insertId;
 
     const pythonScriptPath = path.join(__dirname, "../../../news-data/article_collector.py");
-    const pythonCommand = process.env.PYTHON_EXECUTABLE_PATH || (os.platform() === 'win32' ? 'python' : 'python3');
+    const pythonCommand = process.env.PYTHON_EXECUTABLE_PATH || (os.platform() === "win32" ? "python" : "python3");
     const args = ["-u", pythonScriptPath, newTopicId.toString()];
 
     console.log(`Executing: ${pythonCommand} ${args.join(" ")}`);
@@ -472,8 +471,8 @@ router.post("/topics", async (req: Request, res: Response) => {
       console.log(`[article_collector.py stdout]: ${data.toString().trim()}`);
     });
     // --- Real-time notification ---
-    const io = req.app.get('io');
-    const userSocketMap = req.app.get('userSocketMap');
+    const io = req.app.get("io");
+    const userSocketMap = req.app.get("userSocketMap");
 
     if (io && userSocketMap) {
       try {
@@ -486,18 +485,18 @@ router.post("/topics", async (req: Request, res: Response) => {
         `);
 
         const notification = {
-          type: 'NEW_TOPIC',
+          type: "NEW_TOPIC",
           data: {
             id: newTopicId,
             displayName: displayName,
             summary: summary || "",
-          }
+          },
         };
 
         for (const user of usersToNotify) {
           const socketId = userSocketMap.get(user.id);
           if (socketId) {
-            io.to(socketId).emit('new_notification', notification);
+            io.to(socketId).emit("new_notification", notification);
             console.log(`Sent NEW_TOPIC notification to user ${user.id} on socket ${socketId}`);
           }
         }
@@ -902,7 +901,7 @@ router.post("/topics/:topicId/recollect", async (req: Request, res: Response) =>
       await pool.query("UPDATE tn_topic SET collection_status = 'pending', updated_at = NOW() WHERE id = ?", [topicId]);
     }
 
-    const pythonCommand = process.env.PYTHON_EXECUTABLE_PATH || (os.platform() === 'win32' ? 'python' : 'python3');
+    const pythonCommand = process.env.PYTHON_EXECUTABLE_PATH || (os.platform() === "win32" ? "python" : "python3");
     const pythonScriptPath = path.join(__dirname, "../../../news-data/article_collector.py");
     const args = ["-u", pythonScriptPath, topicId];
 
@@ -962,8 +961,6 @@ router.get("/download", (req: Request, res: Response) => {
   const rootDir = path.resolve(__dirname, "..", "..");
   const uploadDir = path.resolve(rootDir, "uploads");
   const absolutePath = rootDir + path.sep + filePath;
-
-
 
   console.log(`[Download API] Calculated absolute path: ${absolutePath}`);
 
@@ -1033,14 +1030,14 @@ router.post("/topics/:topicId/unpublish-all-articles", async (req: Request, res:
       "UPDATE tn_article SET status = 'suggested' WHERE topic_id = ? AND status = 'published'",
       [topicId]
     );
-    
+
     if (result.affectedRows === 0) {
       return res.status(404).json({ message: "No published articles found for this topic to unpublish." });
     }
 
-    res.json({ 
+    res.json({
       message: `Successfully unpublished all articles for topic ${topicId}.`,
-      updatedCount: result.affectedRows 
+      updatedCount: result.affectedRows,
     });
   } catch (error) {
     console.error("Error unpublishing all articles for topic:", error);
@@ -1085,17 +1082,42 @@ router.post("/topics/:topicId/delete-all-suggested", async (req: Request, res: R
       "UPDATE tn_article SET status = 'deleted' WHERE topic_id = ? AND status = 'suggested'",
       [topicId]
     );
-    
+
     if (result.affectedRows === 0) {
       return res.status(404).json({ message: "No suggested articles found for this topic to delete." });
     }
 
-    res.json({ 
+    res.json({
       message: `Successfully deleted all suggested articles for topic ${topicId}.`,
-      deletedCount: result.affectedRows 
+      deletedCount: result.affectedRows,
     });
   } catch (error) {
     console.error("Error deleting all suggested articles for topic:", error);
+    res.status(500).json({ message: "Server error", detail: (error as Error).message });
+  }
+});
+
+/**
+ * @swagger
+ * /api/admin/topics/list-by-popularity:
+ *   get:
+ *     tags: [Admin]
+ *     summary: 발행됨 상태의 모든 토픽 목록을 인기순으로 조회
+ *     description: "관리자 페이지 사이드바를 위해, 모든 발행된 토픽을 popularity_score가 높은 순으로 정렬하여 반환합니다."
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: 인기순으로 정렬된 토픽 목록
+ */
+router.get("/topics/list-by-popularity", async (req: Request, res: Response) => {
+  try {
+    const [rows] = await pool.query(
+      "SELECT id, display_name, published_at, popularity_score FROM tn_topic WHERE status = 'published' AND topic_type = 'CONTENT' ORDER BY popularity_score DESC, published_at DESC"
+    );
+    res.json(rows);
+  } catch (error) {
+    console.error("Error fetching topics by popularity:", error);
     res.status(500).json({ message: "Server error", detail: (error as Error).message });
   }
 });

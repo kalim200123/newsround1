@@ -120,6 +120,32 @@ router.get("/topics/latest", async (req: Request, res: Response) => {
 
 /**
  * @swagger
+ * /api/topics/popular-all:
+ *   get:
+ *     tags: [Topics]
+ *     summary: 모든 발행된 토픽을 인기순으로 조회
+ *     description: "홈페이지 등에서 사용하기 위해, 모든 발행된 토픽을 popularity_score가 높은 순으로 정렬하여 반환합니다."
+ *     responses:
+ *       200:
+ *         description: 인기순으로 정렬된 모든 토픽 목록
+ */
+router.get("/topics/popular-all", async (req: Request, res: Response) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT id, display_name, summary, published_at, view_count, popularity_score 
+       FROM tn_topic 
+       WHERE status = 'published' AND topic_type = 'CONTENT'
+       ORDER BY popularity_score DESC, published_at DESC`
+    );
+    res.json(rows);
+  } catch (error) {
+    console.error("Error fetching all popular topics:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+/**
+ * @swagger
  * /api/topics/{topicId}:
  *   get:
  *     tags: [Topics]

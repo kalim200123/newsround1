@@ -2,12 +2,12 @@
 import axios from "axios";
 import type { Article, Topic } from "../types";
 
-// API ?쒕쾭??湲곕낯 二쇱냼瑜??ㅼ젙?⑸땲??
+// API client 설정
 export const apiClient = axios.create({});
 
 // GET /api/topics
 export const fetchPublishedTopics = async (): Promise<Topic[]> => {
-  const response = await apiClient.get("/api/topics");
+  const response = await apiClient.get("/api/topics/popular-all");
   return response.data;
 };
 
@@ -24,10 +24,3 @@ export const fetchSuggestedTopics = async (): Promise<Topic[]> => {
   const response = await apiClient.get("/api/admin/topics/suggested");
   return response.data;
 };
-
-// ... (?댄썑 ?ㅻⅨ 紐⑤뱺 API ?몄텧 ?⑥닔?ㅼ쓣 ?ш린??異붽??⑸땲??
-
-
-
-
-
