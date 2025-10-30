@@ -328,21 +328,36 @@ router.delete("/categories/:categoryId", async (req: AuthenticatedRequest, res) 
   const userId = req.user?.userId;
   const { categoryId } = req.params;
 
+  const connection = await pool.getConnection();
   try {
-    const [deleteResult]: any = await pool.query(
+    await connection.beginTransaction();
+
+    // 1. 해당 카테고리에 속한 기사들의 category_id를 NULL로 업데이트
+    await connection.query(
+      "UPDATE tn_user_saved_articles SET category_id = NULL WHERE user_id = ? AND category_id = ?",
+      [userId, categoryId]
+    );
+
+    // 2. 카테고리 삭제
+    const [deleteResult]: any = await connection.query(
       "DELETE FROM tn_user_saved_article_categories WHERE id = ? AND user_id = ?",
       [categoryId, userId]
     );
 
     if (deleteResult.affectedRows === 0) {
+      await connection.rollback();
       return res.status(403).json({ message: "자신의 카테고리가 아니거나, 카테고리를 찾을 수 없습니다." });
     }
 
+    await connection.commit();
     res.status(200).json({ message: "카테고리가 삭제되었습니다." });
 
   } catch (error) {
+    await connection.rollback();
     console.error("Error deleting category:", error);
     res.status(500).json({ message: "서버 오류가 발생했습니다." });
+  } finally {
+    connection.release();
   }
 });
 
