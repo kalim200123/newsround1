@@ -960,7 +960,7 @@ router.get("/download", (req: Request, res: Response) => {
 
   const rootDir = path.resolve(__dirname, "..", "..");
   const uploadDir = path.resolve(rootDir, "uploads");
-  const absolutePath = rootDir + path.sep + filePath;
+  const absolutePath = path.join(rootDir, filePath);
 
   console.log(`[Download API] Calculated absolute path: ${absolutePath}`);
 

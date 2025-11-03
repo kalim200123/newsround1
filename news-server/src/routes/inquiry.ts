@@ -22,8 +22,11 @@ const storage = multer.diskStorage({
   },
   filename: function (req, file, cb) {
     // 파일 이름 중복을 피하기 위해 타임스탬프 추가
+    const originalName = Buffer.from(file.originalname, 'latin1').toString('utf8');
+    const extension = path.extname(originalName);
+    const basename = path.basename(originalName, extension);
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, Buffer.from(file.originalname, 'latin1').toString('utf8') + '-' + uniqueSuffix + path.extname(file.originalname));
+    cb(null, basename + '-' + uniqueSuffix + extension);
   }
 });
 
