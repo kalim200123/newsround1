@@ -235,7 +235,7 @@ router.post("/login", validateLogin, async (req: Request, res: Response) => {
         console.warn('Warning: USER_JWT_SECRET environment variable is not set. Using a default secret key for development.');
     }
 
-    const token = jwt.sign({ userId: user.id, name: user.name }, jwtSecret, { expiresIn: "12h" });
+    const token = jwt.sign({ userId: user.id, name: user.name }, jwtSecret, { expiresIn: "5m" });
 
     if (user.profile_image_url) {
       const baseUrl = `${req.protocol}://${req.get("host")}`;

@@ -8,6 +8,7 @@ interface InquiryDetail {
     subject: string;
     content: string;
     file_path: string | null;
+    file_originalname: string | null;
     status: string;
     created_at: string;
     user_nickname: string;
@@ -71,7 +72,7 @@ export default function AdminInquiryDetailPage() {
     }
   };
 
-  const handleDownload = async (filePath: string) => {
+  const handleDownload = async (filePath: string, originalName: string | null) => {
     try {
       const response = await axios.get(`/api/admin/download?path=${encodeURIComponent(filePath)}`, {
         responseType: 'blob',
@@ -81,9 +82,7 @@ export default function AdminInquiryDetailPage() {
       const link = document.createElement('a');
       link.href = url;
 
-      // 파일명 추출 (타임스탬프 및 랜덤 숫자 제거)
-      const filename = filePath.split('-').slice(2).join('-') || 'download';
-      link.setAttribute('download', filename);
+      link.setAttribute('download', originalName || 'download');
 
       document.body.appendChild(link);
       link.click();
@@ -139,8 +138,8 @@ export default function AdminInquiryDetailPage() {
           {inquiry.file_path && (
             <div className="inquiry-attachment">
               <strong>첨부파일:</strong>
-              <button type="button" className="link-button" onClick={() => handleDownload(inquiry.file_path!)}>
-                {inquiry.file_path.split("-").slice(2).join("-")}
+              <button type="button" className="link-button" onClick={() => handleDownload(inquiry.file_path!, inquiry.file_originalname)}>
+                {inquiry.file_originalname || '파일 보기'}
               </button>
             </div>
           )}

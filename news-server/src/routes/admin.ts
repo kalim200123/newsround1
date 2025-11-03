@@ -947,39 +947,26 @@ router.post("/topics/:topicId/recollect", async (req: Request, res: Response) =>
  *         description: "파일을 찾을 수 없음"
  */
 router.get("/download", (req: Request, res: Response) => {
-  const filePath_raw = req.query.path as string;
+  const requestedRelativePath = req.query.path as string;
 
-  if (!filePath_raw) {
+  if (!requestedRelativePath) {
     return res.status(400).json({ message: "파일 경로가 필요합니다." });
   }
 
-  // 경로 정규화 및 공백 제거
-  const filePath = path.normalize(filePath_raw.trim());
+  const appRoot = path.resolve(__dirname, '..', '..');
+  // Create an absolute path from the app root and the relative path from DB
+  const requestedAbsolutePath = path.join(appRoot, requestedRelativePath);
 
-  console.log(`[Download API] Cleaned request for file path: ${filePath}`);
+  // For security, resolve it to a canonical path and check it's within the uploads folder
+  const canonicalPath = path.resolve(requestedAbsolutePath);
+  const uploadDir = path.resolve(appRoot, 'uploads');
 
-  const rootDir = path.resolve(__dirname, "..", "..");
-  const uploadDir = path.resolve(rootDir, "uploads");
-  const absolutePath = path.join(rootDir, filePath);
-
-  console.log(`[Download API] Calculated absolute path: ${absolutePath}`);
-
-  const fileExists = fs.existsSync(absolutePath);
-  console.log(`[Download API] File exists check: ${fileExists}`);
-
-  // 더 강력한 보안 검사: 요청된 경로가 uploads 디렉토리 내에 있는지 확인
-  const relativePath = path.relative(uploadDir, absolutePath);
-  if (relativePath.startsWith("..") || path.isAbsolute(relativePath)) {
-    console.error("Forbidden file access attempt (Relative Path Check Fail):", {
-      uploadDir,
-      absolutePath,
-      relativePath,
-    });
+  if (!canonicalPath.startsWith(uploadDir)) {
     return res.status(403).json({ message: "허용되지 않은 파일에 대한 접근입니다." });
   }
 
-  if (fileExists) {
-    res.download(absolutePath, (err) => {
+  if (fs.existsSync(canonicalPath)) {
+    res.download(canonicalPath, (err) => {
       if (err) {
         console.error("File download error:", err);
         if (!res.headersSent) {
@@ -988,7 +975,7 @@ router.get("/download", (req: Request, res: Response) => {
       }
     });
   } else {
-    console.error(`[Download API] File not found at path: ${absolutePath}`);
+    console.error(`[Download API] File not found at path: ${canonicalPath}`);
     res.status(404).json({ message: "파일을 찾을 수 없습니다." });
   }
 });

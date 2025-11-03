@@ -75,14 +75,12 @@ const upload = multer({
 router.post("/", authenticateUser, upload.single('attachment'), validateInquiry, async (req: AuthenticatedRequest, res: Response) => {
   const { subject, content } = req.body;
   const userId = req.user?.userId;
-  const filePath = req.file ? req.file.path : null;
-  const originalName = req.file ? Buffer.from(req.file.originalname, 'latin1').toString('utf8') : null;
 
-  console.log('[Debug] Attempting to save inquiry with file info:', {
-    filePath,
-    originalName,
-    hasFile: !!req.file
-  });
+  // Resolve app root path to calculate relative path for DB
+  const appRoot = path.resolve(__dirname, '..', '..');
+  // Save a relative path to the DB to make it environment-agnostic
+  const filePath = req.file ? path.relative(appRoot, req.file.path).replace(/\\/g, '/') : null;
+  const originalName = req.file ? Buffer.from(req.file.originalname, 'latin1').toString('utf8') : null;
 
   try {
     await pool.query(
