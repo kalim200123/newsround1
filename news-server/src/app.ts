@@ -94,6 +94,8 @@ Stack: ${err.stack}
 `;
   fs.appendFileSync(path.join(logDir, "server_errors.log"), errorLog);
 
+  console.error(errorLog); // Print the full error to the console for cloud logging
+
   console.error("예상하지 못한 서버 오류가 발생했습니다. logs/server_errors.log를 확인하세요.");
   res.status(500).json({ message: "서버 내부 오류가 발생했습니다." });
 });
