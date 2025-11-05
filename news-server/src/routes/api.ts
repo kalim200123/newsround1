@@ -305,55 +305,29 @@ router.get("/search", optionalAuthenticateUser, async (req: AuthenticatedRequest
     return res.status(400).json({ message: "검색어를 입력해주세요." });
   }
 
-  // 1. Get query vector from Python script
-  const pythonCommand = process.env.PYTHON_EXECUTABLE_PATH || (os.platform() === "win32" ? "python" : "python3");
-  const scriptPath = path.join(__dirname, "../../news-data/embed_query.py");
+  const searchQuery = `%${query}%`;
 
   try {
-    const queryVector: number[] = await new Promise((resolve, reject) => {
-      execFile(pythonCommand, [scriptPath, query], (error, stdout, stderr) => {
-        if (error) {
-          console.error("Error executing embed_query.py:", stderr);
-          return reject(new Error("Failed to generate query embedding."));
-        }
-        try {
-          resolve(JSON.parse(stdout));
-        } catch (parseError) {
-          console.error("Error parsing python script output:", stdout);
-          reject(new Error("Failed to parse query embedding."));
-        }
-      });
-    });
-
-    // 2. Perform vector search in DB
-    const queryVectorStr = `[${queryVector.join(',')}]`; // Convert to JSON array string for TiDB
-    
     const [rows] = await pool.query(
-      `SELECT a.*, 
-              VEC_COSINE_DISTANCE(a.embedding, ?) as similarity,
-              COUNT(l.id) AS like_count, 
-              MAX(IF(l_user.id IS NOT NULL, 1, 0)) as isLiked
+      `SELECT a.*, COUNT(l.id) AS like_count, MAX(IF(l_user.id IS NOT NULL, 1, 0)) as isLiked
        FROM tn_home_article a
        LEFT JOIN tn_article_like l ON a.id = l.article_id
        LEFT JOIN tn_article_like l_user ON a.id = l_user.article_id AND l_user.user_id = ?
-       WHERE a.embedding IS NOT NULL
+       WHERE (a.title LIKE ? OR a.description LIKE ?)
        GROUP BY a.id
-       ORDER BY similarity ASC
-       LIMIT 25`,
-      [queryVectorStr, userId]
+       ORDER BY a.published_at DESC
+       LIMIT 50`,
+      [userId, searchQuery, searchQuery]
     );
-
     const articlesWithFavicon = (rows as any[]).map((article) => ({
       ...article,
       isLiked: Boolean(article.isLiked),
       favicon_url: FAVICON_URLS[article.source_domain] || null,
     }));
-
     res.json(articlesWithFavicon);
-
   } catch (error) {
-    console.error("Error during semantic search:", error);
-    res.status(500).json({ message: "검색 중 오류가 발생했습니다." });
+    console.error("Error searching articles:", error);
+    res.status(500).json({ message: "Server error" });
   }
 });
 
