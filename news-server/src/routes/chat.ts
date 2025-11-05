@@ -53,7 +53,14 @@ router.get("/", async (req: Request, res: Response) => {
     `,
       [topicId, limit, offset]
     );
-    res.json(rows);
+
+    const baseUrl = `${req.protocol}://${req.get("host")}`;
+    const messages = (rows as any[]).map(msg => ({
+      ...msg,
+      profile_image_url: msg.profile_image_url ? `${baseUrl}${msg.profile_image_url}` : null
+    }));
+
+    res.json(messages);
   } catch (error) {
     console.error("Error fetching chat messages:", error);
     res.status(500).json({ message: "채팅 메시지를 불러오는 중 오류가 발생했습니다." });
