@@ -255,10 +255,32 @@ router.put(
  */
 router.delete("/me", authenticateUser, async (req: AuthenticatedRequest, res: Response) => {
   const userId = req.user?.userId;
+  const { currentPassword } = req.body;
+
+  if (!currentPassword) {
+    return res.status(400).json({ message: "비밀번호를 입력해주세요." });
+  }
 
   try {
+    // 1. Fetch user's hashed password
+    const [users]: any = await pool.query("SELECT password FROM tn_user WHERE id = ?", [userId]);
+
+    if (users.length === 0) {
+      return res.status(404).json({ message: "사용자를 찾을 수 없습니다." });
+    }
+    const user = users[0];
+
+    // 2. Verify password
+    const isPasswordCorrect = await bcrypt.compare(currentPassword, user.password);
+    if (!isPasswordCorrect) {
+      return res.status(401).json({ message: "비밀번호가 일치하지 않습니다." });
+    }
+
+    // 3. If password is correct, update status to DELETED
     await pool.query("UPDATE tn_user SET status = 'DELETED' WHERE id = ?", [userId]);
+    
     res.status(200).json({ message: "회원 탈퇴 처리가 완료되었습니다." });
+
   } catch (error) {
     console.error("Error deleting user account:", error);
     res.status(500).json({ message: "서버 오류가 발생했습니다." });

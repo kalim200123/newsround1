@@ -234,51 +234,58 @@ router.post("/:messageId/report", authenticateUser, async (req: AuthenticatedReq
   const userId = req.user?.userId;
   const REPORT_THRESHOLD = 5;
 
-  const connection = await pool.getConnection();
   try {
-    await connection.beginTransaction();
-
-    const [logResult]: any = await connection.query(
+    // 1. Try to log the report first.
+    const [logResult]: any = await pool.query(
       "INSERT IGNORE INTO tn_chat_report_log (chat_id, user_id) VALUES (?, ?)",
       [messageId, userId]
     );
 
+    // 2. If affectedRows is 0, it was a duplicate. Stop here.
     if (logResult.affectedRows === 0) {
-      await connection.rollback();
       return res.status(200).json({ message: "이미 신고한 메시지입니다." });
     }
 
-    await connection.query(
-      "UPDATE tn_chat SET report_count = report_count + 1 WHERE id = ?",
-      [messageId]
-    );
-
-    const [messages]: any = await connection.query(
-      "SELECT report_count FROM tn_chat WHERE id = ?",
-      [messageId]
-    );
-
-    if (messages.length === 0) {
-      await connection.rollback();
-      return res.status(404).json({ message: "메시지를 찾을 수 없습니다." });
-    }
-
-    if (messages[0].report_count >= REPORT_THRESHOLD) {
+    // 3. If it's a new report, run the transactional updates.
+    const connection = await pool.getConnection();
+    try {
+      await connection.beginTransaction();
+      
       await connection.query(
-        "UPDATE tn_chat SET status = 'HIDDEN' WHERE id = ?",
+        "UPDATE tn_chat SET report_count = report_count + 1 WHERE id = ?",
         [messageId]
       );
+
+      const [messages]: any = await connection.query(
+        "SELECT user_id, report_count FROM tn_chat WHERE id = ?",
+        [messageId]
+      );
+
+      if (messages.length > 0 && messages[0].report_count >= REPORT_THRESHOLD) {
+        await connection.query(
+          "UPDATE tn_chat SET status = 'HIDDEN' WHERE id = ?",
+          [messageId]
+        );
+        const messageAuthorId = messages[0].user_id;
+        await connection.query(
+          "UPDATE tn_user SET warning_count = warning_count + 1 WHERE id = ?",
+          [messageAuthorId]
+        );
+      }
+      
+      await connection.commit();
+      res.status(200).json({ message: "신고가 접수되었습니다." });
+
+    } catch (error) {
+      await connection.rollback();
+      console.error("Error processing report consequences:", error);
+      res.status(500).json({ message: "신고를 처리하는 중 오류가 발생했습니다." });
+    } finally {
+      connection.release();
     }
-
-    await connection.commit();
-    res.status(200).json({ message: "신고가 접수되었습니다." });
-
   } catch (error) {
-    await connection.rollback();
-    console.error("Error reporting message:", error);
-    res.status(500).json({ message: "메시지를 신고하는 중 오류가 발생했습니다." });
-  } finally {
-    connection.release();
+    console.error("Error logging report:", error);
+    res.status(500).json({ message: "신고를 기록하는 중 오류가 발생했습니다." });
   }
 });
 

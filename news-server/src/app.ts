@@ -44,7 +44,7 @@ const corsOptions = {
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      callback(new Error('Not allowed by CORS'));
+      callback(new Error(`Not allowed by CORS: Origin ${origin} is not whitelisted.`));
     }
   },
   credentials: true, // 인증 정보(쿠키, 토큰 등)를 포함한 요청 허용
