@@ -192,7 +192,7 @@ router.get("/topics/:topicId", optionalAuthenticateUser, async (req: Authenticat
       GROUP BY
         a.id
       ORDER BY 
-        a.display_order ASC
+        a.display_order ASC, a.published_at DESC
       `,
       [userId, userId, topicId] // userId is used twice now
     );

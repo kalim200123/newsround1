@@ -178,40 +178,30 @@ def collect_for_topic(cnx, topic: Dict, articles: List[Article]):
     candidates = [a for a in candidates if a.url not in existing_urls]
     logging.info(f"  ↳ {len(candidates)} candidates remain after filtering existing URLs.")
 
-    # Check existing article counts to determine how many new ones are needed
-    cursor.execute(
-        "SELECT side, COUNT(*) as count FROM tn_article WHERE topic_id = %s AND status IN ('published', 'suggested') GROUP BY side",
-        (topic_id,)
-    )
-    existing_counts = {row['side']: row['count'] for row in cursor.fetchall()}
-    left_needed = TARGET_PER_SIDE - existing_counts.get("LEFT", 0)
-    right_needed = TARGET_PER_SIDE - existing_counts.get("RIGHT", 0)
+    if not candidates:
+      update_collection_status(cursor, topic_id, "completed")
+      return
 
-    logging.info(f"  ↳ Existing: L={existing_counts.get('LEFT', 0)}, R={existing_counts.get('RIGHT', 0)}. Needed: L={left_needed}, R={right_needed}")
-
-    if left_needed <= 0 and right_needed <= 0:
-        logging.info("  ↳ No new articles needed.")
-        update_collection_status(cursor, topic_id, "completed")
-        return
-
-    # Rank by similarity and pick the top N needed for each side
+    # Rank by similarity and pick the top 10 for each side
     candidates.sort(key=lambda x: x.similarity, reverse=True)
-
+    
     left_to_add, right_to_add = [], []
     for a in candidates:
-        if a.side == "LEFT" and len(left_to_add) < left_needed:
+        if a.side == "LEFT" and len(left_to_add) < 10:
             left_to_add.append(a)
-        elif a.side == "RIGHT" and len(right_to_add) < right_needed:
+        elif a.side == "RIGHT" and len(right_to_add) < 10:
             right_to_add.append(a)
-        if len(left_to_add) >= left_needed and len(right_to_add) >= right_needed:
+        # Stop if both sides are full
+        if len(left_to_add) >= 10 and len(right_to_add) >= 10:
             break
 
     # Insert the selected articles
-    for article_to_add in (left_to_add + right_to_add):
+    articles_to_add = left_to_add + right_to_add
+    for article_to_add in articles_to_add:
         insert_article(cursor, topic_id, article_to_add)
 
     update_collection_status(cursor, topic_id, "completed")
-    logging.info(f"✓ Topic #{topic_id} done: Inserted {len(left_to_add)} LEFT and {len(right_to_add)} RIGHT new suggested articles.")
+    logging.info(f"✓ Topic #{topic_id} done: Inserted {len(articles_to_add)} new suggested articles ({len(left_to_add)} LEFT, {len(right_to_add)} RIGHT).")
 
 def main():
     logging.info("--- Article Analyzer ---")

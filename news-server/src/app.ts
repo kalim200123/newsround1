@@ -35,7 +35,8 @@ const allowedOrigins = [
   'http://localhost:3000',
   'https://news-frontend-jg.vercel.app',
   'https://news02.onrender.com',
-  'http://localhost:5173'
+  'http://localhost:5173',
+  'https://news-frontend-5lcus6f4u-leejaegwons-projects.vercel.app'
 ];
 
 const corsOptions = {

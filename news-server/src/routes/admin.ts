@@ -85,10 +85,11 @@ router.use(authenticateAdmin);
  *         description: "파일을 찾을 수 없음"
  */
 const createContentDispositionHeader = (filename: string): string => {
-  const asciiFallback = filename
-    .replace(/[^\x20-\x7E]/g, "_") // replace non-ASCII with underscore
-    .replace(/["\\]/g, "_") // prevent breaking quotes/backslashes
-    .trim() || "download";
+  const asciiFallback =
+    filename
+      .replace(/[^\x20-\x7E]/g, "_") // replace non-ASCII with underscore
+      .replace(/["\\]/g, "_") // prevent breaking quotes/backslashes
+      .trim() || "download";
 
   const encodedFilename = encodeURIComponent(filename);
   return `attachment; filename="${asciiFallback}"; filename*=UTF-8''${encodedFilename}`;
@@ -105,10 +106,7 @@ router.get("/download", (req: Request, res: Response) => {
   const uploadRoot = path.resolve(appRoot, "uploads");
   const intendedAbsolutePath = path.resolve(appRoot, requestedRelativePath);
 
-  if (
-    intendedAbsolutePath !== uploadRoot &&
-    !intendedAbsolutePath.startsWith(uploadRoot + path.sep)
-  ) {
+  if (intendedAbsolutePath !== uploadRoot && !intendedAbsolutePath.startsWith(uploadRoot + path.sep)) {
     return res.status(403).json({ message: "허용되지 않은 파일에 대한 접근입니다." });
   }
 
@@ -1216,6 +1214,144 @@ router.get("/topics/list-by-popularity", async (req: Request, res: Response) => 
   } catch (error) {
     console.error("Error fetching topics by popularity:", error);
     res.status(500).json({ message: "Server error", detail: (error as Error).message });
+  }
+});
+
+/**
+ * @swagger
+ * /api/admin/topics/{topicId}/collect-latest:
+ *   post:
+ *     tags: [Admin]
+ *     summary: 특정 토픽에 대해 최신 기사 수집 (키워드 기반)
+ *     description: "AI 유사도와 상관없이, 토픽의 키워드와 일치하는 가장 최신 기사 10개를 찾아 '제안' 상태로 추가합니다."
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: topicId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       201:
+ *         description: "기사 제안 성공. 추가된 기사 수를 반환합니다."
+ *       404:
+ *         description: "토픽을 찾을 수 없음"
+ */
+/**
+ * @swagger
+ * /api/admin/topics/{topicId}/collect-latest:
+ *   post:
+ *     tags: [Admin]
+ *     summary: 특정 토픽에 대해 최신 기사 수집 (키워드 기반)
+ *     description: "AI 유사도와 상관없이, 토픽의 키워드와 일치하는 가장 최신 기사를 진보/보수 각각 10개씩 찾아 '제안' 상태로 추가합니다. 요청 본문에 키워드를 보내면 해당 키워드를 우선적으로 사용합니다."
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: topicId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               searchKeywords:
+ *                 type: string
+ *                 description: "임시로 사용할 검색 키워드 (쉼표로 구분)"
+ *     responses:
+ *       201:
+ *         description: "기사 제안 성공. 추가된 기사 수를 반환합니다."
+ *       404:
+ *         description: "토픽을 찾을 수 없음"
+ */
+router.post("/topics/:topicId/collect-latest", async (req: Request, res: Response) => {
+  const { topicId } = req.params;
+  const { searchKeywords: newKeywords } = req.body || {};
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+
+    // 1. Get topic keywords if new ones are not provided
+    let keywords: string[] = [];
+    if (newKeywords && typeof newKeywords === 'string') {
+      keywords = newKeywords.split(',').map(k => k.trim()).filter(Boolean);
+    } else {
+      const [topicRows]: any = await connection.query("SELECT search_keywords FROM tn_topic WHERE id = ?", [topicId]);
+      if (topicRows.length === 0) {
+        await connection.rollback();
+        return res.status(404).json({ message: "Topic not found." });
+      }
+      keywords = (topicRows[0].search_keywords || '').split(',').map((k: string) => k.trim()).filter(Boolean);
+    }
+
+    if (keywords.length === 0) {
+      await connection.rollback();
+      return res.status(400).json({ message: "Topic has no keywords to search for." });
+    }
+
+    // 2. Define sources and prepare queries
+    const LEFT_SOURCES = ['경향신문', '한겨레', '오마이뉴스'];
+    const RIGHT_SOURCES = ['조선일보', '중앙일보', '동아일보'];
+    const likeClauses = keywords.map(() => `(h.title LIKE ? OR h.description LIKE ?)`).join(' OR ');
+    const likeParams = keywords.flatMap((kw: string) => [`%${kw}%`, `%${kw}%`]);
+
+    const createQuery = (sources: string[]) => {
+      return connection.query(
+        `SELECT h.* FROM tn_home_article h
+         LEFT JOIN tn_article a ON h.url = a.url AND a.topic_id = ?
+         WHERE h.source IN (?) AND (${likeClauses}) AND a.id IS NULL
+         ORDER BY h.published_at DESC LIMIT 10`,
+        [topicId, sources, ...likeParams]
+      );
+    };
+
+    // 3. Run queries in parallel
+    const [leftResults, rightResults] = await Promise.all([
+      createQuery(LEFT_SOURCES),
+      createQuery(RIGHT_SOURCES)
+    ]);
+
+    const candidateRows = [...(leftResults[0] as any[]), ...(rightResults[0] as any[])];
+
+    if (candidateRows.length === 0) {
+      await connection.rollback();
+      return res.status(200).json({ message: "새로운 최신 기사를 찾지 못했습니다.", addedCount: 0 });
+    }
+
+    // 4. Insert new articles as 'suggested'
+    const insertQuery = `
+      INSERT INTO tn_article (topic_id, source, source_domain, side, title, url, published_at, rss_desc, thumbnail_url, status)
+      VALUES ?
+    `;
+    const articlesToInsert = candidateRows.map((a: any) => [
+      topicId,
+      a.source,
+      a.source_domain,
+      a.side,
+      a.title,
+      a.url,
+      a.published_at,
+      a.description,
+      a.thumbnail_url,
+      'suggested'
+    ]);
+
+    const [insertResult]: any = await connection.query(insertQuery, [articlesToInsert]);
+
+    await connection.commit();
+    res.status(201).json({ message: `성공적으로 ${insertResult.affectedRows}개의 최신 기사를 제안 목록에 추가했습니다.`, addedCount: insertResult.affectedRows });
+
+  } catch (error) {
+    await connection.rollback();
+    console.error("Error collecting latest articles:", error);
+    res.status(500).json({ message: "서버 오류가 발생했습니다." });
+  } finally {
+    connection.release();
   }
 });
 

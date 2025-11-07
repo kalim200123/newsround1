@@ -17,7 +17,6 @@ import type { Article, Topic } from "../../types";
 
 const timeAgo = (dateString?: string): string => {
   if (!dateString) return "";
-  // DB에서 온 시간이 UTC임을 명시하기 위해 'Z'를 추가하여 Date 객체 생성
   const source = new Date(dateString.includes('Z') ? dateString : dateString + 'Z');
   if (Number.isNaN(source.getTime())) return "";
 
@@ -197,11 +196,10 @@ const AdminTopicDetailPage = () => {
     handleRecollect: async () => {
       if (!topicId || !topic) return;
       const currentKeywords = topic.search_keywords || "";
-      const input = window.prompt("재수집에 사용할 검색 키워드를 입력하세요.\n(비워두면 기존 값을 유지합니다.)", currentKeywords);
+      const input = window.prompt("AI 추천 수집에 사용할 검색 키워드를 입력하세요.\n(비워두면 기존 값을 유지합니다.)", currentKeywords);
       if (input === null) {
         return;
       }
-      if (!window.confirm("토픽의 기사를 다시 수집할까요?")) return;
       const trimmed = input.trim();
       const payload: { searchKeywords?: string } = {};
       if (trimmed) {
@@ -214,10 +212,35 @@ const AdminTopicDetailPage = () => {
         } else if (response.data?.searchKeywords) {
           setTopic((prev) => (prev ? { ...prev, search_keywords: response.data.searchKeywords } : prev));
         }
-        alert("기사 재수집을 요청했습니다.");
+        alert("AI 기반 기사 재수집을 요청했습니다. 잠시 후 새로고침하여 확인해주세요.");
       } catch (error) {
         console.error(error);
         alert("기사 재수집 요청에 실패했습니다.");
+      }
+    },
+    handleCollectLatest: async () => {
+      if (!topicId || !topic) return;
+      const currentKeywords = topic.search_keywords || "";
+      const input = window.prompt("최신 기사 수집에 사용할 검색 키워드를 입력하세요.", currentKeywords);
+      
+      if (input === null) {
+        return; // User cancelled the prompt
+      }
+
+      const payload: { searchKeywords?: string } = {};
+      const trimmed = input.trim();
+      if (trimmed) {
+        payload.searchKeywords = trimmed;
+      }
+
+      try {
+        const response = await axios.post(`/api/admin/topics/${topicId}/collect-latest`, payload);
+        const count = response.data.addedCount || 0;
+        alert(`${count}개의 최신 기사를 후보 목록에 추가했습니다.`);
+        fetchData(); // Refresh data
+      } catch (error) {
+        console.error(error);
+        alert("최신 기사 수집에 실패했습니다.");
       }
     },
     handleSaveOrder: async () => {
@@ -382,7 +405,10 @@ const AdminTopicDetailPage = () => {
         <h1>기사 큐레이션: {topic.display_name || topic.core_keyword}</h1>
         <div className="topic-main-actions">
           <button type="button" onClick={handlers.handleRecollect} className="recollect-btn">
-            기사 재수집 요청
+            AI 추천 수집
+          </button>
+          <button type="button" onClick={handlers.handleCollectLatest} className="recollect-btn">
+            최신 기사 수집
           </button>
           <button type="button" onClick={handlers.handleSaveOrder} className="save-btn">
             노출 순서 저장

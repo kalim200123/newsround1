@@ -47,8 +47,8 @@ const processArticles = (articles: any[]) => {
  *   get:
  *     tags:
  *       - Articles
- *     summary: "카테고리별 최신 기사 목록 조회"
- *     description: "특정 카테고리에 해당하는 기사 목록을 최신순으로 조회합니다."
+ *     summary: "카테고리별 최신 기사 목록 조회 (언론사 필터링 지원)"
+ *     description: "특정 카테고리의 최신 기사를 조회합니다. `sources` 파라미터 유무에 따라 두 가지 방식으로 동작합니다."
  *     parameters:
  *       - in: query
  *         name: name
@@ -57,50 +57,74 @@ const processArticles = (articles: any[]) => {
  *           type: string
  *         description: "필터링할 카테고리 이름 (예: 정치, 경제)"
  *       - in: query
- *         name: limit
+ *         name: sources
  *         schema:
- *           type: integer
- *           default: 30
- *         description: "한 번에 가져올 기사 수"
- *       - in: query
- *         name: offset
- *         schema:
- *           type: integer
- *           default: 0
- *         description: "건너뛸 기사 수 (페이지네이션용)"
+ *           type: string
+ *         description: "필터링할 언론사 이름 1개. 이 값을 제공하면 해당 언론사의 기사 10개만 반환됩니다. 제공하지 않으면 모든 언론사의 기사를 합쳐 60개 반환됩니다."
  *     responses:
  *       200:
- *         description: "해당 카테고리의 기사 목록"
- *         content:
- *           application/json:
- *             schema:
- *               type: array
- *               items:
- *                 $ref: '#/components/schemas/ArticleWithFavicon'
+ *         description: "기사 목록"
  */
 router.get("/by-category", optionalAuthenticateUser, async (req: AuthenticatedRequest, res: Response) => {
-  const name = req.query.name as string;
-  const limit = parseInt(req.query.limit as string, 10) || 100;
-  const offset = parseInt(req.query.offset as string, 10) || 0;
-  const userId = req.user?.userId || null; // Use null for unbound user
+  const { name, sources } = req.query;
+  const userId = req.user?.userId || null;
 
   if (!name) {
     return res.status(400).json({ message: "카테고리 이름을 'name' 파라미터로 제공해야 합니다." });
   }
 
   try {
-    const query = `
-      SELECT a.*, COUNT(l.id) as like_count, MAX(IF(l_user.id IS NOT NULL, 1, 0)) as isLiked
-      FROM tn_home_article a
-      LEFT JOIN tn_article_like l ON a.id = l.article_id
-      LEFT JOIN tn_article_like l_user ON a.id = l_user.article_id AND l_user.user_id = ?
-      WHERE a.category = ?
-      GROUP BY a.id
-      ORDER BY a.published_at DESC
-      LIMIT ? OFFSET ?
-    `;
-    const [rows] = await pool.query(query, [userId, name, limit, offset]);
-    res.json(processArticles(rows as any[]));
+    let query: string;
+    let params: (string | number | null)[];
+
+    const sourceList = typeof sources === 'string' && sources ? sources.split(',') : [];
+
+    if (sourceList.length > 0) {
+      // New logic: Fetch 10 articles per specified source
+      const perSourceLimit = 10;
+      const subQueries = sourceList.map(() => `
+        (SELECT a.*, COUNT(l.id) AS like_count, MAX(IF(l_user.id IS NOT NULL, 1, 0)) as isLiked
+         FROM tn_home_article a
+         LEFT JOIN tn_article_like l ON a.id = l.article_id
+         LEFT JOIN tn_article_like l_user ON a.id = l_user.article_id AND l_user.user_id = ?
+         WHERE a.category = ? AND a.source = ? AND a.published_at >= NOW() - INTERVAL 3 DAY
+         GROUP BY a.id
+         ORDER BY a.published_at DESC
+         LIMIT ?)
+      `);
+      query = subQueries.join(' UNION ALL ');
+      
+      params = [];
+      sourceList.forEach(source => {
+        params.push(userId, name as string, source, perSourceLimit);
+      });
+
+    } else {
+      // Fallback logic: Fetch latest 60 for the category if no sources are specified
+      const limit = 60;
+      query = `
+        SELECT a.*, COUNT(l.id) as like_count, MAX(IF(l_user.id IS NOT NULL, 1, 0)) as isLiked
+        FROM tn_home_article a
+        LEFT JOIN tn_article_like l ON a.id = l.article_id
+        LEFT JOIN tn_article_like l_user ON a.id = l_user.article_id AND l_user.user_id = ?
+        WHERE a.category = ? AND a.published_at >= NOW() - INTERVAL 3 DAY
+        GROUP BY a.id
+        ORDER BY a.published_at DESC
+        LIMIT ?
+      `;
+      params = [userId, name as string, limit];
+    }
+
+    const [rows] = await pool.query(query, params);
+
+    const articlesWithFavicon = (rows as any[]).map((article) => ({
+      ...article,
+      isLiked: Boolean(article.isLiked),
+      favicon_url: FAVICON_URLS[article.source_domain] || null,
+    }));
+
+    res.json(articlesWithFavicon);
+
   } catch (error) {
     console.error("Error fetching articles by category:", error);
     res.status(500).json({ message: "Server error" });
@@ -146,9 +170,9 @@ router.get("/by-category", optionalAuthenticateUser, async (req: AuthenticatedRe
  */
 router.get("/by-source", optionalAuthenticateUser, async (req: AuthenticatedRequest, res: Response) => {
   const name = req.query.name as string;
-  const limit = parseInt(req.query.limit as string, 10) || 100;
-  const offset = parseInt(req.query.offset as string, 10) || 0;
-  const userId = req.user?.userId || null; // Use null for unbound user
+  const limit = parseInt(req.query.limit as string || '30', 10);
+  const offset = parseInt(req.query.offset as string || '0', 10);
+  const userId = req.user?.userId;
 
   if (!name) {
     return res.status(400).json({ message: "언론사 이름을 'name' 파라미터로 제공해야 합니다." });
