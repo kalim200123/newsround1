@@ -62,10 +62,17 @@ export default function AdminTopicsListPage() {
   return (
     <div className="admin-container">
       <header className="admin-page-header">
-        <h1>전체 토픽 목록</h1>
-        <Link to="/admin" className="back-link">
-          ← 대시보드로 돌아가기
-        </Link>
+        <div>
+          <h1>전체 토픽 목록</h1>
+        </div>
+        <div className="admin-page-actions">
+          <Link to="/admin/topics/new" className="create-new-topic-btn">
+            + 새 토픽 생성
+          </Link>
+          <Link to="/admin" className="back-link">
+            ← 대시보드로 돌아가기
+          </Link>
+        </div>
       </header>
 
       <div className="admin-table-container">
@@ -91,7 +98,7 @@ export default function AdminTopicsListPage() {
                         {getStatusText(topic.status)}
                       </span>
                     </td>
-                    <td>{topic.display_name || topic.core_keyword}</td>
+                    <td><strong>{topic.display_name || topic.core_keyword}</strong></td>
                     <td>{topic.search_keywords}</td>
                     <td>{formatDateTime(topic.published_at)}</td>
                     <td>

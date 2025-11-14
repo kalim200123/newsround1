@@ -21,6 +21,7 @@ import articlesRouter from "./routes/articles";
 import authRouter from "./routes/auth";
 import chatRouter from "./routes/chat";
 import inquiryRouter from "./routes/inquiry";
+import commentsRouter from "./routes/comments";
 import savedRouter from "./routes/saved";
 import jobsRouter from "./routes/jobs";
 import internalRouter from "./routes/internal";
@@ -74,6 +75,7 @@ app.use("/api/articles", articlesRouter);
 app.use("/api/topics/:topicId/chat", chatRouter); // 토픽에 종속된 채팅 내역 조회
 app.use("/api/chat", chatRouter); // 개별 채팅 메시지 관리 (삭제, 신고 등)
 app.use("/api/inquiry", inquiryRouter);
+app.use("/api", commentsRouter);
 app.use("/api/saved", savedRouter);
 app.use("/api/internal", internalRouter);
 app.use("/api", apiRouter);
