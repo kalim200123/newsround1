@@ -34,16 +34,18 @@ const port = Number(process.env.PORT ?? 3000);
 // --- CORS 설정 ---
 const allowedOrigins = [
   'http://localhost:3000',
-  'https://news-frontend-jg.vercel.app',
-  'https://news02.onrender.com',
-  'http://localhost:5173',
-  'https://news-frontend-5lcus6f4u-leejaegwons-projects.vercel.app'
+  'https://news-frontend-jg.vercel.app', // Production Frontend
+  'https://news02.onrender.com', // Production Backend
+  'http://localhost:5173', // Local Vite Dev
 ];
 
 const corsOptions = {
   origin: function (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) {
-    // origin이 없거나(예: 서버 내 요청) 허용된 목록에 있으면 허용
-    if (!origin || allowedOrigins.includes(origin)) {
+    // Vercel Preview URL Pattern
+    const vercelPreviewPattern = /^https:\/\/news-frontend-.*-leejaegwons-projects\.vercel\.app$/;
+
+    // origin이 없거나(예: 서버 내 요청), 허용된 목록에 있거나, Vercel 패턴과 일치하면 허용
+    if (!origin || allowedOrigins.includes(origin) || vercelPreviewPattern.test(origin)) {
       callback(null, true);
     } else {
       callback(new Error(`Not allowed by CORS: Origin ${origin} is not whitelisted.`));
