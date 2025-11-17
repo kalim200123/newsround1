@@ -199,6 +199,20 @@ router.post("/articles/:articleId/comments", authenticateUser, async (req: Authe
   }
 
   try {
+    // Prevent replies to replies (limit depth to 1)
+    if (parent_comment_id) {
+      const [parentCommentRows]: any = await pool.query(
+        "SELECT parent_comment_id FROM tn_article_comment WHERE id = ?",
+        [parent_comment_id]
+      );
+      if (parentCommentRows.length === 0) {
+        return res.status(400).json({ message: "부모 댓글을 찾을 수 없습니다." });
+      }
+      if (parentCommentRows[0].parent_comment_id !== null) {
+        return res.status(400).json({ message: "대댓글에는 답글을 달 수 없습니다." });
+      }
+    }
+
     const [result]: any = await pool.query(
       "INSERT INTO tn_article_comment (article_id, user_id, content, parent_comment_id) VALUES (?, ?, ?, ?)",
       [articleId, userId, content, parent_comment_id || null]

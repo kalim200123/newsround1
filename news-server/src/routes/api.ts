@@ -163,7 +163,7 @@ router.get("/topics/:topicId", optionalAuthenticateUser, async (req: Authenticat
 
   try {
     const [topicRows]: any = await pool.query(
-      "SELECT id, display_name, summary, published_at, view_count FROM tn_topic WHERE id = ? AND status = 'published'",
+      "SELECT id, display_name, summary, published_at, view_count, collection_status FROM tn_topic WHERE id = ? AND status = 'published'",
       [topicId]
     );
     if (topicRows.length === 0) {

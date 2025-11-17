@@ -841,7 +841,8 @@ a.topic-card-link {
   font-size: 0.9rem;
 }
 
-.status-indicator.collecting {
+.status-indicator.collecting,
+.status-indicator.pending {
   background-color: #e9ecef;
   color: #495057;
 }
@@ -2166,4 +2167,41 @@ a.topic-card-link {
   background-color: #f9fafb;
   display: flex;
   justify-content: flex-end;
+}
+
+/* =========================================
+   16. Admin Tabs (New)
+   ========================================= */
+
+.admin-tabs {
+  display: flex;
+  gap: 8px;
+  border-bottom: 2px solid var(--border-color);
+  margin-bottom: 24px;
+}
+
+.admin-tabs button {
+  padding: 10px 20px;
+  border: none;
+  background-color: transparent;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  border-bottom: 2px solid transparent;
+  transform: translateY(2px);
+  transition: all var(--transition-speed) ease;
+}
+
+.admin-tabs button:hover {
+  color: var(--text-primary);
+}
+
+.admin-tabs button.active {
+  color: var(--primary-blue);
+  border-bottom-color: var(--primary-blue);
+}
+
+.admin-tab-content {
+  animation: fadeIn 0.3s ease-out;
 }

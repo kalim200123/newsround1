@@ -11,6 +11,7 @@ import re
 import sys
 import time
 import html
+import logging
 from datetime import datetime, timezone, timedelta
 from typing import Optional, Dict, List, Any
 import feedparser
@@ -30,6 +31,23 @@ from urllib3.util.retry import Retry
 
 # .env 파일에서 환경 변수 로드
 load_dotenv()
+
+# --- 로깅 설정 ---
+LOG_DIR = os.path.join(os.path.dirname(__file__), '..', '..', 'logs')
+LOG_FILE_PATH = os.path.join(LOG_DIR, 'home_collector.log')
+LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
+
+# 로그 디렉토리 생성 (없는 경우)
+os.makedirs(LOG_DIR, exist_ok=True)
+
+logging.basicConfig(
+    level=getattr(logging, LOG_LEVEL, logging.INFO),
+    format="%(asctime)s [home_collector.py] [%(levelname)s] %(message)s",
+    handlers=[
+        logging.FileHandler(LOG_FILE_PATH, mode='a', encoding='utf-8'),
+        logging.StreamHandler(sys.stdout)
+    ]
+)
 
 # --- 상수 및 설정 ---
 JOONGANG_LOGO_URL = 'https://img.megazonesoft.com/wp-content/uploads/2024/03/28110237/%EC%A4%91%EC%95%99%EC%9D%BC%EB%B3%B4-%EA%B0%80%EB%A1%9C-%EB%A1%9C%EA%B3%A0.jpg'
@@ -153,7 +171,7 @@ def scrape_hankyoreh_publication_time(url: str) -> Optional[datetime]:
             if date_span:
                 return dt_parse(date_span.get_text())
     except Exception as e:
-        print(f"[Scraper] Failed to scrape Hankyoreh date for {url}: {e}")
+        logging.warning(f"[Scraper] Failed to scrape Hankyoreh date for {url}: {e}")
     return None
 
 def _normalize_image_url(candidate: Optional[str], base_url: str) -> Optional[str]:
@@ -255,7 +273,7 @@ def fetch_and_parse_feed(feed_info: Dict[str, Any]) -> List[Dict[str, Any]]:
                 'description': description_text
             })
     except Exception as e:
-        print(f"{feed_info['source']}' 피드 처리 실패: {e}")
+        logging.error(f"{feed_info['source']}' 피드 처리 실패: {e}")
     return articles
 
 # --- 알림 발송 함수 ---
@@ -275,16 +293,16 @@ def send_notification(notification_type: str, article: Dict[str, Any]):
     try:
         response = requests.post(INTERNAL_API_URL, json=payload, timeout=5)
         response.raise_for_status() # 2xx 응답이 아니면 에러 발생
-        print(f"[Notification] Sent {notification_type} notification for article: {article.get('title')}")
+        logging.info(f"[Notification] Sent {notification_type} notification for article: {article.get('title')}")
     except requests.RequestException as e:
-        print(f"[Notification] Failed to send notification: {e}", file=sys.stderr)
+        logging.error(f"[Notification] Failed to send notification: {e}", file=sys.stderr)
 
 # --- 메인 로직 ---
 def main():
-    print("최신 기사 병렬 수집 시작 (Python)")
+    logging.info("--- 최신 기사 병렬 수집 시작 ---")
     all_articles = []
 
-    print("Step 1: Starting parallel feed fetching...")
+    logging.info("Step 1: Starting parallel feed fetching...")
     with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
         future_to_feed = {executor.submit(fetch_and_parse_feed, feed): feed for feed in FEEDS}
         for future in concurrent.futures.as_completed(future_to_feed):
@@ -294,24 +312,24 @@ def main():
                     all_articles.extend(articles_from_feed)
             except Exception as exc:
                 feed_info = future_to_feed[future]
-                print(f"{feed_info['source']} 피드 처리 중 예외 발생: {exc}")
+                logging.error(f"{feed_info['source']} 피드 처리 중 예외 발생: {exc}")
 
-    print(f"Step 2: Completed parsing for a total of {len(all_articles)} articles.")
+    logging.info(f"Step 2: Completed parsing for a total of {len(all_articles)} articles.")
 
     # 여러 피드에서 동일한 기사가 수집되었을 수 있으므로 URL 기준으로 중복 제거
     unique_articles_map = {article['url']: article for article in all_articles}
     all_articles = list(unique_articles_map.values())
-    print(f"Step 2.5: Found {len(all_articles)} unique articles after de-duplication.")
+    logging.info(f"Step 2.5: Found {len(all_articles)} unique articles after de-duplication.")
 
     if not all_articles:
-        print("No new articles to save. Exiting.")
+        logging.info("No new articles to save. Exiting.")
         return
 
     try:
-        print("Step 3: Attempting to connect to the database...")
+        logging.info("Step 3: Attempting to connect to the database...")
         cnx = mysql.connector.connect(**DB_CONFIG)
         cursor = cnx.cursor(dictionary=True)
-        print("Step 4: Database connection successful.")
+        logging.info("Step 4: Database connection successful.")
 
         # 기존에 저장된 URL 목록을 가져와서 중복 체크
         cursor.execute("SELECT url FROM tn_home_article")
@@ -319,7 +337,7 @@ def main():
         
         new_articles = [a for a in all_articles if a['url'] not in existing_urls]
 
-        print(f"Step 5: Found {len(new_articles)} new articles to save and notify.")
+        logging.info(f"Step 5: Found {len(new_articles)} new articles to save and notify.")
 
         if new_articles:
             # 알림 발송 로직 (DB 저장 전) - 임시 주석 처리
@@ -335,10 +353,10 @@ def main():
             data_to_insert = [(a['source'], a['source_domain'], a['side'], a['category'], a['title'], a['url'], a['published_at'].strftime('%Y-%m-%dT%H:%M:%SZ'), a['thumbnail_url'], a['description']) for a in new_articles]
             cursor.executemany(insert_query, data_to_insert)
             cnx.commit()
-            print(f"Step 6: {cursor.rowcount} new articles saved successfully.")
+            logging.info(f"Step 6: {cursor.rowcount} new articles saved successfully.")
 
     except mysql.connector.Error as err:
-        print(f"DB 오류 발생: {err}")
+        logging.error(f"DB 오류 발생: {err}")
         sys.exit(1)
     finally:
         if 'cnx' in locals() and cnx.is_connected():

@@ -29,12 +29,11 @@ const timeAgo = (dateString?: string): string => {
 
 interface SortableItemProps {
   article: Article;
-  onFeature: (id: number) => void;
   onUnpublish: (id: number) => void;
   onPreview: (article: Article) => void;
 }
 
-const SortablePublishedArticleItem = ({ article, onFeature, onUnpublish, onPreview }: SortableItemProps) => {
+const SortablePublishedArticleItem = ({ article, onUnpublish, onPreview }: SortableItemProps) => {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: article.id });
   const style: CSSProperties = {
     transform: CSS.Transform.toString(transform),
@@ -43,13 +42,12 @@ const SortablePublishedArticleItem = ({ article, onFeature, onUnpublish, onPrevi
   };
 
   return (
-    <div ref={setNodeRef} style={style} className={`curation-item published-item ${article.is_featured ? "featured-item" : ""}`}>
+    <div ref={setNodeRef} style={style} className="curation-item published-item">
       <div {...attributes} {...listeners} style={{ cursor: "grab", flexGrow: 1 }} onClick={() => onPreview(article)}>
         <strong>{article.title}</strong>
         <br />
         <small>
           {article.source}
-          {article.is_featured ? " · 대표" : ""}
         </small>
         <div className="article-meta-data">
           <span>유사도 {((article.similarity ?? 0) * 100).toFixed(1)}%</span>
@@ -57,11 +55,6 @@ const SortablePublishedArticleItem = ({ article, onFeature, onUnpublish, onPrevi
         </div>
       </div>
       <div className="curation-actions">
-        {!article.is_featured && (
-          <button type="button" onClick={() => onFeature(article.id)} className="feature-btn">
-            대표 지정
-          </button>
-        )}
         <button type="button" onClick={() => onUnpublish(article.id)} className="unpublish-btn">
           발행 취소
         </button>
@@ -181,16 +174,6 @@ const AdminTopicDetailPage = () => {
       } catch (error) {
         console.error(error);
         alert("후보 기사 삭제에 실패했습니다.");
-      }
-    },
-    handleFeatureArticle: async (articleId: number) => {
-      try {
-        await axios.patch(`/api/admin/articles/${articleId}/feature`);
-        alert("대표 기사로 지정했습니다.");
-        fetchData();
-      } catch (error) {
-        console.error(error);
-        alert("대표 기사 지정에 실패했습니다.");
       }
     },
     handleRecollect: async () => {
@@ -335,6 +318,7 @@ const AdminTopicDetailPage = () => {
   );
 
   const StatusIndicator = ({ status }: { status: string | null | undefined }) => {
+    if (status === "pending") return <div className="status-indicator pending">수집 대기 중</div>;
     if (status === "collecting") return <div className="status-indicator collecting">현재 기사 수집 중입니다</div>;
     if (status === "completed") return <div className="status-indicator completed">최신 기사 수집이 완료되었습니다</div>;
     if (status === "failed") return <div className="status-indicator failed">기사 수집이 실패했습니다</div>;
@@ -402,7 +386,11 @@ const AdminTopicDetailPage = () => {
           ← 관리자 목록으로 돌아가기
         </Link>
 
-        <h1>기사 큐레이션: {topic.display_name || topic.core_keyword}</h1>
+        <div style={{ display: "flex", alignItems: "center", gap: "16px", flexWrap: "wrap" }}>
+          <h1>기사 큐레이션: {topic.display_name || topic.core_keyword}</h1>
+          <StatusIndicator status={topic.collection_status} />
+        </div>
+
         <div className="topic-main-actions">
           <button type="button" onClick={handlers.handleRecollect} className="recollect-btn">
             AI 추천 수집
@@ -424,7 +412,6 @@ const AdminTopicDetailPage = () => {
           </button>
         </div>
 
-        <StatusIndicator status={topic.collection_status} />
         {errorMessage && <div className="detail-error inline">{errorMessage}</div>}
         {isLoading && <div className="detail-loading inline">기사 목록을 업데이트 중입니다…</div>}
 
@@ -439,7 +426,6 @@ const AdminTopicDetailPage = () => {
                   <SortablePublishedArticleItem
                     key={article.id}
                     article={article}
-                    onFeature={handlers.handleFeatureArticle}
                     onUnpublish={handlers.handleUnpublishArticle}
                     onPreview={setPreviewArticle}
                   />
@@ -458,7 +444,6 @@ const AdminTopicDetailPage = () => {
                   <SortablePublishedArticleItem
                     key={article.id}
                     article={article}
-                    onFeature={handlers.handleFeatureArticle}
                     onUnpublish={handlers.handleUnpublishArticle}
                     onPreview={setPreviewArticle}
                   />

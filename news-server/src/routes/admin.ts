@@ -539,11 +539,16 @@ router.get("/users", async (req: Request, res: Response) => {
 router.get("/users/:userId", async (req: Request, res: Response) => {
   const { userId } = req.params;
   try {
-    const [rows]: any = await pool.query("SELECT id, email, nickname, status, warning_count, created_at FROM tn_user WHERE id = ?", [userId]);
+    const [rows]: any = await pool.query("SELECT id, email, nickname, name, phone, status, warning_count, created_at, profile_image_url, introduction FROM tn_user WHERE id = ?", [userId]);
     if (rows.length === 0) {
       return res.status(404).json({ message: "User not found" });
     }
-    res.json(rows[0]);
+    const user = rows[0];
+    // Ensure profile_image_url is an absolute path
+    if (user.profile_image_url && !user.profile_image_url.startsWith('http')) {
+      user.profile_image_url = `${req.protocol}://${req.get("host")}${user.profile_image_url}`;
+    }
+    res.json(user);
   } catch (error) {
     console.error(`Error fetching user ${userId}:`, error);
     res.status(500).json({ message: "Server error" });
@@ -632,6 +637,114 @@ router.patch("/users/:userId", async (req: Request, res: Response) => {
     res.json({ message: "User updated successfully." });
   } catch (error) {
     console.error(`Error updating user ${userId}:`, error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+/**
+ * @swagger
+ * /api/admin/users/{userId}/comments:
+ *   get:
+ *     tags: [Admin]
+ *     summary: 특정 사용자가 작성한 모든 댓글 조회
+ *     description: 특정 사용자가 작성한 모든 댓글을 최신순으로 조회합니다.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: 사용자가 작성한 댓글 목록
+ */
+router.get("/users/:userId/comments", async (req: Request, res: Response) => {
+  const { userId } = req.params;
+  const limit = parseInt(req.query.limit as string, 10) || 20;
+  const page = parseInt(req.query.page as string, 10) || 1;
+  const offset = (page - 1) * limit;
+
+  try {
+    const [comments] = await pool.query(
+      `
+      SELECT 
+        c.id,
+        c.content,
+        c.created_at,
+        c.status,
+        a.id as article_id,
+        a.title as article_title,
+        a.url as article_url
+      FROM tn_article_comment c
+      JOIN tn_article a ON c.article_id = a.id
+      WHERE c.user_id = ?
+      ORDER BY c.created_at DESC
+      LIMIT ? OFFSET ?
+      `,
+      [userId, limit, offset]
+    );
+
+    const [[{ total }]] : any = await pool.query("SELECT COUNT(*) as total FROM tn_article_comment WHERE user_id = ?", [userId]);
+
+    res.json({ comments, total });
+  } catch (error) {
+    console.error(`Error fetching comments for user ${userId}:`, error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+/**
+ * @swagger
+ * /api/admin/users/{userId}/chats:
+ *   get:
+ *     tags: [Admin]
+ *     summary: 특정 사용자가 보낸 모든 채팅 메시지 조회
+ *     description: 특정 사용자가 보낸 모든 채팅 메시지를 최신순으로 조회합니다.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: 사용자가 보낸 채팅 메시지 목록
+ */
+router.get("/users/:userId/chats", async (req: Request, res: Response) => {
+  const { userId } = req.params;
+  const limit = parseInt(req.query.limit as string, 10) || 20;
+  const page = parseInt(req.query.page as string, 10) || 1;
+  const offset = (page - 1) * limit;
+
+  try {
+    const [messages] = await pool.query(
+      `
+      SELECT 
+        m.id,
+        m.content,
+        m.created_at,
+        m.report_count,
+        m.status,
+        t.id as topic_id,
+        t.display_name as topic_name
+      FROM tn_chat m
+      JOIN tn_topic t ON m.topic_id = t.id
+      WHERE m.user_id = ?
+      ORDER BY m.created_at DESC
+      LIMIT ? OFFSET ?
+      `,
+      [userId, limit, offset]
+    );
+
+    const [[{ total }]] : any = await pool.query("SELECT COUNT(*) as total FROM tn_chat WHERE user_id = ?", [userId]);
+
+    res.json({ messages, total });
+  } catch (error) {
+    console.error(`Error fetching chat messages for user ${userId}:`, error);
     res.status(500).json({ message: "Server error" });
   }
 });
@@ -1196,55 +1309,6 @@ router.patch("/topics/:topicId/articles/order", async (req: Request, res: Respon
     await connection.rollback();
     console.error("Error updating article order:", error);
     res.status(500).json({ message: "Server error while updating article order." });
-  } finally {
-    connection.release();
-  }
-});
-
-/**
- * @swagger
- * /api/admin/articles/{articleId}/feature:
- *   patch:
- *     tags: [Admin]
- *     summary: 특정 기사를 대표 기사로 설정
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: articleId
- *         required: true
- *         schema:
- *           type: integer
- *     responses:
- *       200:
- *         description: 대표 기사 설정 성공
- */
-router.patch("/articles/:articleId/feature", async (req: Request, res: Response) => {
-  const { articleId } = req.params;
-  const connection = await pool.getConnection();
-  try {
-    await connection.beginTransaction();
-
-    const [rows]: any = await connection.query("SELECT topic_id, side FROM tn_article WHERE id = ?", [articleId]);
-    if (rows.length === 0) {
-      await connection.rollback();
-      return res.status(404).json({ message: "Article not found." });
-    }
-    const { topic_id, side } = rows[0];
-
-    await connection.query("UPDATE tn_article SET is_featured = FALSE WHERE topic_id = ? AND side = ?", [
-      topic_id,
-      side,
-    ]);
-
-    await connection.query("UPDATE tn_article SET is_featured = TRUE WHERE id = ?", [articleId]);
-
-    await connection.commit();
-    res.json({ message: `Article ${articleId} has been set as featured.` });
-  } catch (error) {
-    await connection.rollback();
-    console.error("Error featuring article:", error);
-    res.status(500).json({ message: "Server error", detail: (error as Error).message });
   } finally {
     connection.release();
   }
