@@ -50,7 +50,7 @@ const getAbsoluteAvatarUrl = (avatarUrl: string | null, req: Request): string | 
  *                       content: { type: string }
  *                       created_at: { type: string, format: date-time }
  *                       parent_comment_id: { type: integer, nullable: true }
- *status: { type: string, enum: [ACTIVE, HIDDEN, DELETED_BY_USER, DELETED_BY_ADMIN] }
+ *                       status: { type: string, enum: [ACTIVE, HIDDEN, DELETED_BY_USER, DELETED_BY_ADMIN] }
  *                       user_id: { type: integer }
  *                       nickname: { type: string }
  *                       avatar_url: { type: string, nullable: true }
