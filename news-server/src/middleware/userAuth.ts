@@ -43,8 +43,10 @@ export const optionalAuthenticateUser = (req: AuthenticatedRequest, res: Respons
     const jwtSecret = process.env.USER_JWT_SECRET || "default_fallback_secret";
     const decoded = jwt.verify(token, jwtSecret) as { userId: number; name: string };
     req.user = decoded;
+    console.log(`[Auth-Debug] Token verified successfully for userId: ${decoded.userId}`);
     next();
   } catch (error) {
+    console.error(`[Auth-Debug] Token verification failed! Error: ${error.message}`);
     // Invalid token, just proceed without user info
     next();
   }

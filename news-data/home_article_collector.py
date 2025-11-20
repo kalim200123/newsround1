@@ -82,27 +82,27 @@ KST = timezone(timedelta(hours=9))
 
 FEEDS: List[Dict[str, Any]] = [
     # LEFT
-    {'source': "경향신문", 'source_domain': "khan.co.kr", 'side': "LEFT", 'url': "https://www.khan.co.kr/rss/rssdata/politic_news.xml", 'section': "정치"},
-    {'source': "경향신문", 'source_domain': "khan.co.kr", 'side': "LEFT", 'url': "https://www.khan.co.kr/rss/rssdata/economy_news.xml", 'section': "경제"},
-    {'source': "경향신문", 'source_domain': "khan.co.kr", 'side': "LEFT", 'url': "https://www.khan.co.kr/rss/rssdata/society_news.xml", 'section': "사회"},
-    {'source': "경향신문", 'source_domain': "khan.co.kr", 'side': "LEFT", 'url': "https://www.khan.co.kr/rss/rssdata/culture_news.xml", 'section': "문화"},
-    {'source': "한겨레",   'source_domain': "hani.co.kr", 'side': "LEFT", 'url': "https://www.hani.co.kr/rss/politics/", 'section': "정치"},
-    {'source': "한겨레",   'source_domain': "hani.co.kr", 'side': "LEFT", 'url': "https://www.hani.co.kr/rss/economy/", 'section': "경제"},
-    {'source': "한겨레",   'source_domain': "hani.co.kr", 'side': "LEFT", 'url': "https://www.hani.co.kr/rss/society/", 'section': "사회"},
-    {'source': "한겨레",   'source_domain': "hani.co.kr", 'side': "LEFT", 'url': "https://www.hani.co.kr/rss/culture/", 'section': "문화"},
-    {'source': "오마이뉴스", 'source_domain': "ohmynews.com", 'side': "LEFT", 'url': "http://rss.ohmynews.com/rss/politics.xml", 'section': "정치"},
-    {'source': "오마이뉴스", 'source_domain': "ohmynews.com", 'side': "LEFT", 'url': "http://rss.ohmynews.com/rss/economy.xml", 'section': "경제"},
-    {'source': "오마이뉴스", 'source_domain': "ohmynews.com", 'side': "LEFT", 'url': "http://rss.ohmynews.com/rss/society.xml", 'section': "사회"},
-    {'source': "오마이뉴스", 'source_domain': "ohmynews.com", 'side': "LEFT", 'url': "http://rss.ohmynews.com/rss/culture.xml", 'section': "문화"},
+   {'source': "경향신문", 'source_domain': "khan.co.kr", 'side': "LEFT", 'url': "https://www.khan.co.kr/rss/rssdata/politic_news.xml", 'section': "정치"},
+   {'source': "경향신문", 'source_domain': "khan.co.kr", 'side': "LEFT", 'url': "https://www.khan.co.kr/rss/rssdata/economy_news.xml", 'section': "경제"},
+   {'source': "경향신문", 'source_domain': "khan.co.kr", 'side': "LEFT", 'url': "https://www.khan.co.kr/rss/rssdata/society_news.xml", 'section': "사회"},
+   {'source': "경향신문", 'source_domain': "khan.co.kr", 'side': "LEFT", 'url': "https://www.khan.co.kr/rss/rssdata/culture_news.xml", 'section': "문화"},
+   {'source': "한겨레",   'source_domain': "hani.co.kr", 'side': "LEFT", 'url': "https://www.hani.co.kr/rss/politics/", 'section': "정치"},
+   {'source': "한겨레",   'source_domain': "hani.co.kr", 'side': "LEFT", 'url': "https://www.hani.co.kr/rss/economy/", 'section': "경제"},
+   {'source': "한겨레",   'source_domain': "hani.co.kr", 'side': "LEFT", 'url': "https://www.hani.co.kr/rss/society/", 'section': "사회"},
+   {'source': "한겨레",   'source_domain': "hani.co.kr", 'side': "LEFT", 'url': "https://www.hani.co.kr/rss/culture/", 'section': "문화"},
+   {'source': "오마이뉴스", 'source_domain': "ohmynews.com", 'side': "LEFT", 'url': "http://rss.ohmynews.com/rss/politics.xml", 'section': "정치"},
+   {'source': "오마이뉴스", 'source_domain': "ohmynews.com", 'side': "LEFT", 'url': "http://rss.ohmynews.com/rss/economy.xml", 'section': "경제"},
+   {'source': "오마이뉴스", 'source_domain': "ohmynews.com", 'side': "LEFT", 'url': "http://rss.ohmynews.com/rss/society.xml", 'section': "사회"},
+   {'source': "오마이뉴스", 'source_domain': "ohmynews.com", 'side': "LEFT", 'url': "http://rss.ohmynews.com/rss/culture.xml", 'section': "문화"},
     # RIGHT
     {'source': "조선일보", 'source_domain': "chosun.com", 'side': "RIGHT", 'url': "https://www.chosun.com/arc/outboundfeeds/rss/category/politics/?outputType=xml", 'section': "정치"},
     {'source': "조선일보", 'source_domain': "chosun.com", 'side': "RIGHT", 'url': "https://www.chosun.com/arc/outboundfeeds/rss/category/economy/?outputType=xml", 'section': "경제"},
     {'source': "조선일보", 'source_domain': "chosun.com", 'side': "RIGHT", 'url': "https://www.chosun.com/arc/outboundfeeds/rss/category/national/?outputType=xml", 'section': "사회"},
     {'source': "조선일보", 'source_domain': "chosun.com", 'side': "RIGHT", 'url': "https://www.chosun.com/arc/outboundfeeds/rss/category/culture-life/?outputType=xml", 'section': "문화"},
     {'source': "중앙일보", 'source_domain': "joongang.co.kr", 'side': "RIGHT", 'url': "https://news.google.com/rss/search?q=site:joongang.co.kr%20정치&hl=ko&gl=KR&ceid=KR%3Ako", 'section': "정치"},
-    {'source': "중앙일보", 'source_domain': "joongang.co.kr", 'side': "RIGHT", 'url': "https://news.google.com/rss/search?q=site:joongang.co.kr%20경제&hl=ko&gl=KR&ceid=KR%3 Ako", 'section': "경제"},
-    {'source': "중앙일보", 'source_domain': "joongang.co.kr", 'side': "RIGHT", 'url': "https://news.google.com/rss/search?q=site:joongang.co.kr%20사회&hl=ko&gl=KR&ceid=KR%3 Ako", 'section': "사회"},
-    {'source': "중앙일보", 'source_domain': "joongang.co.kr", 'side': "RIGHT", 'url': "https://news.google.com/rss/search?q=site:joongang.co.kr%20문화&hl=ko&gl=KR&ceid=KR%3 Ako", 'section': "문화"},
+    {'source': "중앙일보", 'source_domain': "joongang.co.kr", 'side': "RIGHT", 'url': "https://news.google.com/rss/search?q=site:joongang.co.kr%20경제&hl=ko&gl=KR&ceid=KR%3Ako", 'section': "경제"},
+    {'source': "중앙일보", 'source_domain': "joongang.co.kr", 'side': "RIGHT", 'url': "https://news.google.com/rss/search?q=site:joongang.co.kr%20사회&hl=ko&gl=KR&ceid=KR%3Ako", 'section': "사회"},
+    {'source': "중앙일보", 'source_domain': "joongang.co.kr", 'side': "RIGHT", 'url': "https://news.google.com/rss/search?q=site:joongang.co.kr%20문화&hl=ko&gl=KR&ceid=KR%3Ako", 'section': "문화"},
     {'source': "동아일보", 'source_domain': "donga.com", 'side': "RIGHT", 'url': "https://rss.donga.com/politics.xml", 'section': "정치"},
     {'source': "동아일보", 'source_domain': "donga.com", 'side': "RIGHT", 'url': "https://rss.donga.com/economy.xml", 'section': "경제"},
     {'source': "동아일보", 'source_domain': "donga.com", 'side': "RIGHT", 'url': "https://rss.donga.com/national.xml", 'section': "사회"},
@@ -155,6 +155,18 @@ def scrape_og_image(url: str) -> Optional[str]:
         pass
     return None
 
+def scrape_meta_description(url: str) -> Optional[str]:
+    try:
+        session = get_http_session()
+        response = session.get(url, timeout=8)
+        soup = BeautifulSoup(response.content, 'html.parser')
+        meta_description = soup.find('meta', attrs={'name': 'description'})
+        if meta_description and meta_description.get('content'):
+            return meta_description['content']
+    except requests.RequestException:
+        pass
+    return None
+
 def clean_title(title: str) -> str:
     if not title: return ''
     publisher_regex = re.compile(r'\s*[-–—|]\s*(중앙일보|조선일보|동아일보|한겨레|경향신문|오마이뉴스|joongang|chosun|donga|hani|khan)\s*$', re.I)
@@ -201,15 +213,37 @@ def fetch_and_parse_feed(feed_info: Dict[str, Any]) -> List[Dict[str, Any]]:
             if not item.get('link') or not item.get('title'):
                 continue
 
-            final_url = resolve_google_news_url(item.link)
+            # Start with the link from the feed
+            final_url = item.link
+            description_html = item.get('description', item.get('summary', ''))
+
+            # If it's a Google News link, extract the real URL from the description
+            if 'news.google.com' in final_url:
+                try:
+                    soup = BeautifulSoup(description_html, 'html.parser')
+                    link_tag = soup.find('a')
+                    if link_tag and link_tag.get('href'):
+                        final_url = link_tag.get('href')
+                        logging.info(f"Resolved Google News URL to: {final_url}")
+                except Exception as e:
+                    logging.warning(f"Could not parse real URL from Google News description: {e}")
+                    # Fallback to the old resolver if parsing fails
+                    final_url = resolve_google_news_url(item.link)
+            
             cleaned_title = clean_title(item.title)
             final_title = html.unescape(html.unescape(cleaned_title))
             
-            description_html = item.get('description', item.get('summary', ''))
             description_text = re.sub('<[^<]+?>', '', description_html).strip()
-
-            published_time_utc: Optional[datetime] = None
+            
             source_name = feed_info['source']
+            
+            # If description is empty for Hankyoreh or Chosun Ilbo, try to scrape meta description
+            if not description_text and source_name in ['한겨레', '조선일보']:
+                scraped_description = scrape_meta_description(final_url)
+                if scraped_description:
+                    description_text = scraped_description
+            
+            published_time_utc: Optional[datetime] = None
 
             if source_name == '한겨레':
                 scraped_time = scrape_hankyoreh_publication_time(final_url)
@@ -238,19 +272,28 @@ def fetch_and_parse_feed(feed_info: Dict[str, Any]) -> List[Dict[str, Any]]:
                 continue
 
             thumbnail_url: Optional[str] = None
-            if hasattr(item, 'media_thumbnail') and item.media_thumbnail:
+
+            # For JoongAng Ilbo, prioritize scraping the high-quality og:image first.
+            if feed_info['source'] == '중앙일보':
+                thumbnail_url = scrape_og_image(final_url)
+
+            # Fallback for other sources or if JoongAng scraping fails
+            if not thumbnail_url and hasattr(item, 'media_thumbnail') and item.media_thumbnail:
                 thumbnail_url = item.media_thumbnail[0].get('url')
+            
             if not thumbnail_url and hasattr(item, 'media_content') and item.media_content:
                 for media in item.media_content:
                     if media.get('medium') == 'image' and media.get('url'):
                         thumbnail_url = media.get('url')
                         break
+            
             if not thumbnail_url and description_html:
                 img_match = re.search(r'<img[^>]+src=["\"]([^"\"]+)["\"]', description_html)
                 if img_match:
                     thumbnail_url = img_match.group(1)
 
-            if not thumbnail_url and feed_info['source'] != '중앙일보':
+            # Generic fallback to scrape og:image if no thumbnail has been found yet
+            if not thumbnail_url:
                 thumbnail_url = scrape_og_image(final_url)
 
             if thumbnail_url:
