@@ -1,12 +1,14 @@
 import express, { Request, Response } from "express";
+import fs from "fs";
+import path from "path";
 import pool from "../config/db";
-import { authenticateUser, AuthenticatedRequest, optionalAuthenticateUser } from "../middleware/userAuth";
+import { AuthenticatedRequest, authenticateUser, optionalAuthenticateUser } from "../middleware/userAuth";
 
 const router = express.Router();
 
 // Helper function to get absolute avatar URL
 const getAbsoluteAvatarUrl = (avatarUrl: string | null, req: Request): string | null => {
-  if (avatarUrl && !avatarUrl.startsWith('http')) {
+  if (avatarUrl && !avatarUrl.startsWith("http")) {
     return `${req.protocol}://${req.get("host")}${avatarUrl}`;
   }
   return avatarUrl;
@@ -65,20 +67,37 @@ const getAbsoluteAvatarUrl = (avatarUrl: string | null, req: Request): string | 
  *                   type: integer
  *                   description: "삭제되지 않은 댓글 및 대댓글의 총 개수"
  */
-router.get("/articles/:articleId/comments", optionalAuthenticateUser, async (req: AuthenticatedRequest, res: Response) => {
-  console.log('[GET-Comments-Debug] Handler started. req.user:', req.user);
-  const { articleId } = req.params;
-  const { sort = 'newest' } = req.query;
-  const currentUserId = req.user?.userId;
-  console.log('[GET-Comments-Debug] currentUserId value:', currentUserId);
+router.get(
+  "/articles/:articleId/comments",
+  optionalAuthenticateUser,
+  async (req: AuthenticatedRequest, res: Response) => {
+    console.log("[GET-Comments-Debug] Handler started. req.user:", req.user);
+    const { articleId } = req.params;
+    const { sort = "newest" } = req.query;
+    const currentUserId = req.user?.userId;
 
-  let orderByClause = 'ORDER BY c.created_at DESC';
-  if (sort === 'oldest') {
-    orderByClause = 'ORDER BY c.created_at ASC';
-  }
+    try {
+      const logDir = path.join(__dirname, "..", "..", "..", "logs");
+      if (!fs.existsSync(logDir)) {
+        fs.mkdirSync(logDir, { recursive: true });
+      }
+      const logMessage = `[${new Date().toISOString()}] GET /comments - Auth: ${
+        req.headers.authorization ? "Present" : "Missing"
+      }, User: ${JSON.stringify(req.user)}, currentUserId: ${currentUserId}\n`;
+      fs.appendFileSync(path.join(logDir, "debug.log"), logMessage);
+    } catch (e) {
+      console.error("Failed to write debug log", e);
+    }
 
-  try {
-    const query = `
+    console.log("[GET-Comments-Debug] currentUserId value:", currentUserId);
+
+    let orderByClause = "ORDER BY c.created_at DESC";
+    if (sort === "oldest") {
+      orderByClause = "ORDER BY c.created_at ASC";
+    }
+
+    try {
+      const query = `
       SELECT 
         c.id, c.content, c.created_at, c.parent_comment_id, c.status,
         c.like_count, c.dislike_count,
@@ -90,63 +109,66 @@ router.get("/articles/:articleId/comments", optionalAuthenticateUser, async (req
       WHERE c.article_id = ?
       ${orderByClause}
     `;
-    const [commentsRows]: any = await pool.query(query, [currentUserId, articleId]);
+      const [commentsRows]: any = await pool.query(query, [currentUserId, articleId]);
 
-    const [totalCountRows]: any = await pool.query(
-      "SELECT COUNT(*) as total FROM tn_article_comment WHERE article_id = ? AND status = 'ACTIVE'",
-      [articleId]
-    );
-    const totalCount = totalCountRows[0].total;
+      const [totalCountRows]: any = await pool.query(
+        "SELECT COUNT(*) as total FROM tn_article_comment WHERE article_id = ? AND status = 'ACTIVE'",
+        [articleId]
+      );
+      const totalCount = totalCountRows[0].total;
 
-    const comments = commentsRows.map((comment: any) => ({
-      ...comment,
-      avatar_url: getAbsoluteAvatarUrl(comment.profile_image_url, req),
-    }));
+      const comments = commentsRows.map((comment: any) => ({
+        ...comment,
+        avatar_url: getAbsoluteAvatarUrl(comment.profile_image_url, req),
+      }));
 
-    const commentMap: { [key: number]: any } = {};
-    const nestedComments: any[] = [];
+      const commentMap: { [key: number]: any } = {};
+      const nestedComments: any[] = [];
 
-    comments.forEach((comment: any) => {
-      comment.replies = [];
-      commentMap[comment.id] = comment;
-    });
+      comments.forEach((comment: any) => {
+        comment.replies = [];
+        commentMap[comment.id] = comment;
+      });
 
-    comments.forEach((comment: any) => {
-      if (comment.parent_comment_id) {
-        if (commentMap[comment.parent_comment_id]) {
-          commentMap[comment.parent_comment_id].replies.push(comment);
-        }
-      } else {
-        nestedComments.push(comment);
-      }
-    });
-
-    // 모든 대댓글(replies) 배열을 오래된 순으로 정렬하는 재귀 함수
-    const sortRepliesRecursively = (commentList: any[]) => {
-      commentList.forEach(comment => {
-        if (comment.replies && comment.replies.length > 0) {
-          comment.replies.sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-          sortRepliesRecursively(comment.replies); // 재귀 호출
+      comments.forEach((comment: any) => {
+        if (comment.parent_comment_id) {
+          if (commentMap[comment.parent_comment_id]) {
+            commentMap[comment.parent_comment_id].replies.push(comment);
+          }
+        } else {
+          nestedComments.push(comment);
         }
       });
-    };
 
-    // 최상위 댓글 목록과 그 아래 모든 대댓글들을 오래된 순으로 정렬
-    sortRepliesRecursively(nestedComments);
+      // 모든 대댓글(replies) 배열을 오래된 순으로 정렬하는 재귀 함수
+      const sortRepliesRecursively = (commentList: any[]) => {
+        commentList.forEach((comment) => {
+          if (comment.replies && comment.replies.length > 0) {
+            comment.replies.sort(
+              (a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+            );
+            sortRepliesRecursively(comment.replies); // 재귀 호출
+          }
+        });
+      };
 
-    // 최상위 댓글 목록만 요청된 정렬 순서에 따라 정렬
-    if (sort === 'newest') {
-      nestedComments.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-    } else if (sort === 'oldest') {
-      nestedComments.sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+      // 최상위 댓글 목록과 그 아래 모든 대댓글들을 오래된 순으로 정렬
+      sortRepliesRecursively(nestedComments);
+
+      // 최상위 댓글 목록만 요청된 정렬 순서에 따라 정렬
+      if (sort === "newest") {
+        nestedComments.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      } else if (sort === "oldest") {
+        nestedComments.sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+      }
+
+      res.status(200).json({ comments: nestedComments, totalCount });
+    } catch (error) {
+      console.error("Error fetching comments:", error);
+      res.status(500).json({ message: "댓글을 불러오는 중 오류가 발생했습니다." });
     }
-
-    res.status(200).json({ comments: nestedComments, totalCount });
-  } catch (error) {
-    console.error("Error fetching comments:", error);
-    res.status(500).json({ message: "댓글을 불러오는 중 오류가 발생했습니다." });
   }
-});
+);
 
 /**
  * @swagger
@@ -161,7 +183,7 @@ router.get("/articles/:articleId/comments", optionalAuthenticateUser, async (req
  *       - in: path
  *         name: articleId
  *         required: true
- *         schema: 
+ *         schema:
  *           type: integer
  *         description: "댓글을 작성할 기사의 ID"
  *     requestBody:
@@ -280,29 +302,29 @@ router.post("/articles/:articleId/comments", authenticateUser, async (req: Authe
  *         description: "댓글 수정 성공"
  */
 router.patch("/comments/:commentId", authenticateUser, async (req: AuthenticatedRequest, res: Response) => {
-    const { commentId } = req.params;
-    const userId = req.user!.userId;
-    const { content } = req.body;
+  const { commentId } = req.params;
+  const userId = req.user!.userId;
+  const { content } = req.body;
 
-    if (!content || content.trim().length === 0) {
-        return res.status(400).json({ message: "댓글 내용이 비어있습니다." });
+  if (!content || content.trim().length === 0) {
+    return res.status(400).json({ message: "댓글 내용이 비어있습니다." });
+  }
+
+  try {
+    const [commentRows]: any = await pool.query("SELECT user_id FROM tn_article_comment WHERE id = ?", [commentId]);
+    if (commentRows.length === 0) {
+      return res.status(404).json({ message: "댓글을 찾을 수 없습니다." });
+    }
+    if (commentRows[0].user_id !== userId) {
+      return res.status(403).json({ message: "댓글을 수정할 권한이 없습니다." });
     }
 
-    try {
-        const [commentRows]: any = await pool.query("SELECT user_id FROM tn_article_comment WHERE id = ?", [commentId]);
-        if (commentRows.length === 0) {
-            return res.status(404).json({ message: "댓글을 찾을 수 없습니다." });
-        }
-        if (commentRows[0].user_id !== userId) {
-            return res.status(403).json({ message: "댓글을 수정할 권한이 없습니다." });
-        }
-
-        await pool.query("UPDATE tn_article_comment SET content = ? WHERE id = ?", [content, commentId]);
-        res.status(200).json({ message: "댓글이 성공적으로 수정되었습니다." });
-    } catch (error) {
-        console.error("Error updating comment:", error);
-        res.status(500).json({ message: "댓글을 수정하는 중 오류가 발생했습니다." });
-    }
+    await pool.query("UPDATE tn_article_comment SET content = ? WHERE id = ?", [content, commentId]);
+    res.status(200).json({ message: "댓글이 성공적으로 수정되었습니다." });
+  } catch (error) {
+    console.error("Error updating comment:", error);
+    res.status(500).json({ message: "댓글을 수정하는 중 오류가 발생했습니다." });
+  }
 });
 
 /**
@@ -333,7 +355,9 @@ router.delete("/comments/:commentId", authenticateUser, async (req: Authenticate
   try {
     await connection.beginTransaction();
 
-    const [commentRows]: any = await connection.query("SELECT user_id FROM tn_article_comment WHERE id = ?", [commentId]);
+    const [commentRows]: any = await connection.query("SELECT user_id FROM tn_article_comment WHERE id = ?", [
+      commentId,
+    ]);
     if (commentRows.length === 0) {
       await connection.rollback();
       return res.status(404).json({ message: "댓글을 찾을 수 없습니다." });
@@ -343,7 +367,10 @@ router.delete("/comments/:commentId", authenticateUser, async (req: Authenticate
       return res.status(403).json({ message: "댓글을 삭제할 권한이 없습니다." });
     }
 
-    const [replyRows]: any = await connection.query("SELECT id FROM tn_article_comment WHERE parent_comment_id = ? LIMIT 1", [commentId]);
+    const [replyRows]: any = await connection.query(
+      "SELECT id FROM tn_article_comment WHERE parent_comment_id = ? LIMIT 1",
+      [commentId]
+    );
 
     if (replyRows.length > 0) {
       // Soft delete
@@ -358,7 +385,6 @@ router.delete("/comments/:commentId", authenticateUser, async (req: Authenticate
 
     await connection.commit();
     res.status(200).json({ message: "댓글이 성공적으로 삭제되었습니다." });
-
   } catch (error) {
     await connection.rollback();
     console.error("Error deleting comment:", error);
@@ -413,7 +439,7 @@ router.post("/comments/:commentId/react", authenticateUser, async (req: Authenti
   const userId = req.user!.userId;
   const { reaction: newReaction } = req.body;
 
-  if (newReaction !== 'LIKE' && newReaction !== 'DISLIKE') {
+  if (newReaction !== "LIKE" && newReaction !== "DISLIKE") {
     return res.status(400).json({ message: "Invalid reaction type." });
   }
 
@@ -437,7 +463,7 @@ router.post("/comments/:commentId/react", authenticateUser, async (req: Authenti
         "INSERT INTO tn_article_comment_reaction (user_id, comment_id, reaction_type) VALUES (?, ?, ?)",
         [userId, commentId, newReaction]
       );
-      if (newReaction === 'LIKE') likeIncrement = 1;
+      if (newReaction === "LIKE") likeIncrement = 1;
       else dislikeIncrement = 1;
     } else if (existingReaction !== newReaction) {
       // Change reaction
@@ -445,7 +471,7 @@ router.post("/comments/:commentId/react", authenticateUser, async (req: Authenti
         "UPDATE tn_article_comment_reaction SET reaction_type = ? WHERE user_id = ? AND comment_id = ?",
         [newReaction, userId, commentId]
       );
-      if (newReaction === 'LIKE') {
+      if (newReaction === "LIKE") {
         likeIncrement = 1;
         dislikeIncrement = -1;
       } else {
@@ -482,7 +508,6 @@ router.post("/comments/:commentId/react", authenticateUser, async (req: Authenti
       dislike_count: finalState[0].dislike_count,
       currentUserReaction: finalState[0].currentUserReaction || null,
     });
-
   } catch (error) {
     await connection.rollback();
     console.error("Error processing comment reaction:", error);
@@ -539,17 +564,17 @@ router.delete("/comments/:commentId/react", authenticateUser, async (req: Authen
       let likeIncrement = 0;
       let dislikeIncrement = 0;
 
-      if (existingReaction === 'LIKE') {
+      if (existingReaction === "LIKE") {
         likeIncrement = -1;
-      } else if (existingReaction === 'DISLIKE') {
+      } else if (existingReaction === "DISLIKE") {
         dislikeIncrement = -1;
       }
 
       // Delete the reaction
-      await connection.query(
-        "DELETE FROM tn_article_comment_reaction WHERE user_id = ? AND comment_id = ?",
-        [userId, commentId]
-      );
+      await connection.query("DELETE FROM tn_article_comment_reaction WHERE user_id = ? AND comment_id = ?", [
+        userId,
+        commentId,
+      ]);
 
       // Update the counts
       if (likeIncrement !== 0 || dislikeIncrement !== 0) {
@@ -573,7 +598,6 @@ router.delete("/comments/:commentId/react", authenticateUser, async (req: Authen
       ...finalCounts[0],
       currentUserReaction: null,
     });
-
   } catch (error) {
     await connection.rollback();
     console.error("Error processing comment reaction cancellation:", error);
@@ -637,16 +661,14 @@ router.post("/comments/:commentId/report", authenticateUser, async (req: Authent
     }
 
     // Log the report
-    await connection.query(
-      "INSERT INTO tn_article_comment_report_log (user_id, comment_id, reason) VALUES (?, ?, ?)",
-      [userId, commentId, reason || null]
-    );
+    await connection.query("INSERT INTO tn_article_comment_report_log (user_id, comment_id, reason) VALUES (?, ?, ?)", [
+      userId,
+      commentId,
+      reason || null,
+    ]);
 
     // Increment the report count on the comment table
-    await connection.query(
-      "UPDATE tn_article_comment SET report_count = report_count + 1 WHERE id = ?",
-      [commentId]
-    );
+    await connection.query("UPDATE tn_article_comment SET report_count = report_count + 1 WHERE id = ?", [commentId]);
 
     // Check if the report count reached the threshold
     const [comments]: any = await connection.query(
@@ -656,24 +678,20 @@ router.post("/comments/:commentId/report", authenticateUser, async (req: Authent
 
     if (comments.length > 0 && comments[0].report_count >= REPORT_THRESHOLD) {
       const commentAuthorId = comments[0].user_id;
-      
+
       // Hide the comment
       await connection.query(
         "UPDATE tn_article_comment SET status = 'HIDDEN', content = '신고 누적으로 숨김 처리된 댓글입니다.' WHERE id = ?",
         [commentId]
       );
-      
+
       // Warn the author
-      await connection.query(
-        "UPDATE tn_user SET warning_count = warning_count + 1 WHERE id = ?",
-        [commentAuthorId]
-      );
+      await connection.query("UPDATE tn_user SET warning_count = warning_count + 1 WHERE id = ?", [commentAuthorId]);
     }
 
     await connection.commit();
 
     res.status(200).json({ message: "신고가 성공적으로 접수되었습니다." });
-
   } catch (error) {
     await connection.rollback();
     console.error("Error processing comment report:", error);

@@ -1,50 +1,73 @@
-# News Project
+# 뉴스 커뮤니티 플랫폼 (News Community Platform)
 
-이 프로젝트는 뉴스 기사를 수집하고, 주제별로 분류하여 보여주는 웹 애플리케이션입니다.
+## 📖 프로젝트 소개
+이 프로젝트는 다양한 정치적 성향을 가진 사용자들을 위해 언론사를 분류하여 뉴스를 제공하고, 관련 토픽을 중심으로 소통할 수 있는 뉴스 커뮤니티 플랫폼입니다.
 
-## 실행 방법
+## 🏗️ 시스템 아키텍처 및 배포 현황
 
-### 사전 요구사항
+### R&R (역할 분담)
+- **Backend & DB**: 본인 담당 (Render, TiDB)
+- **Frontend (User)**: 인턴 담당 (Vercel)
 
-- [Docker](https://www.docker.com/products/docker-desktop/)가 설치되어 있어야 합니다.
-- [Node.js](https://nodejs.org/)가 설치되어 있어야 합니다.
+### 배포 환경
+- **Backend**: [Render](https://render.com/) (Free Tier)
+- **Database**: [TiDB](https://pingcap.com/ai/tidb/) (MySQL Compatible)
+- **Frontend (User)**: [Vercel](https://vercel.com/)
 
-### 1. 데이터베이스 실행
+## 📂 프로젝트 구조 및 폴더 설명
 
-프로젝트의 `db` 폴더로 이동하여 Docker Compose를 실행합니다. 이 명령은 백그라운드에서 MySQL 데이터베이스 컨테이너를 시작합니다.
+이 저장소는 백엔드와 데이터 분석, 관리자 페이지를 포함하고 있습니다.
 
-```bash
-cd db
-docker-compose up -d
-```
+### 1. `news-server` (Backend)
+- **역할**: 뉴스 커뮤니티의 메인 백엔드 API 서버입니다.
+- **기술 스택**: Node.js, Express, TypeScript
+- **주요 라이브러리**:
+  - `mysql2`: 데이터베이스 연결
+  - `socket.io`: 실시간 통신
+  - `aws-sdk`: 파일 스토리지 연동
+  - `rss-parser`: RSS 피드 수집
+  - `swagger-ui-express`: API 문서화
 
-### 2. 환경 변수 설정
+### 2. `news-ui` (Admin Frontend)
+- **역할**: 뉴스 데이터 및 토픽 관리를 위한 관리자 전용 대시보드입니다. (사용자용 웹사이트 아님)
+- **기술 스택**: React, Vite, TypeScript
+- **주요 라이브러리**:
+  - `react-router-dom`: 라우팅
+  - `chart.js` / `react-chartjs-2`: 데이터 시각화
+  - `@dnd-kit`: 드래그 앤 드롭 인터페이스
 
-프로젝트의 최상위 폴더로 돌아와서, `.env.example` 파일을 복사하여 `.env` 파일을 생성합니다. 이 파일은 애플리케이션이 데이터베이스에 연결하는 데 필요한 정보를 담고 있습니다.
+### 3. `news-data` (Data Analysis)
+- **역할**: 수집된 기사를 분석하고 처리하는 Python 스크립트 모음입니다.
+- **기술 스택**: Python
+- **주요 라이브러리**:
+  - `beautifulsoup4`: 웹 크롤링 및 파싱
+  - `scikit-learn`, `sentence-transformers`: 텍스트 유사도 분석 및 ML 작업
+  - `mysql-connector-python`: DB 연동
 
-```bash
-# (루트 폴더에서 실행)
-copy .env.example .env
-```
+### 4. 기타 폴더
+- **`news-server-nest`**: 마이그레이션 테스트용 폴더입니다. (현재 프로덕션 미사용, 참고용)
+- **`db`**: 현재 사용하지 않는 폴더입니다.
+- **사용자용 프론트엔드**: 별도의 리포지토리에서 관리되며 Vercel을 통해 배포 중입니다.
 
-### 3. 백엔드 서버 실행
+## 🚀 시작 가이드
 
-`news-server` 폴더로 이동하여 필요한 패키지를 설치하고 서버를 시작합니다.
-
+### Backend (`news-server`)
 ```bash
 cd news-server
 npm install
 npm start
 ```
 
-### 4. 프론트엔드 서버 실행
-
-별도의 터미널을 열고 `news-ui` 폴더로 이동하여 필요한 패키지를 설치하고 개발 서버를 시작합니다.
-
+### Admin UI (`news-ui`)
 ```bash
 cd news-ui
 npm install
 npm run dev
 ```
 
-이제 웹 브라우저에서 프론트엔드 애플리케이션에 접속할 수 있습니다.
+### Data Analysis (`news-data`)
+```bash
+cd news-data
+pip install -r requirements.txt
+python article_collector.py # 예시 실행
+```
