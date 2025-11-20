@@ -411,8 +411,6 @@ router.post("/comments/:commentId/react", authenticateUser, async (req: Authenti
   const userId = req.user!.userId;
   const { reaction: newReaction } = req.body;
 
-  console.log(`[React-Debug] Received request for commentId: ${commentId}. Body:`, req.body);
-
   if (newReaction !== 'LIKE' && newReaction !== 'DISLIKE') {
     return res.status(400).json({ message: "Invalid reaction type." });
   }
@@ -430,7 +428,6 @@ router.post("/comments/:commentId/react", authenticateUser, async (req: Authenti
 
     let likeIncrement = 0;
     let dislikeIncrement = 0;
-    let finalUserReaction: 'LIKE' | 'DISLIKE' | null = newReaction;
 
     if (!existingReaction) {
       // New reaction
@@ -440,16 +437,7 @@ router.post("/comments/:commentId/react", authenticateUser, async (req: Authenti
       );
       if (newReaction === 'LIKE') likeIncrement = 1;
       else dislikeIncrement = 1;
-    } else if (existingReaction === newReaction) {
-      // Undo reaction
-      await connection.query(
-        "DELETE FROM tn_article_comment_reaction WHERE user_id = ? AND comment_id = ?",
-        [userId, commentId]
-      );
-      if (newReaction === 'LIKE') likeIncrement = -1;
-      else dislikeIncrement = -1;
-      finalUserReaction = null;
-    } else {
+    } else if (existingReaction !== newReaction) {
       // Change reaction
       await connection.query(
         "UPDATE tn_article_comment_reaction SET reaction_type = ? WHERE user_id = ? AND comment_id = ?",
@@ -463,6 +451,7 @@ router.post("/comments/:commentId/react", authenticateUser, async (req: Authenti
         dislikeIncrement = 1;
       }
     }
+    // If existingReaction is the same as newReaction, do nothing.
 
     // Update counts on the comment table
     if (likeIncrement !== 0 || dislikeIncrement !== 0) {
@@ -471,6 +460,104 @@ router.post("/comments/:commentId/react", authenticateUser, async (req: Authenti
         [likeIncrement, dislikeIncrement, commentId]
       );
     }
+
+    // Get the final counts and the user's current reaction
+    const [finalState]: any = await connection.query(
+      `SELECT 
+        c.like_count, 
+        c.dislike_count, 
+        r.reaction_type as currentUserReaction
+      FROM tn_article_comment c
+      LEFT JOIN tn_article_comment_reaction r ON c.id = r.comment_id AND r.user_id = ?
+      WHERE c.id = ?`,
+      [userId, commentId]
+    );
+
+    await connection.commit();
+
+    res.status(200).json({
+      like_count: finalState[0].like_count,
+      dislike_count: finalState[0].dislike_count,
+      currentUserReaction: finalState[0].currentUserReaction || null,
+    });
+
+  } catch (error) {
+    await connection.rollback();
+    console.error("Error processing comment reaction:", error);
+    res.status(500).json({ message: "댓글 반응 처리 중 오류가 발생했습니다." });
+  } finally {
+    connection.release();
+  }
+});
+
+/**
+ * @swagger
+ * /api/comments/{commentId}/react:
+ *   delete:
+ *     tags: [Comments]
+ *     summary: 댓글에 대한 반응(좋아요/싫어요) 취소
+ *     description: "사용자가 특정 댓글에 대해 눌렀던 반응을 취소합니다."
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: commentId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: "반응을 취소할 댓글의 ID"
+ *     responses:
+ *       200:
+ *         description: "반응 취소가 성공적으로 처리되었습니다."
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 like_count: { type: integer }
+ *                 dislike_count: { type: integer }
+ *                 currentUserReaction: { type: 'null' }
+ */
+router.delete("/comments/:commentId/react", authenticateUser, async (req: AuthenticatedRequest, res: Response) => {
+  const { commentId } = req.params;
+  const userId = req.user!.userId;
+
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+
+    // Find the existing reaction to determine whether to decrement like or dislike count
+    const [existingReactions]: any = await connection.query(
+      "SELECT reaction_type FROM tn_article_comment_reaction WHERE user_id = ? AND comment_id = ?",
+      [userId, commentId]
+    );
+
+    if (existingReactions.length > 0) {
+      const existingReaction = existingReactions[0].reaction_type;
+      let likeIncrement = 0;
+      let dislikeIncrement = 0;
+
+      if (existingReaction === 'LIKE') {
+        likeIncrement = -1;
+      } else if (existingReaction === 'DISLIKE') {
+        dislikeIncrement = -1;
+      }
+
+      // Delete the reaction
+      await connection.query(
+        "DELETE FROM tn_article_comment_reaction WHERE user_id = ? AND comment_id = ?",
+        [userId, commentId]
+      );
+
+      // Update the counts
+      if (likeIncrement !== 0 || dislikeIncrement !== 0) {
+        await connection.query(
+          "UPDATE tn_article_comment SET like_count = like_count + ?, dislike_count = dislike_count + ? WHERE id = ?",
+          [likeIncrement, dislikeIncrement, commentId]
+        );
+      }
+    }
+    // If no reaction exists, do nothing but proceed to return the final counts.
 
     // Get the final counts
     const [finalCounts]: any = await connection.query(
@@ -482,13 +569,13 @@ router.post("/comments/:commentId/react", authenticateUser, async (req: Authenti
 
     res.status(200).json({
       ...finalCounts[0],
-      currentUserReaction: finalUserReaction,
+      currentUserReaction: null,
     });
 
   } catch (error) {
     await connection.rollback();
-    console.error("Error processing comment reaction:", error);
-    res.status(500).json({ message: "댓글 반응 처리 중 오류가 발생했습니다." });
+    console.error("Error processing comment reaction cancellation:", error);
+    res.status(500).json({ message: "댓글 반응 취소 처리 중 오류가 발생했습니다." });
   } finally {
     connection.release();
   }
