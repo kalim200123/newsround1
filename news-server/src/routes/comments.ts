@@ -1,6 +1,4 @@
 import express, { Request, Response } from "express";
-import fs from "fs";
-import path from "path";
 import pool from "../config/db";
 import { AuthenticatedRequest, authenticateUser, optionalAuthenticateUser } from "../middleware/userAuth";
 
@@ -76,21 +74,6 @@ router.get(
     const { sort = "newest" } = req.query;
     const currentUserId = req.user?.userId;
 
-    try {
-      const logDir = path.join(__dirname, "..", "..", "..", "logs");
-      if (!fs.existsSync(logDir)) {
-        fs.mkdirSync(logDir, { recursive: true });
-      }
-      const logMessage = `[${new Date().toISOString()}] GET /comments - Auth: ${
-        req.headers.authorization ? "Present" : "Missing"
-      }, User: ${JSON.stringify(req.user)}, currentUserId: ${currentUserId}\n`;
-      fs.appendFileSync(path.join(logDir, "debug.log"), logMessage);
-    } catch (e) {
-      console.error("Failed to write debug log", e);
-    }
-
-    console.log("[GET-Comments-Debug] currentUserId value:", currentUserId);
-
     let orderByClause = "ORDER BY c.created_at DESC";
     if (sort === "oldest") {
       orderByClause = "ORDER BY c.created_at ASC";
@@ -110,16 +93,6 @@ router.get(
       ${orderByClause}
     `;
       const [commentsRows]: any = await pool.query(query, [currentUserId, articleId]);
-
-      try {
-        const logDir = path.join(__dirname, "..", "..", "..", "logs");
-        const logMessage = `[${new Date().toISOString()}] Query Result - Count: ${
-          commentsRows.length
-        }, First Reaction: ${commentsRows.length > 0 ? commentsRows[0].currentUserReaction : "N/A"}\n`;
-        fs.appendFileSync(path.join(logDir, "debug.log"), logMessage);
-      } catch (e) {
-        console.error("Failed to write debug log", e);
-      }
 
       const [totalCountRows]: any = await pool.query(
         "SELECT COUNT(*) as total FROM tn_article_comment WHERE article_id = ? AND status = 'ACTIVE'",
