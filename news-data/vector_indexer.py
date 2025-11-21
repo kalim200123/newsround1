@@ -118,7 +118,12 @@ def main():
             # TiDB VECTOR type takes a JSON string representation of the list
             embedding_str = str(list(embedding.astype(float)))
             update_data.append((embedding_str, article['id']))
+        # Log how many rows will be inserted (batch size)
+        if len(update_data) % BATCH_SIZE == 0:
+            logging.info(f"Prepared {len(update_data)} embeddings for insertion (batch size reached).")
 
+        # Log total number of rows to insert before executing batch
+        logging.info(f"Inserting total of {len(update_data)} embeddings into DB.")
         update_query = "UPDATE tn_home_article SET embedding = %s WHERE id = %s"
         cursor.executemany(update_query, update_data)
         cnx.commit()

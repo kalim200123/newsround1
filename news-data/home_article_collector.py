@@ -190,8 +190,15 @@ def scrape_meta_description(url: str) -> Optional[str]:
 
 def clean_title(title: str) -> str:
     if not title: return ''
-    publisher_regex = re.compile(r'\s*[-–—|]\s*(중앙일보|조선일보|동아일보|한겨레|경향신문|오마이뉴스|joongang|chosun|donga|hani|khan)\s*$', re.I)
-    return publisher_regex.sub('', title).strip()
+    
+    # 1. 지역 정보 제거 (등호 포함): [서울=뉴시스], (부산=연합뉴스) 등
+    title = re.sub(r'[\[\(][^=\[\]\(\)]*=[^=\[\]\(\)]*[\]\)]', '', title)
+    
+    # 2. 언론사명 제거 (맨 끝에 있는 경우)
+    publisher_regex = re.compile(r'\s*[-–—|]\s*(중앙일보|조선일보|동아일보|한겨레|경향신문|오마이뉴스|연합뉴스|뉴시스|joongang|chosun|donga|hani|khan|yna|newsis)\s*$', re.I)
+    title = publisher_regex.sub('', title)
+    
+    return title.strip()
 
 def scrape_hankyoreh_publication_time(url: str) -> Optional[datetime]:
     try:
@@ -254,7 +261,11 @@ def fetch_and_parse_feed(feed_info: Dict[str, Any]) -> List[Dict[str, Any]]:
             cleaned_title = clean_title(item.title)
             final_title = html.unescape(html.unescape(cleaned_title))
             
+            # HTML 태그 제거 후 엔티티 변환 (&apos;, &middot;, &nbsp; 등)
             description_text = re.sub('<[^<]+?>', '', description_html).strip()
+            description_text = html.unescape(description_text)
+            # Remove author/source tags like [OSEN=조형래 기자] or (OSEN=조형래 기자)
+            description_text = re.sub(r'[\[\(][^=]*=[^\]\)]+[\]\)]', '', description_text).strip()
             
             source_name = feed_info['source']
             

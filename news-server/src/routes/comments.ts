@@ -69,7 +69,6 @@ router.get(
   "/articles/:articleId/comments",
   optionalAuthenticateUser,
   async (req: AuthenticatedRequest, res: Response) => {
-    console.log("[GET-Comments-Debug] Handler started. req.user:", req.user);
     const { articleId } = req.params;
     const { sort = "newest" } = req.query;
     const currentUserId = req.user?.userId;
