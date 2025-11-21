@@ -13,7 +13,7 @@ type AdminAuthContextValue = {
 const AdminAuthContext = createContext<AdminAuthContextValue | undefined>(undefined);
 
 const TOKEN_STORAGE_KEY = "dn_admin_token";
-const API_BASE_URL = "http://localhost:3000";
+const API_BASE_URL = "http://localhost:4000";
 
 const setAuthHeader = (token: string | null) => {
   if (token) {

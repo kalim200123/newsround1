@@ -1,11 +1,11 @@
 import axios from "axios";
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
+import { Link, useNavigate } from "react-router-dom";
 import { useAdminAuth } from "../../context/AdminAuthContext";
 import type { Topic } from "../../types";
 
-import WeeklyVisitorsChart from '../../components/WeeklyVisitorsChart';
+import WeeklyVisitorsChart from "../../components/WeeklyVisitorsChart";
 
 // 타입 정의
 interface Inquiry {
@@ -44,10 +44,12 @@ const formatDateTime = (value?: string | null) => {
   });
 };
 
-const PROMPT_TEXT = "현재 대한민국에서 가장 인기있는 토픽 5개(한경오합쳐서 기사 10개, 조중동에 기사 10개 정도는 있어야 함)와 각 토픽에 대한 단어형 키워드 3~5개, 중도 입장에서의 요약을 작성해줘.";
+const PROMPT_TEXT =
+  "현재 대한민국에서 가장 인기있는 토픽 5개(한경오합쳐서 기사 10개, 조중동에 기사 10개 정도는 있어야 함)와 각 토픽에 대한 단어형 키워드 3~5개, 중도 입장에서의 요약을 작성해줘.";
 
 const handleCopyPrompt = () => {
-  navigator.clipboard.writeText(PROMPT_TEXT)
+  navigator.clipboard
+    .writeText(PROMPT_TEXT)
     .then(() => {
       toast.success("프롬프트 텍스트가 클립보드에 복사되었습니다!");
     })
@@ -96,7 +98,14 @@ export default function AdminPage() {
     <div className="admin-container">
       <header className="admin-page-header">
         <h1>관리자 대시보드</h1>
-        <button type="button" className="logout-btn" onClick={() => { logout(); navigate("/admin/login", { replace: true }); }}>
+        <button
+          type="button"
+          className="logout-btn"
+          onClick={() => {
+            logout();
+            navigate("/admin/login", { replace: true });
+          }}
+        >
           로그아웃
         </button>
       </header>
@@ -141,7 +150,9 @@ export default function AdminPage() {
                     <li key={item.id}>
                       <Link to={`/admin/inquiries/${item.id}`}>
                         <span className="activity-title">{item.subject}</span>
-                        <span className="activity-meta">{item.user_nickname} · {formatDateTime(item.created_at)}</span>
+                        <span className="activity-meta">
+                          {item.user_nickname} · {formatDateTime(item.created_at)}
+                        </span>
                       </Link>
                     </li>
                   ))}

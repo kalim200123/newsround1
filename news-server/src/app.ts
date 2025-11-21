@@ -1,4 +1,4 @@
-console.log('Application starting...');
+console.log("Application starting...");
 
 import dotenv from "dotenv";
 dotenv.config();
@@ -20,23 +20,23 @@ import apiRouter from "./routes/api";
 import articlesRouter from "./routes/articles";
 import authRouter from "./routes/auth";
 import chatRouter from "./routes/chat";
-import inquiryRouter from "./routes/inquiry";
 import commentsRouter from "./routes/comments";
-import savedRouter from "./routes/saved";
-import jobsRouter from "./routes/jobs";
+import inquiryRouter from "./routes/inquiry";
 import internalRouter from "./routes/internal";
+import jobsRouter from "./routes/jobs";
+import savedRouter from "./routes/saved";
 import userRouter from "./routes/user";
 
 const app: Express = express();
-app.set('trust proxy', 1); // 프록시 뒤의 실제 IP를 req.ip에 기록
-const port = Number(process.env.PORT ?? 3000);
+app.set("trust proxy", 1); // 프록시 뒤의 실제 IP를 req.ip에 기록
+const port = Number(process.env.PORT ?? 4000);
 
 // --- CORS 설정 ---
 const allowedOrigins = [
-  'http://localhost:3000',
-  'https://news-frontend-jg.vercel.app', // Production Frontend
-  'https://news02.onrender.com', // Production Backend
-  'http://localhost:5173', // Local Vite Dev
+  "http://localhost:3000",
+  "https://news-frontend-jg.vercel.app", // Production Frontend
+  "https://news02.onrender.com", // Production Backend
+  "http://localhost:5173", // Local Vite Dev
 ];
 
 const corsOptions = {
@@ -57,7 +57,7 @@ const corsOptions = {
 // 전역 미들웨어
 app.use(cors(corsOptions)); // 수정된 CORS 옵션 적용
 app.use(express.json());
-app.use("/public", express.static(path.join(__dirname, '..', 'public')));
+app.use("/public", express.static(path.join(__dirname, "..", "public")));
 app.use(express.urlencoded({ extended: true }));
 
 // Swagger UI
@@ -113,7 +113,7 @@ const io = new Server(httpServer, {
   cors: {
     origin: allowedOrigins, // 수정된 CORS 옵션 적용
     methods: ["GET", "POST"],
-    credentials: true
+    credentials: true,
   },
 });
 

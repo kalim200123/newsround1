@@ -47,7 +47,7 @@ router.get("/topics", async (req: Request, res: Response) => {
   try {
     connection = await pool.getConnection();
     const [rows] = await connection.query(
-      "SELECT id, display_name, summary, published_at, view_count FROM tn_topic WHERE status = 'published' AND topic_type = 'CONTENT' ORDER BY published_at DESC"
+      "SELECT id, display_name, summary, published_at, view_count FROM tn_topic WHERE status = 'OPEN' AND topic_type = 'VOTING' ORDER BY published_at DESC"
     );
     res.json(rows);
   } catch (error) {
@@ -72,10 +72,10 @@ router.get("/topics", async (req: Request, res: Response) => {
 router.get("/topics/popular-ranking", async (req: Request, res: Response) => {
   try {
     const [rows] = await pool.query(
-      `SELECT id, display_name, summary, published_at, view_count, popularity_score 
+      `SELECT id, display_name, summary, published_at, view_count
        FROM tn_topic 
-       WHERE status = 'published' AND topic_type = 'CONTENT'
-       ORDER BY popularity_score DESC, published_at DESC
+       WHERE status = 'OPEN' AND topic_type = 'VOTING'
+       ORDER BY published_at DESC
        LIMIT 10`
     );
     res.json(rows);
@@ -99,9 +99,9 @@ router.get("/topics/popular-ranking", async (req: Request, res: Response) => {
 router.get("/topics/latest", async (req: Request, res: Response) => {
   try {
     const [rows] = await pool.query(
-      `SELECT id, display_name, summary, published_at, view_count, popularity_score 
+      `SELECT id, display_name, summary, published_at, view_count
        FROM tn_topic 
-       WHERE status = 'published' AND topic_type = 'CONTENT'
+       WHERE status = 'OPEN' AND topic_type = 'VOTING'
        ORDER BY published_at DESC
        LIMIT 10`
     );
@@ -126,10 +126,10 @@ router.get("/topics/latest", async (req: Request, res: Response) => {
 router.get("/topics/popular-all", async (req: Request, res: Response) => {
   try {
     const [rows] = await pool.query(
-      `SELECT id, display_name, summary, published_at, view_count, popularity_score 
+      `SELECT id, display_name, summary, published_at, view_count
        FROM tn_topic 
-       WHERE status = 'published' AND topic_type = 'CONTENT'
-       ORDER BY popularity_score DESC, published_at DESC`
+       WHERE status = 'OPEN' AND topic_type = 'VOTING'
+       ORDER BY published_at DESC`
     );
     res.json(rows);
   } catch (error) {
@@ -163,7 +163,7 @@ router.get("/topics/:topicId", optionalAuthenticateUser, async (req: Authenticat
 
   try {
     const [topicRows]: any = await pool.query(
-      "SELECT id, display_name, summary, published_at, view_count, collection_status FROM tn_topic WHERE id = ? AND status = 'published'",
+      "SELECT id, display_name, summary, published_at, view_count, collection_status FROM tn_topic WHERE id = ? AND status = 'OPEN'",
       [topicId]
     );
     if (topicRows.length === 0) {

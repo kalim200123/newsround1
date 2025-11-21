@@ -1,3 +1,5 @@
+import { GetObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { spawn } from "child_process";
 import express, { Request, Response } from "express";
 import fs from "fs";
@@ -5,8 +7,6 @@ import os from "os";
 import path from "path";
 import pool from "../config/db";
 import { authenticateAdmin, handleAdminLogin } from "../middleware/auth";
-import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 const router = express.Router();
 
@@ -80,7 +80,7 @@ router.get("/health", (req: Request, res: Response) => {
 router.get("/stats", async (req: Request, res: Response) => {
   try {
     const queries = [
-      pool.query("SELECT COUNT(*) as count FROM tn_topic WHERE status = 'published'"),
+      pool.query("SELECT COUNT(*) as count FROM tn_topic WHERE status = 'OPEN' AND topic_type = 'VOTING'"),
       pool.query("SELECT COUNT(*) as count FROM tn_inquiry"),
       pool.query("SELECT COUNT(*) as count FROM tn_inquiry WHERE status = 'SUBMITTED'"),
       pool.query("SELECT COUNT(*) as count FROM tn_user"),
@@ -159,8 +159,8 @@ router.get("/stats/visitors/weekly", async (req: Request, res: Response) => {
     for (let i = 6; i >= 0; i--) {
       const d = new Date();
       d.setDate(d.getDate() - i);
-      const dateString = d.toISOString().split('T')[0];
-      
+      const dateString = d.toISOString().split("T")[0];
+
       weeklyData.push({
         date: dateString,
         visitors: visitorMap.get(dateString) || 0,
@@ -173,7 +173,6 @@ router.get("/stats/visitors/weekly", async (req: Request, res: Response) => {
     res.status(500).json({ message: "주간 방문자 통계를 불러오는 중 오류가 발생했습니다." });
   }
 });
-
 
 /**
  * @swagger
@@ -240,10 +239,9 @@ router.get("/download", async (req: Request, res: Response) => {
 
   try {
     // Security Check: Verify the file exists in an inquiry record to get its original name
-    const [inquiryRows]: any = await pool.query(
-      "SELECT file_originalname FROM tn_inquiry WHERE file_path = ?",
-      [s3Key]
-    );
+    const [inquiryRows]: any = await pool.query("SELECT file_originalname FROM tn_inquiry WHERE file_path = ?", [
+      s3Key,
+    ]);
 
     if (inquiryRows.length === 0) {
       // Although it's an admin, we check if the file path is valid to prevent random S3 access
@@ -255,13 +253,12 @@ router.get("/download", async (req: Request, res: Response) => {
     const command = new GetObjectCommand({
       Bucket: process.env.AWS_S3_BUCKET_NAME,
       Key: s3Key,
-      ResponseContentDisposition: `attachment; filename="${encodeURIComponent(originalName)}"`
+      ResponseContentDisposition: `attachment; filename="${encodeURIComponent(originalName)}"`,
     });
 
     const presignedUrl = await getSignedUrl(s3Client, command, { expiresIn: 300 }); // 5 minutes
 
     res.json({ url: presignedUrl });
-
   } catch (error) {
     console.error("Error creating admin presigned URL for download:", error);
     res.status(500).json({ message: "파일 다운로드 URL을 생성하는 중 오류가 발생했습니다." });
@@ -501,7 +498,10 @@ router.get("/users", async (req: Request, res: Response) => {
 
   try {
     const queries = [
-      pool.query("SELECT id, email, nickname, status, warning_count, created_at FROM tn_user ORDER BY created_at DESC LIMIT ? OFFSET ?", [limit, offset]),
+      pool.query(
+        "SELECT id, email, nickname, status, warning_count, created_at FROM tn_user ORDER BY created_at DESC LIMIT ? OFFSET ?",
+        [limit, offset]
+      ),
       pool.query("SELECT COUNT(*) as total FROM tn_user"),
     ];
 
@@ -539,13 +539,16 @@ router.get("/users", async (req: Request, res: Response) => {
 router.get("/users/:userId", async (req: Request, res: Response) => {
   const { userId } = req.params;
   try {
-    const [rows]: any = await pool.query("SELECT id, email, nickname, name, phone, status, warning_count, created_at, profile_image_url, introduction FROM tn_user WHERE id = ?", [userId]);
+    const [rows]: any = await pool.query(
+      "SELECT id, email, nickname, name, phone, status, warning_count, created_at, profile_image_url, introduction FROM tn_user WHERE id = ?",
+      [userId]
+    );
     if (rows.length === 0) {
       return res.status(404).json({ message: "User not found" });
     }
     const user = rows[0];
     // Ensure profile_image_url is an absolute path
-    if (user.profile_image_url && !user.profile_image_url.startsWith('http')) {
+    if (user.profile_image_url && !user.profile_image_url.startsWith("http")) {
       user.profile_image_url = `${req.protocol}://${req.get("host")}${user.profile_image_url}`;
     }
     res.json(user);
@@ -602,7 +605,7 @@ router.patch("/users/:userId", async (req: Request, res: Response) => {
   const params = [];
 
   if (status) {
-    if (!['ACTIVE', 'SUSPENDED'].includes(status)) {
+    if (!["ACTIVE", "SUSPENDED"].includes(status)) {
       return res.status(400).json({ message: "Invalid status value." });
     }
     updateFields.push("status = ?");
@@ -625,10 +628,7 @@ router.patch("/users/:userId", async (req: Request, res: Response) => {
   params.push(userId);
 
   try {
-    const [result]: any = await pool.query(
-      `UPDATE tn_user SET ${updateFields.join(", ")} WHERE id = ?`,
-      params
-    );
+    const [result]: any = await pool.query(`UPDATE tn_user SET ${updateFields.join(", ")} WHERE id = ?`, params);
 
     if (result.affectedRows === 0) {
       return res.status(404).json({ message: "User not found or no changes were made." });
@@ -686,7 +686,9 @@ router.get("/users/:userId/comments", async (req: Request, res: Response) => {
       [userId, limit, offset]
     );
 
-    const [[{ total }]] : any = await pool.query("SELECT COUNT(*) as total FROM tn_article_comment WHERE user_id = ?", [userId]);
+    const [[{ total }]]: any = await pool.query("SELECT COUNT(*) as total FROM tn_article_comment WHERE user_id = ?", [
+      userId,
+    ]);
 
     res.json({ comments, total });
   } catch (error) {
@@ -740,7 +742,7 @@ router.get("/users/:userId/chats", async (req: Request, res: Response) => {
       [userId, limit, offset]
     );
 
-    const [[{ total }]] : any = await pool.query("SELECT COUNT(*) as total FROM tn_chat WHERE user_id = ?", [userId]);
+    const [[{ total }]]: any = await pool.query("SELECT COUNT(*) as total FROM tn_chat WHERE user_id = ?", [userId]);
 
     res.json({ messages, total });
   } catch (error) {
@@ -748,7 +750,6 @@ router.get("/users/:userId/chats", async (req: Request, res: Response) => {
     res.status(500).json({ message: "Server error" });
   }
 });
-
 
 const ALLOWED_LOG_FILES = [
   "news-server/debug_log.txt",
@@ -781,7 +782,7 @@ const ALLOWED_LOG_FILES = [
  *                     type: string
  */
 router.get("/logs", (req: Request, res: Response) => {
-  const logFiles = ALLOWED_LOG_FILES.map(filePath => ({
+  const logFiles = ALLOWED_LOG_FILES.map((filePath) => ({
     name: path.basename(filePath),
     path: filePath,
   }));
@@ -829,22 +830,21 @@ router.get("/logs/view", (req: Request, res: Response) => {
     return res.status(403).json({ message: "Access to this log file is not permitted." });
   }
 
-  const projectRoot = path.resolve(__dirname, '..', '..', '..');
+  const projectRoot = path.resolve(__dirname, "..", "..", "..");
   const absolutePath = path.join(projectRoot, logPath);
 
   fs.readFile(absolutePath, "utf8", (err, data) => {
     if (err) {
-      if (err.code === 'ENOENT') {
-        return res.status(404).type('text').send(`Log file not found at: ${logPath}`);
+      if (err.code === "ENOENT") {
+        return res.status(404).type("text").send(`Log file not found at: ${logPath}`);
       }
       console.error(`Error reading log file ${logPath}:`, err);
-      return res.status(500).type('text').send("Error reading log file.");
+      return res.status(500).type("text").send("Error reading log file.");
     }
     res.setHeader("Content-Type", "text/plain; charset=utf-8");
     res.send(data);
   });
 });
-
 
 /**
  * @swagger
@@ -888,7 +888,8 @@ router.get("/topics/published", async (req: Request, res: Response) => {
   const limit = parseInt(req.query.limit as string, 10);
 
   try {
-    let sql = "SELECT id, display_name, published_at FROM tn_topic WHERE status = 'published' AND topic_type = 'CONTENT' ORDER BY published_at DESC";
+    let sql =
+      "SELECT id, display_name, published_at FROM tn_topic WHERE status = 'OPEN' AND topic_type = 'VOTING' ORDER BY published_at DESC";
     const params = [];
 
     if (!isNaN(limit) && limit > 0) {
@@ -938,16 +939,16 @@ router.get("/topics/published", async (req: Request, res: Response) => {
  */
 router.patch("/topics/:topicId/publish", async (req: Request, res: Response) => {
   const { topicId } = req.params;
-  const { displayName, searchKeywords, summary } = req.body;
+  const { displayName, embeddingKeywords, summary, stanceLeft, stanceRight, voteStartAt, voteEndAt } = req.body;
 
-  if (!displayName || !searchKeywords) {
-    return res.status(400).json({ message: "Display name and search keywords are required." });
+  if (!displayName || !embeddingKeywords) {
+    return res.status(400).json({ message: "Display name and embedding keywords are required." });
   }
 
   try {
     const [result]: any = await pool.query(
-      "UPDATE tn_topic SET status = 'published', collection_status = 'pending', display_name = ?, search_keywords = ?, summary = ?, published_at = NOW() WHERE id = ? AND status = 'suggested'",
-      [displayName, searchKeywords, summary, topicId]
+      "UPDATE tn_topic SET status = 'OPEN', collection_status = 'pending', display_name = ?, embedding_keywords = ?, summary = ?, stance_left = ?, stance_right = ?, vote_start_at = ?, vote_end_at = ?, published_at = NOW() WHERE id = ? AND status = 'PREPARING'",
+      [displayName, embeddingKeywords, summary, stanceLeft, stanceRight, voteStartAt, voteEndAt, topicId]
     );
 
     if (result.affectedRows === 0) {
@@ -984,7 +985,7 @@ router.patch("/topics/:topicId/reject", async (req: Request, res: Response) => {
   const { topicId } = req.params;
   try {
     const [result]: any = await pool.query(
-      "UPDATE tn_topic SET status = 'rejected' WHERE id = ? AND status = 'suggested'",
+      "UPDATE tn_topic SET status = 'CLOSED' WHERE id = ? AND status = 'PREPARING'",
       [topicId]
     );
 
@@ -1043,11 +1044,11 @@ router.get("/topics", async (req: Request, res: Response) => {
 
   try {
     const queries = [
-      pool.query("SELECT * FROM tn_topic WHERE topic_type = 'CONTENT' ORDER BY created_at DESC LIMIT ? OFFSET ?", [
+      pool.query("SELECT * FROM tn_topic WHERE topic_type = 'VOTING' ORDER BY created_at DESC LIMIT ? OFFSET ?", [
         limit,
         offset,
       ]),
-      pool.query("SELECT COUNT(*) as total FROM tn_topic WHERE topic_type = 'CONTENT'"),
+      pool.query("SELECT COUNT(*) as total FROM tn_topic WHERE topic_type = 'VOTING'"),
     ];
 
     const results = await Promise.all(queries);
@@ -1060,8 +1061,6 @@ router.get("/topics", async (req: Request, res: Response) => {
     res.status(500).json({ message: "Server error" });
   }
 });
-
-
 
 /**
  * @swagger
@@ -1101,7 +1100,7 @@ router.post("/topics", async (req: Request, res: Response) => {
 
   try {
     const [result]: any = await pool.query(
-      "INSERT INTO tn_topic (display_name, search_keywords, summary, status, collection_status, published_at) VALUES (?, ?, ?, 'published', 'pending', NOW())",
+      "INSERT INTO tn_topic (display_name, embedding_keywords, summary, status, collection_status, published_at) VALUES (?, ?, ?, 'OPEN', 'pending', NOW())",
       [displayName, searchKeywords, summary || ""]
     );
     const newTopicId = result.insertId;
@@ -1180,10 +1179,9 @@ router.post("/topics", async (req: Request, res: Response) => {
 router.patch("/topics/:topicId/archive", async (req: Request, res: Response) => {
   const { topicId } = req.params;
   try {
-    const [result]: any = await pool.query(
-      "UPDATE tn_topic SET status = 'archived' WHERE id = ? AND status = 'published'",
-      [topicId]
-    );
+    const [result]: any = await pool.query("UPDATE tn_topic SET status = 'CLOSED' WHERE id = ? AND status = 'OPEN'", [
+      topicId,
+    ]);
 
     if (result.affectedRows === 0) {
       return res.status(404).json({ message: "Topic not found or not published." });
@@ -1471,7 +1469,7 @@ router.patch("/articles/:articleId/unpublish", async (req: Request, res: Respons
  *           schema:
  *             type: object
  *             properties:
- *               searchKeywords:
+ *               embeddingKeywords:
  *                 type: string
  *                 description: "재수집 시 사용할 새로운 검색 키워드 (선택 사항)"
  *     responses:
@@ -1480,18 +1478,19 @@ router.patch("/articles/:articleId/unpublish", async (req: Request, res: Respons
  */
 router.post("/topics/:topicId/recollect", async (req: Request, res: Response) => {
   const { topicId } = req.params;
-  const payload = req.body as { searchKeywords?: string };
-  const normalizedKeywords = typeof payload?.searchKeywords === "string" ? payload.searchKeywords.trim() : undefined;
+  const payload = req.body as { embeddingKeywords?: string };
+  const normalizedKeywords =
+    typeof payload?.embeddingKeywords === "string" ? payload.embeddingKeywords.trim() : undefined;
 
   try {
-    const [rows]: any = await pool.query("SELECT id FROM tn_topic WHERE id = ? AND status = 'published'", [topicId]);
+    const [rows]: any = await pool.query("SELECT id FROM tn_topic WHERE id = ? AND status = 'OPEN'", [topicId]);
     if (rows.length === 0) {
       return res.status(404).json({ message: "Published topic not found." });
     }
 
     if (normalizedKeywords) {
       await pool.query(
-        "UPDATE tn_topic SET collection_status = 'pending', search_keywords = ?, updated_at = NOW() WHERE id = ?",
+        "UPDATE tn_topic SET collection_status = 'pending', embedding_keywords = ?, updated_at = NOW() WHERE id = ?",
         [normalizedKeywords, topicId]
       );
     } else {
@@ -1514,7 +1513,62 @@ router.post("/topics/:topicId/recollect", async (req: Request, res: Response) =>
 
     res.json({ message: `Recollection started for topic ${topicId}.`, searchKeywords: normalizedKeywords });
   } catch (error) {
-    console.error("Error starting recollection:", error);
+    res.status(500).json({ message: "Server error", detail: (error as Error).message });
+  }
+});
+
+/**
+ * @swagger
+ * /api/admin/topics/{topicId}/collect-ai:
+ *   post:
+ *     tags: [Admin]
+ *     summary: AI 기반 기사 수집 (로컬 실행 안내)
+ *     description: "Render 서버 메모리 제한으로 인해, 로컬 환경에서 Python 스크립트를 실행하도록 안내합니다."
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: topicId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: "로컬 실행 안내 메시지 반환"
+ *       202:
+ *         description: "서버에서 스크립트 실행 시작됨 (ENABLE_AI_COLLECTION=true 인 경우)"
+ */
+router.post("/topics/:topicId/collect-ai", async (req: Request, res: Response) => {
+  const { topicId } = req.params;
+  const enableAiCollection = process.env.ENABLE_AI_COLLECTION === "true";
+
+  if (!enableAiCollection) {
+    return res.status(200).json({
+      message: "메모리 제한으로 인해 서버에서 AI 수집을 직접 수행하지 않습니다.",
+      instruction: `로컬 터미널에서 다음 명령어를 실행해주세요: python news-data/embedding_processor.py ${topicId}`,
+      isLocalExecutionRequired: true,
+    });
+  }
+
+  // 로컬 개발 환경 등에서 강제로 서버 실행을 원하는 경우
+  try {
+    const pythonCommand = process.env.PYTHON_EXECUTABLE_PATH || (os.platform() === "win32" ? "python" : "python3");
+    const pythonScriptPath = path.join(__dirname, "../../../news-data/local_collector.py");
+    const args = ["-u", pythonScriptPath, topicId];
+
+    console.log(`Executing: ${pythonCommand} ${args.join(" ")}`);
+    const pythonProcess = spawn(pythonCommand, args);
+
+    pythonProcess.stdout.on("data", (data) => {
+      console.log(`[embedding_processor stdout]: ${data.toString().trim()}`);
+    });
+    pythonProcess.stderr.on("data", (data) => {
+      console.error(`[embedding_processor stderr]: ${data.toString().trim()}`);
+    });
+
+    res.status(202).json({ message: "서버에서 AI 수집 스크립트가 시작되었습니다." });
+  } catch (error) {
+    console.error("Error starting AI collection:", error);
     res.status(500).json({ message: "Server error", detail: (error as Error).message });
   }
 });
@@ -1697,7 +1751,7 @@ router.post("/topics/:topicId/delete-all-suggested", async (req: Request, res: R
 router.get("/topics/list-by-popularity", async (req: Request, res: Response) => {
   try {
     const [rows] = await pool.query(
-      "SELECT id, display_name, published_at, popularity_score FROM tn_topic WHERE status = 'published' AND topic_type = 'CONTENT' ORDER BY popularity_score DESC, published_at DESC"
+      "SELECT id, display_name, published_at FROM tn_topic WHERE status = 'OPEN' AND topic_type = 'VOTING' ORDER BY published_at DESC"
     );
     res.json(rows);
   } catch (error) {
@@ -1760,7 +1814,7 @@ router.get("/topics/list-by-popularity", async (req: Request, res: Response) => 
  */
 router.post("/topics/:topicId/collect-latest", async (req: Request, res: Response) => {
   const { topicId } = req.params;
-  const { searchKeywords: newKeywords } = req.body || {};
+  const { embeddingKeywords: newKeywords } = req.body || {};
   const connection = await pool.getConnection();
   try {
     await connection.beginTransaction();
@@ -1773,12 +1827,14 @@ router.post("/topics/:topicId/collect-latest", async (req: Request, res: Respons
         .map((k) => k.trim())
         .filter(Boolean);
     } else {
-      const [topicRows]: any = await connection.query("SELECT search_keywords FROM tn_topic WHERE id = ?", [topicId]);
+      const [topicRows]: any = await connection.query("SELECT embedding_keywords FROM tn_topic WHERE id = ?", [
+        topicId,
+      ]);
       if (topicRows.length === 0) {
         await connection.rollback();
         return res.status(404).json({ message: "Topic not found." });
       }
-      keywords = (topicRows[0].search_keywords || "")
+      keywords = (topicRows[0].embedding_keywords || "")
         .split(",")
         .map((k: string) => k.trim())
         .filter(Boolean);
@@ -1811,14 +1867,17 @@ router.post("/topics/:topicId/collect-latest", async (req: Request, res: Respons
 
     if (candidateRows.length === 0) {
       await connection.rollback();
-      return res.status(200).json({ message: "새로운 최신 기사를 찾지 못했습니다.", addedCount: 0, skippedCount: 0, addedArticles: [], skippedArticles: [] });
+      return res.status(200).json({
+        message: "새로운 최신 기사를 찾지 못했습니다.",
+        addedCount: 0,
+        skippedCount: 0,
+        addedArticles: [],
+        skippedArticles: [],
+      });
     }
 
     // 4. Get existing article URLs for the topic
-    const [existingArticles]: any = await connection.query(
-      "SELECT url FROM tn_article WHERE topic_id = ?",
-      [topicId]
-    );
+    const [existingArticles]: any = await connection.query("SELECT url FROM tn_article WHERE topic_id = ?", [topicId]);
     const existingUrls = new Set(existingArticles.map((a: any) => a.url));
 
     const articlesToInsert: any[] = [];
@@ -1872,5 +1931,5 @@ router.post("/topics/:topicId/collect-latest", async (req: Request, res: Respons
     connection.release();
   }
 });
-  
+
 export default router;
