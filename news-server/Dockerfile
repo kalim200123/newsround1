@@ -7,7 +7,7 @@ WORKDIR /app
 # Install **all** dependencies (dev + prod) for TypeScript compilation
 COPY package*.json ./
 RUN --mount=type=cache,target=/root/.npm \
-    npm ci          # <-- no --only=production
+    npm ci
 
 # Copy source code and build
 COPY . .
@@ -17,9 +17,12 @@ RUN npm run build
 FROM node:22-alpine AS runtime
 WORKDIR /app
 
-# Copy built files
+# Copy compiled output
 COPY --from=builder /app/dist ./dist
-# Install only production dependencies for runtime
+# Copy source files needed by Swagger (routes, config, etc.)
+COPY --from=builder /app/src ./src
+
+# Install only production dependencies
 COPY package*.json ./
 RUN npm ci --only=production
 
