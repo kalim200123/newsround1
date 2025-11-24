@@ -26,7 +26,7 @@ export interface Article {
   source: string;
   source_domain: string;
   status: "suggested" | "published" | "rejected" | "deleted";
-  side?: "LEFT" | "RIGHT";
+  side?: "LEFT" | "RIGHT" | "CENTER";
   url?: string;
   published_at?: string;
   is_featured?: boolean;

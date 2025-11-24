@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+# 검색용 파일: news-data/embed_query.py
 """
 embed_query.py
 - A simple script that takes a query string as a command-line argument.
@@ -15,11 +16,11 @@ from sentence_transformers import SentenceTransformer
 from dotenv import load_dotenv
 import numpy as np
 
-# .env ?�일 로드
+# .env ?�일 로드
 dotenv_path = os.path.join(os.path.dirname(__file__), '..', '.env')
 load_dotenv(dotenv_path=dotenv_path)
 
-MODEL_NAME = os.getenv("EMBED_MODEL", "intfloat/multilingual-e5-small")
+MODEL_NAME = os.getenv("EMBED_MODEL", "dragonkue/multilingual-e5-small-ko")
 
 def main():
     # Check if at least one argument (the query) is provided

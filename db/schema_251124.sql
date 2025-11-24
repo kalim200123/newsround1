@@ -11,7 +11,7 @@
  Target Server Version : 80011 (8.0.11-TiDB-v7.5.2-serverless)
  File Encoding         : 65001
 
- Date: 21/11/2025 13:02:33
+ Date: 24/11/2025 13:10:12
 */
 
 SET NAMES utf8mb4;
@@ -41,7 +41,7 @@ CREATE TABLE `tn_article`  (
   PRIMARY KEY (`id`) USING BTREE,
   UNIQUE INDEX `unique_topic_article`(`topic_id` ASC, `url`(255) ASC) USING BTREE,
   CONSTRAINT `tn_article_ibfk_1` FOREIGN KEY (`topic_id`) REFERENCES `tn_topic` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT
-) ENGINE = InnoDB AUTO_INCREMENT = 690611 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Compact;
+) ENGINE = InnoDB AUTO_INCREMENT = 750611 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Compact;
 
 -- ----------------------------
 -- Table structure for tn_article_comment
@@ -83,7 +83,7 @@ CREATE TABLE `tn_article_comment_reaction`  (
   INDEX `fk_reaction_to_comment`(`comment_id` ASC) USING BTREE,
   CONSTRAINT `fk_reaction_to_user` FOREIGN KEY (`user_id`) REFERENCES `tn_user` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT,
   CONSTRAINT `fk_reaction_to_comment` FOREIGN KEY (`comment_id`) REFERENCES `tn_article_comment` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT
-) ENGINE = InnoDB AUTO_INCREMENT = 600787 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_bin COMMENT = '사용자의 댓글 반응(좋아요/싫어요) 기록' ROW_FORMAT = Compact;
+) ENGINE = InnoDB AUTO_INCREMENT = 630787 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_bin COMMENT = '사용자의 댓글 반응(좋아요/싫어요) 기록' ROW_FORMAT = Compact;
 
 -- ----------------------------
 -- Table structure for tn_article_comment_report_log
@@ -186,7 +186,7 @@ CREATE TABLE `tn_home_article`  (
   `embedding` vector NULL,
   PRIMARY KEY (`id`) USING BTREE,
   UNIQUE INDEX `url`(`url`(255) ASC) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 16830001 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_bin COMMENT = '홈 화면 노출용 기사' ROW_FORMAT = Compact;
+) ENGINE = InnoDB AUTO_INCREMENT = 16920001 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_bin COMMENT = '홈 화면 노출용 기사' ROW_FORMAT = Compact;
 
 -- ----------------------------
 -- Table structure for tn_inquiry
@@ -229,7 +229,7 @@ DROP TABLE IF EXISTS `tn_topic`;
 CREATE TABLE `tn_topic`  (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `display_name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '관리자가 수정한 최종 토픽 이름',
-  `embedding_keywords` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL COMMENT '관리자가 수정한 기사 검색용 키워드 목록',
+  `embedding_keywords` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL,
   `summary` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL COMMENT '관리자가 작성하는 중립적 요약',
   `status` enum('PREPARING','OPEN','CLOSED') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'PREPARING',
   `collection_status` enum('pending','collecting','completed','failed') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending' COMMENT '기사 수집 상태',
@@ -243,28 +243,11 @@ CREATE TABLE `tn_topic`  (
   `vote_end_at` timestamp NULL DEFAULT NULL COMMENT '투표 종료 일시',
   `vote_count_left` int(10) UNSIGNED NOT NULL DEFAULT 0 COMMENT '좌측 투표 수',
   `vote_count_right` int(10) UNSIGNED NOT NULL DEFAULT 0 COMMENT '우측 투표 수',
+  `topic_type` enum('CATEGORY','VOTING') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT 'VOTING',
   PRIMARY KEY (`id`) USING BTREE,
   INDEX `status`(`status` ASC) USING BTREE,
   UNIQUE INDEX `unique_display_name`(`display_name` ASC) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 390074 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = 'AI가 추천하고 관리자가 검토하는 토픽 후보 테이블' ROW_FORMAT = Compact;
-
--- ----------------------------
--- Table structure for tn_topic_vote
--- ----------------------------
-DROP TABLE IF EXISTS `tn_topic_vote`;
-CREATE TABLE `tn_topic_vote` (
-  `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
-  `topic_id` int(11) NOT NULL,
-  `user_id` bigint(20) UNSIGNED NOT NULL,
-  `side` enum('LEFT', 'RIGHT') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`) USING BTREE,
-  UNIQUE INDEX `unique_topic_user`(`topic_id` ASC, `user_id` ASC) USING BTREE,
-  INDEX `fk_vote_topic`(`topic_id` ASC) USING BTREE,
-  INDEX `fk_vote_user`(`user_id` ASC) USING BTREE,
-  CONSTRAINT `fk_vote_topic` FOREIGN KEY (`topic_id`) REFERENCES `tn_topic` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT,
-  CONSTRAINT `fk_vote_user` FOREIGN KEY (`user_id`) REFERENCES `tn_user` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT
-) ENGINE = InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='사용자 투표 기록';
+) ENGINE = InnoDB AUTO_INCREMENT = 480074 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = 'AI가 추천하고 관리자가 검토하는 토픽 후보 테이블' ROW_FORMAT = Compact;
 
 -- ----------------------------
 -- Table structure for tn_topic_view_log
@@ -277,7 +260,24 @@ CREATE TABLE `tn_topic_view_log`  (
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`) USING BTREE,
   INDEX `idx_topic_user_time`(`topic_id` ASC, `user_identifier` ASC, `created_at` ASC) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 4080001 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_bin COMMENT = '토픽 조회수 중복 방지용 로그' ROW_FORMAT = Compact;
+) ENGINE = InnoDB AUTO_INCREMENT = 4200001 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_bin COMMENT = '토픽 조회수 중복 방지용 로그' ROW_FORMAT = Compact;
+
+-- ----------------------------
+-- Table structure for tn_topic_vote
+-- ----------------------------
+DROP TABLE IF EXISTS `tn_topic_vote`;
+CREATE TABLE `tn_topic_vote`  (
+  `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `topic_id` int(11) NOT NULL,
+  `user_id` bigint(20) UNSIGNED NOT NULL,
+  `side` enum('LEFT','RIGHT') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE INDEX `unique_topic_user`(`topic_id` ASC, `user_id` ASC) USING BTREE,
+  INDEX `fk_vote_user`(`user_id` ASC) USING BTREE,
+  CONSTRAINT `fk_vote_topic` FOREIGN KEY (`topic_id`) REFERENCES `tn_topic` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT,
+  CONSTRAINT `fk_vote_user` FOREIGN KEY (`user_id`) REFERENCES `tn_user` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT
+) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '사용자 투표 기록' ROW_FORMAT = Compact;
 
 -- ----------------------------
 -- Table structure for tn_user

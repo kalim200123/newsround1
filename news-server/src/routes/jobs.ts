@@ -189,7 +189,7 @@ if (JOB_SECRET) {
     res.status(202).json({ message: "Vector indexer job started." });
 
     isVectorIndexerRunning = true;
-    const scriptPath = path.join(__dirname, "../../../news-data/vector_indexer.py");
+    const scriptPath = path.join(__dirname, "../../../news-data/daily_vectorizer.py");
     const pythonProcess = spawn(pythonCommand, ["-u", scriptPath]);
 
     pythonProcess.stdout.on("data", (data) => {
@@ -208,6 +208,57 @@ if (JOB_SECRET) {
     pythonProcess.on("error", (err) => {
       console.error("Failed to start vector indexer script:", err);
       isVectorIndexerRunning = false;
+    });
+  });
+}
+
+/**
+ * @swagger
+ * /api/jobs/trigger-pipeline/{secret}:
+ *   post:
+ *     tags:
+ *       - Jobs
+ *     summary: 기사 수집 및 임베딩 파이프라인을 순차적으로 실행합니다.
+ *     description: "외부 크론잡에서 호출하여 rss_collector.py 실행 후 daily_vectorizer.py를 실행합니다."
+ *     parameters:
+ *       - in: path
+ *         name: secret
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: 작업을 실행하기 위한 비밀 키
+ *     responses:
+ *       202:
+ *         description: 파이프라인이 성공적으로 시작되었습니다.
+ *       429:
+ *         description: 작업이 이미 진행 중입니다.
+ */
+if (JOB_SECRET) {
+  router.all(`/trigger-pipeline/${JOB_SECRET}`, (req: Request, res: Response) => {
+    // 파이프라인은 수집과 임베딩을 모두 포함하므로 두 잠금 플래그를 모두 확인/설정하는 것이 안전하지만,
+    // 간단하게 별도의 플래그를 두거나 그냥 실행할 수도 있습니다.
+    // 여기서는 쿨하게 그냥 실행하되, 로그를 남깁니다.
+
+    console.log("Starting full pipeline (Collection -> Embedding) via API...");
+    res.status(202).json({ message: "Full pipeline started." });
+
+    const scriptPath = path.join(__dirname, "../../../news-data/run_pipeline.py");
+    const pythonProcess = spawn(pythonCommand, ["-u", scriptPath]);
+
+    pythonProcess.stdout.on("data", (data) => {
+      console.log(`[run_pipeline.py stdout]: ${data.toString().trim()}`);
+    });
+
+    pythonProcess.stderr.on("data", (data) => {
+      console.error(`[run_pipeline.py stderr]: ${data.toString().trim()}`);
+    });
+
+    pythonProcess.on("close", (code) => {
+      console.log(`Pipeline script exited with code ${code}`);
+    });
+
+    pythonProcess.on("error", (err) => {
+      console.error("Failed to start pipeline script:", err);
     });
   });
 }

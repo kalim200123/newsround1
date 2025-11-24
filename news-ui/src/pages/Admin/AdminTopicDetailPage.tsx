@@ -71,9 +71,11 @@ const AdminTopicDetailPage = () => {
   const [previewArticle, setPreviewArticle] = useState<Article | null>(null);
   const [publishedLeft, setPublishedLeft] = useState<Article[]>([]);
   const [publishedRight, setPublishedRight] = useState<Article[]>([]);
+  const [publishedCenter, setPublishedCenter] = useState<Article[]>([]);
   const [topicList, setTopicList] = useState<Topic[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [activeSide, setActiveSide] = useState<"LEFT" | "CENTER" | "RIGHT">("LEFT");
 
   const fetchData = useCallback(async () => {
     if (!topicId) return;
@@ -100,6 +102,9 @@ const AdminTopicDetailPage = () => {
       );
       setPublishedRight(
         articlesRes.data.filter((article: Article) => article.status === "published" && article.side === "RIGHT")
+      );
+      setPublishedCenter(
+        articlesRes.data.filter((article: Article) => article.status === "published" && article.side === "CENTER")
       );
     } catch (error) {
       console.error("토픽 상세 데이터를 불러오지 못했습니다.", error);
@@ -154,14 +159,15 @@ const AdminTopicDetailPage = () => {
       }
 
       try {
-        await axios.patch(`/api/admin/topics/${topicId}/publish`, {
+        await axios.patch(`/api/admin/topics/${topicId}/status`, {
+          status: "OPEN",
           displayName: display_name,
           embeddingKeywords: embedding_keywords,
           summary: summary || "",
           stanceLeft: stance_left || "",
           stanceRight: stance_right || "",
-          voteStartAt: vote_start_at,
-          voteEndAt: vote_end_at,
+          vote_start_at: vote_start_at,
+          vote_end_at: vote_end_at,
         });
         alert("토픽이 성공적으로 발행되었습니다.");
         fetchData(); // Refresh data to show updated status
@@ -271,7 +277,8 @@ const AdminTopicDetailPage = () => {
       try {
         const left = publishedLeft.map((article) => article.id);
         const right = publishedRight.map((article) => article.id);
-        await axios.patch(`/api/admin/topics/${topicId}/articles/order`, { left, right });
+        const center = publishedCenter.map((article) => article.id);
+        await axios.patch(`/api/admin/topics/${topicId}/articles/order`, { left, right, center });
         alert("기사 노출 순서를 저장했습니다.");
       } catch (error) {
         console.error(error);
@@ -282,12 +289,24 @@ const AdminTopicDetailPage = () => {
       if (!topicId) return;
       if (!window.confirm("이 토픽을 보관 처리할까요? (사용자 화면에서 숨겨집니다)")) return;
       try {
-        await axios.patch(`/api/admin/topics/${topicId}/archive`);
+        await axios.patch(`/api/admin/topics/${topicId}/status`, { status: "CLOSED" });
         alert("토픽을 보관 처리했습니다.");
         navigate("/admin/topics");
       } catch (error) {
         console.error(error);
         alert("토픽 보관 처리에 실패했습니다.");
+      }
+    },
+    handleRejectTopic: async () => {
+      if (!topicId) return;
+      if (!window.confirm("이 토픽을 반려 처리할까요? 이 작업은 되돌릴 수 없습니다.")) return;
+      try {
+        await axios.patch(`/api/admin/topics/${topicId}/status`, { status: "REJECTED" });
+        alert("토픽을 반려 처리했습니다.");
+        navigate("/admin/topics");
+      } catch (error) {
+        console.error("Error rejecting topic:", error);
+        alert("토픽 반려 처리에 실패했습니다.");
       }
     },
     handleUnpublishAllArticles: async () => {
@@ -327,31 +346,20 @@ const AdminTopicDetailPage = () => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
 
-    if (
-      publishedLeft.some((article) => article.id === active.id) &&
-      publishedLeft.some((article) => article.id === over.id)
-    ) {
-      setPublishedLeft((items) =>
-        arrayMove(
-          items,
-          items.findIndex((item) => item.id === active.id),
-          items.findIndex((item) => item.id === over.id)
-        )
-      );
-    }
+    const moveItem = (items: Article[], setItems: React.Dispatch<React.SetStateAction<Article[]>>): boolean => {
+      const activeIndex = items.findIndex((item) => item.id === active.id);
+      const overIndex = items.findIndex((item) => item.id === over.id);
 
-    if (
-      publishedRight.some((article) => article.id === active.id) &&
-      publishedRight.some((article) => article.id === over.id)
-    ) {
-      setPublishedRight((items) =>
-        arrayMove(
-          items,
-          items.findIndex((item) => item.id === active.id),
-          items.findIndex((item) => item.id === over.id)
-        )
-      );
-    }
+      if (activeIndex !== -1 && overIndex !== -1) {
+        setItems((prevItems) => arrayMove(prevItems, activeIndex, overIndex));
+        return true;
+      }
+      return false;
+    };
+
+    if (moveItem(publishedLeft, setPublishedLeft)) return;
+    if (moveItem(publishedRight, setPublishedRight)) return;
+    if (moveItem(publishedCenter, setPublishedCenter)) return;
   };
 
   const suggestedLeft = useMemo(
@@ -360,6 +368,10 @@ const AdminTopicDetailPage = () => {
   );
   const suggestedRight = useMemo(
     () => allArticles.filter((article) => article.status === "suggested" && article.side === "RIGHT"),
+    [allArticles]
+  );
+  const suggestedCenter = useMemo(
+    () => allArticles.filter((article) => article.status === "suggested" && article.side === "CENTER"),
     [allArticles]
   );
 
@@ -401,6 +413,37 @@ const AdminTopicDetailPage = () => {
       </div>
     ));
 
+  const renderCurationColumn = (
+    side: "LEFT" | "CENTER" | "RIGHT",
+    publishedArticles: Article[],
+    suggestedArticles: Article[]
+  ) => {
+    let title = "";
+    if (side === "LEFT") title = "진보";
+    if (side === "CENTER") title = "중도";
+    if (side === "RIGHT") title = "보수";
+
+    return (
+      <div className="curation-column">
+        <h2>{title}</h2>
+        <hr />
+        <h3>발행된 기사 ({publishedArticles.length}개)</h3>
+        <SortableContext items={publishedArticles} strategy={verticalListSortingStrategy}>
+          {publishedArticles.map((article) => (
+            <SortablePublishedArticleItem
+              key={article.id}
+              article={article}
+              onUnpublish={handlers.handleUnpublishArticle}
+              onPreview={setPreviewArticle}
+            />
+          ))}
+        </SortableContext>
+        <h3 style={{ marginTop: 30 }}>후보 기사 ({suggestedArticles.length}개)</h3>
+        {renderSuggestedArticleList(suggestedArticles)}
+      </div>
+    );
+  };
+
   if (!topic) {
     return (
       <div className="admin-container curation-page-layout">
@@ -413,7 +456,7 @@ const AdminTopicDetailPage = () => {
   return (
     <div className="admin-container curation-page-layout">
       <aside className="curation-sidebar">
-        <h2 className="sidebar-title">발행된 토픽</h2>
+        <h2 className="sidebar-title">모든 토픽</h2>
         <ul className="sidebar-topic-list">
           {topicList.map((item) => (
             <li key={item.id}>
@@ -528,9 +571,16 @@ const AdminTopicDetailPage = () => {
           <button type="button" onClick={handlers.handleSaveOrder} className="save-btn">
             노출 순서 저장
           </button>
-          <button type="button" onClick={handlers.handleArchiveTopic} className="delete-btn">
-            토픽 보관 처리
-          </button>
+          {topic.status === "PREPARING" && (
+            <button type="button" onClick={handlers.handleRejectTopic} className="delete-btn">
+              토픽 반려 처리
+            </button>
+          )}
+          {topic.status === "OPEN" && (
+            <button type="button" onClick={handlers.handleArchiveTopic} className="delete-btn">
+              토픽 보관 처리
+            </button>
+          )}
           <button type="button" onClick={handlers.handleUnpublishAllArticles} className="delete-btn">
             모든 기사 발행 취소
           </button>
@@ -542,44 +592,34 @@ const AdminTopicDetailPage = () => {
         {errorMessage && <div className="detail-error inline">{errorMessage}</div>}
         {isLoading && <div className="detail-loading inline">기사 목록을 업데이트 중입니다…</div>}
 
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-          <div className="curation-grid">
-            <div className="curation-column">
-              <h2>진보</h2>
-              <hr />
-              <h3>발행된 기사 ({publishedLeft.length}개)</h3>
-              <SortableContext items={publishedLeft} strategy={verticalListSortingStrategy}>
-                {publishedLeft.map((article) => (
-                  <SortablePublishedArticleItem
-                    key={article.id}
-                    article={article}
-                    onUnpublish={handlers.handleUnpublishArticle}
-                    onPreview={setPreviewArticle}
-                  />
-                ))}
-              </SortableContext>
-              <h3 style={{ marginTop: 30 }}>후보 기사 ({suggestedLeft.length}개)</h3>
-              {renderSuggestedArticleList(suggestedLeft)}
-            </div>
+        <div className="tabs-container" style={{ marginBottom: "20px" }}>
+          <button
+            type="button"
+            className={`tab-button ${activeSide === "LEFT" ? "active" : ""}`}
+            onClick={() => setActiveSide("LEFT")}
+          >
+            진보
+          </button>
+          <button
+            type="button"
+            className={`tab-button ${activeSide === "CENTER" ? "active" : ""}`}
+            onClick={() => setActiveSide("CENTER")}
+          >
+            중도
+          </button>
+          <button
+            type="button"
+            className={`tab-button ${activeSide === "RIGHT" ? "active" : ""}`}
+            onClick={() => setActiveSide("RIGHT")}
+          >
+            보수
+          </button>
+        </div>
 
-            <div className="curation-column">
-              <h2>보수</h2>
-              <hr />
-              <h3>발행된 기사 ({publishedRight.length}개)</h3>
-              <SortableContext items={publishedRight} strategy={verticalListSortingStrategy}>
-                {publishedRight.map((article) => (
-                  <SortablePublishedArticleItem
-                    key={article.id}
-                    article={article}
-                    onUnpublish={handlers.handleUnpublishArticle}
-                    onPreview={setPreviewArticle}
-                  />
-                ))}
-              </SortableContext>
-              <h3 style={{ marginTop: 30 }}>후보 기사 ({suggestedRight.length}개)</h3>
-              {renderSuggestedArticleList(suggestedRight)}
-            </div>
-          </div>
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          {activeSide === "LEFT" && renderCurationColumn("LEFT", publishedLeft, suggestedLeft)}
+          {activeSide === "CENTER" && renderCurationColumn("CENTER", publishedCenter, suggestedCenter)}
+          {activeSide === "RIGHT" && renderCurationColumn("RIGHT", publishedRight, suggestedRight)}
         </DndContext>
       </main>
 

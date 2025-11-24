@@ -674,11 +674,10 @@ router.get("/users/:userId/comments", async (req: Request, res: Response) => {
         c.content,
         c.created_at,
         c.status,
-        a.id as article_id,
-        a.title as article_title,
-        a.url as article_url
-      FROM tn_article_comment c
-      JOIN tn_article a ON c.article_id = a.id
+        t.id as topic_id,
+        t.display_name as topic_name
+      FROM tn_topic_comment c
+      JOIN tn_topic t ON c.topic_id = t.id
       WHERE c.user_id = ?
       ORDER BY c.created_at DESC
       LIMIT ? OFFSET ?
@@ -686,7 +685,7 @@ router.get("/users/:userId/comments", async (req: Request, res: Response) => {
       [userId, limit, offset]
     );
 
-    const [[{ total }]]: any = await pool.query("SELECT COUNT(*) as total FROM tn_article_comment WHERE user_id = ?", [
+    const [[{ total }]]: any = await pool.query("SELECT COUNT(*) as total FROM tn_topic_comment WHERE user_id = ?", [
       userId,
     ]);
 
@@ -936,101 +935,6 @@ router.get("/topics/sidebar", async (req: Request, res: Response) => {
 
 /**
  * @swagger
- * /api/admin/topics/{topicId}/publish:
- *   patch:
- *     tags: [Admin]
- *     summary: 제안된 토픽을 발행됨 상태로 변경
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: topicId
- *         required: true
- *         schema:
- *           type: integer
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required: [displayName, searchKeywords]
- *             properties:
- *               displayName:
- *                 type: string
- *               searchKeywords:
- *                 type: string
- *               summary:
- *                 type: string
- *     responses:
- *       200:
- *         description: 토픽 발행 성공
- */
-router.patch("/topics/:topicId/publish", async (req: Request, res: Response) => {
-  const { topicId } = req.params;
-  const { displayName, embeddingKeywords, summary, stanceLeft, stanceRight, voteStartAt, voteEndAt } = req.body;
-
-  if (!displayName || !embeddingKeywords) {
-    return res.status(400).json({ message: "Display name and embedding keywords are required." });
-  }
-
-  try {
-    const [result]: any = await pool.query(
-      "UPDATE tn_topic SET status = 'OPEN', collection_status = 'pending', display_name = ?, embedding_keywords = ?, summary = ?, stance_left = ?, stance_right = ?, vote_start_at = ?, vote_end_at = ?, published_at = NOW() WHERE id = ? AND status = 'PREPARING'",
-      [displayName, embeddingKeywords, summary, stanceLeft, stanceRight, voteStartAt, voteEndAt, topicId]
-    );
-
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ message: "Topic not found or already handled." });
-    }
-
-    // 기사 수집 스크립트 자동 실행 로직은 제거됨. 관리자가 로컬에서 수동 실행.
-    res.json({ message: `Topic ${topicId} has been published. Please collect articles manually.` });
-  } catch (error) {
-    console.error("Error publishing topic:", error);
-    res.status(500).json({ message: "Server error", detail: (error as Error).message });
-  }
-});
-
-/**
- * @swagger
- * /api/admin/topics/{topicId}/reject:
- *   patch:
- *     tags: [Admin]
- *     summary: 제안된 토픽을 거절됨 상태로 변경
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: topicId
- *         required: true
- *         schema:
- *           type: integer
- *     responses:
- *       200:
- *         description: 토픽 거절 성공
- */
-router.patch("/topics/:topicId/reject", async (req: Request, res: Response) => {
-  const { topicId } = req.params;
-  try {
-    const [result]: any = await pool.query(
-      "UPDATE tn_topic SET status = 'CLOSED' WHERE id = ? AND status = 'PREPARING'",
-      [topicId]
-    );
-
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ message: "Topic not found or already handled." });
-    }
-
-    res.json({ message: `Topic ${topicId} has been rejected.` });
-  } catch (error) {
-    console.error("Error rejecting topic:", error);
-    res.status(500).json({ message: "Server error", detail: (error as Error).message });
-  }
-});
-
-/**
- * @swagger
  * /api/admin/topics:
  *   get:
  *     tags: [Admin]
@@ -1102,15 +1006,21 @@ router.get("/topics", async (req: Request, res: Response) => {
       "SELECT COUNT(*) as total FROM tn_topic WHERE topic_type = 'VOTING' AND status = 'CLOSED'"
     );
 
-    const [topicResults, totalCountResults, allCountResults, openCountResults, preparingCountResults, closedCountResults] =
-      await Promise.all([
-        topicQuery,
-        totalCountQuery,
-        allCountQuery,
-        openCountQuery,
-        preparingCountQuery,
-        closedCountQuery,
-      ]);
+    const [
+      topicResults,
+      totalCountResults,
+      allCountResults,
+      openCountResults,
+      preparingCountResults,
+      closedCountResults,
+    ] = await Promise.all([
+      topicQuery,
+      totalCountQuery,
+      allCountQuery,
+      openCountQuery,
+      preparingCountQuery,
+      closedCountQuery,
+    ]);
 
     const topics = topicResults[0];
     const total = (totalCountResults[0] as any)[0].total;
@@ -1171,9 +1081,35 @@ router.post("/topics", async (req: Request, res: Response) => {
     );
     const newTopicId = result.insertId;
 
-    res
-      .status(201)
-      .json({ message: `Topic ${newTopicId} has been created and is ready for curation.`, topicId: newTopicId });
+    // --- Automatically trigger AI article collection ---
+    try {
+      const pythonCommand = process.env.PYTHON_EXECUTABLE_PATH || (os.platform() === "win32" ? "python" : "python3");
+      const pythonScriptPath = path.join(__dirname, "../../../news-data/topic_matcher_db.py");
+      const args = ["-u", pythonScriptPath, String(newTopicId)];
+
+      console.log(`[Topic Create] Executing: ${pythonCommand} ${args.join(" ")}`);
+      const pythonProcess = spawn(pythonCommand, args);
+
+      pythonProcess.stdout.on("data", (data) => {
+        console.log(`[embedding_processor.py stdout]: ${data.toString().trim()}`);
+      });
+      pythonProcess.stderr.on("data", (data) => {
+        console.error(`[embedding_processor.py stderr]: ${data.toString().trim()}`);
+      });
+      pythonProcess.on("close", (code) => {
+        console.log(`[embedding_processor.py] child process exited with code ${code}`);
+      });
+    } catch (scriptError) {
+      console.error("Failed to start embedding_processor.py script, but topic was created.", scriptError);
+      // We don't fail the whole request, just log the error.
+      // The admin can manually trigger recollection later.
+    }
+    // --- End of script execution ---
+
+    res.status(201).json({
+      message: `Topic ${newTopicId} has been created and article collection has started.`,
+      topicId: newTopicId,
+    });
   } catch (error) {
     console.error("Error creating new topic:", error);
     res.status(500).json({ message: "Server error", detail: (error as Error).message });
@@ -1215,42 +1151,6 @@ router.get("/topics/:topicId", async (req: Request, res: Response) => {
   } catch (error) {
     console.error(`Error fetching topic details for admin (ID ${topicId}):`, error);
     res.status(500).json({ message: "Server error" });
-  }
-});
-
-/**
- * @swagger
- * /api/admin/topics/{topicId}/archive:
- *   patch:
- *     tags: [Admin]
- *     summary: 발행된 토픽을 보관됨 상태로 변경
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: topicId
- *         required: true
- *         schema:
- *           type: integer
- *     responses:
- *       200:
- *         description: 토픽 보관 성공
- */
-router.patch("/topics/:topicId/archive", async (req: Request, res: Response) => {
-  const { topicId } = req.params;
-  try {
-    const [result]: any = await pool.query("UPDATE tn_topic SET status = 'CLOSED' WHERE id = ? AND status = 'OPEN'", [
-      topicId,
-    ]);
-
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ message: "Topic not found or not published." });
-    }
-
-    res.json({ message: `Topic ${topicId} has been archived.` });
-  } catch (error) {
-    console.error("Error archiving topic:", error);
-    res.status(500).json({ message: "Server error", detail: (error as Error).message });
   }
 });
 
@@ -1326,40 +1226,31 @@ router.get("/topics/:topicId/articles", async (req: Request, res: Response) => {
  */
 router.patch("/topics/:topicId/articles/order", async (req: Request, res: Response) => {
   const { topicId } = req.params;
-  const { left, right } = req.body;
+  const { left, right, center } = req.body;
 
   const numericTopicId = parseInt(topicId, 10);
   if (isNaN(numericTopicId)) {
     return res.status(400).json({ message: "Invalid topic ID." });
   }
 
-  if (!Array.isArray(left) || !Array.isArray(right)) {
-    return res.status(400).json({ message: "Invalid request body. 'left' and 'right' arrays are required." });
-  }
-
   const connection = await pool.getConnection();
   try {
     await connection.beginTransaction();
 
-    for (let i = 0; i < left.length; i++) {
-      const articleId = left[i];
-      const displayOrder = i;
-      await connection.query("UPDATE tn_article SET display_order = ? WHERE id = ? AND topic_id = ?", [
-        displayOrder,
-        articleId,
-        numericTopicId,
-      ]);
-    }
+    const updateSide = async (sideArticles: number[]) => {
+      if (!sideArticles || !Array.isArray(sideArticles)) return;
+      for (let i = 0; i < sideArticles.length; i++) {
+        const articleId = sideArticles[i];
+        const displayOrder = i;
+        await connection.query("UPDATE tn_article SET display_order = ? WHERE id = ? AND topic_id = ?", [
+          displayOrder,
+          articleId,
+          numericTopicId,
+        ]);
+      }
+    };
 
-    for (let i = 0; i < right.length; i++) {
-      const articleId = right[i];
-      const displayOrder = i;
-      await connection.query("UPDATE tn_article SET display_order = ? WHERE id = ? AND topic_id = ?", [
-        displayOrder,
-        articleId,
-        numericTopicId,
-      ]);
-    }
+    await Promise.all([updateSide(left), updateSide(right), updateSide(center)]);
 
     await connection.commit();
     res.json({ message: "Article order updated successfully." });
@@ -1558,7 +1449,7 @@ router.post("/topics/:topicId/recollect", async (req: Request, res: Response) =>
     }
 
     const pythonCommand = process.env.PYTHON_EXECUTABLE_PATH || (os.platform() === "win32" ? "python" : "python3");
-    const pythonScriptPath = path.join(__dirname, "../../../news-data/article_collector.py");
+    const pythonScriptPath = path.join(__dirname, "../../../news-data/topic_matcher_local.py");
     const args = ["-u", pythonScriptPath, topicId];
 
     console.log(`Executing: ${pythonCommand} ${args.join(" ")}`);
@@ -1605,7 +1496,7 @@ router.post("/topics/:topicId/collect-ai", async (req: Request, res: Response) =
   if (!enableAiCollection) {
     return res.status(200).json({
       message: "메모리 제한으로 인해 서버에서 AI 수집을 직접 수행하지 않습니다.",
-      instruction: `로컬 터미널에서 다음 명령어를 실행해주세요: python news-data/embedding_processor.py ${topicId}`,
+      instruction: `로컬 터미널에서 다음 명령어를 실행해주세요: python news-data/topic_matcher_db.py ${topicId}`,
       isLocalExecutionRequired: true,
     });
   }
@@ -1613,7 +1504,7 @@ router.post("/topics/:topicId/collect-ai", async (req: Request, res: Response) =
   // 로컬 개발 환경 등에서 강제로 서버 실행을 원하는 경우
   try {
     const pythonCommand = process.env.PYTHON_EXECUTABLE_PATH || (os.platform() === "win32" ? "python" : "python3");
-    const pythonScriptPath = path.join(__dirname, "../../../news-data/local_collector.py");
+    const pythonScriptPath = path.join(__dirname, "../../../news-data/topic_matcher_db.py");
     const args = ["-u", pythonScriptPath, topicId];
 
     console.log(`Executing: ${pythonCommand} ${args.join(" ")}`);
@@ -1883,22 +1774,28 @@ router.post("/topics/:topicId/collect-latest", async (req: Request, res: Respons
     // 2. Define sources and prepare queries
     const LEFT_SOURCES = ["경향신문", "한겨레", "오마이뉴스"];
     const RIGHT_SOURCES = ["조선일보", "중앙일보", "동아일보"];
+    const CENTER_SOURCES = ["연합뉴스", "뉴시스"];
     const likeClauses = keywords.map(() => `(h.title LIKE ? OR h.description LIKE ?)`).join(" OR ");
     const likeParams = keywords.flatMap((kw: string) => [`%${kw}%`, `%${kw}%`]);
 
     const createQuery = (sources: string[]) => {
+      if (sources.length === 0) return Promise.resolve([[]]); // Return empty result if no sources
       return connection.query(
         `SELECT h.title, h.url, h.source, h.source_domain, h.side, h.published_at, h.description, h.thumbnail_url FROM tn_home_article h
          WHERE h.source IN (?) AND (${likeClauses})
-         ORDER BY h.published_at DESC LIMIT 10`, // Still limit to 10 per side for initial candidates
+         ORDER BY h.published_at DESC LIMIT 10`,
         [sources, ...likeParams]
       );
     };
 
     // 3. Run queries in parallel
-    const [leftResults, rightResults] = await Promise.all([createQuery(LEFT_SOURCES), createQuery(RIGHT_SOURCES)]);
+    const [leftResults, rightResults, centerResults] = await Promise.all([
+      createQuery(LEFT_SOURCES),
+      createQuery(RIGHT_SOURCES),
+      createQuery(CENTER_SOURCES),
+    ]);
 
-    const candidateRows = [...(leftResults[0] as any[]), ...(rightResults[0] as any[])];
+    const candidateRows = [...(leftResults[0] as any[]), ...(rightResults[0] as any[]), ...(centerResults[0] as any[])];
 
     if (candidateRows.length === 0) {
       await connection.rollback();
@@ -1962,6 +1859,110 @@ router.post("/topics/:topicId/collect-latest", async (req: Request, res: Respons
     await connection.rollback();
     console.error("Error collecting latest articles:", error);
     res.status(500).json({ message: "서버 오류가 발생했습니다." });
+  } finally {
+    connection.release();
+  }
+});
+
+/**
+ * @swagger
+ * /api/admin/topics/{topicId}/status:
+ *   patch:
+ *     tags: [Admin]
+ *     summary: 토픽의 상태를 변경 (발행, 반려, 보관 등)
+ *     description: "토픽의 상태를 변경합니다. 'OPEN'으로 변경 시 투표 시작/종료 시각이 필요하며, 다른 토픽 정보도 함께 업데이트할 수 있습니다."
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: topicId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [status]
+ *             properties:
+ *               status:
+ *                 type: string
+ *                 enum: [OPEN, REJECTED, CLOSED]
+ *                 description: "변경할 새로운 상태"
+ *               displayName:
+ *                 type: string
+ *               embeddingKeywords:
+ *                 type: string
+ *               summary:
+ *                 type: string
+ *               stanceLeft:
+ *                 type: string
+ *               stanceRight:
+ *                 type: string
+ *               vote_start_at:
+ *                 type: string
+ *                 format: date-time
+ *                 description: "상태를 'OPEN'으로 변경 시 필수"
+ *               vote_end_at:
+ *                 type: string
+ *                 format: date-time
+ *                 description: "상태를 'OPEN'으로 변경 시 필수"
+ *     responses:
+ *       200:
+ *         description: "상태 변경 성공"
+ *       400:
+ *         description: "잘못된 요청 (예: 필수 필드 누락)"
+ *       404:
+ *         description: "토픽을 찾을 수 없거나 상태 변경이 불가능함"
+ */
+router.patch("/topics/:topicId/status", async (req: Request, res: Response) => {
+  const { topicId } = req.params;
+  const { status, displayName, embeddingKeywords, summary, stanceLeft, stanceRight, vote_start_at, vote_end_at } =
+    req.body;
+
+  if (!status || !["OPEN", "REJECTED", "CLOSED"].includes(status)) {
+    return res.status(400).json({ message: "A valid status (OPEN, REJECTED, CLOSED) is required." });
+  }
+
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+
+    let result: any;
+    if (status === "OPEN") {
+      if (!vote_start_at || !vote_end_at || !displayName || !embeddingKeywords) {
+        return res.status(400).json({ message: "To publish, vote times, display name, and keywords are required." });
+      }
+      [result] = await connection.query(
+        "UPDATE tn_topic SET status = 'OPEN', display_name = ?, embedding_keywords = ?, summary = ?, stance_left = ?, stance_right = ?, vote_start_at = ?, vote_end_at = ?, published_at = NOW() WHERE id = ? AND status = 'PREPARING'",
+        [displayName, embeddingKeywords, summary, stanceLeft, stanceRight, vote_start_at, vote_end_at, topicId]
+      );
+    } else if (status === "REJECTED") {
+      [result] = await connection.query(
+        "UPDATE tn_topic SET status = 'REJECTED' WHERE id = ? AND status = 'PREPARING'",
+        [topicId]
+      );
+    } else if (status === "CLOSED") {
+      [result] = await connection.query("UPDATE tn_topic SET status = 'CLOSED' WHERE id = ? AND status = 'OPEN'", [
+        topicId,
+      ]);
+    }
+
+    if (result.affectedRows === 0) {
+      await connection.rollback();
+      return res
+        .status(404)
+        .json({ message: "Topic not found or status transition is not allowed (e.g., already published)." });
+    }
+
+    await connection.commit();
+    res.json({ message: `Topic ${topicId} status has been updated to ${status}.` });
+  } catch (error) {
+    await connection.rollback();
+    console.error(`Error updating topic ${topicId} status:`, error);
+    res.status(500).json({ message: "Server error", detail: (error as Error).message });
   } finally {
     connection.release();
   }

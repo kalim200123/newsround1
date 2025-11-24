@@ -3,7 +3,7 @@ import fs from "fs";
 import path from "path";
 import pool from "../config/db";
 import { FAVICON_URLS } from "../config/favicons";
-import { AuthenticatedRequest, optionalAuthenticateUser } from "../middleware/userAuth";
+import { AuthenticatedRequest, authenticateUser, optionalAuthenticateUser } from "../middleware/userAuth";
 
 const router = Router();
 
@@ -64,7 +64,7 @@ router.get("/topics", async (req: Request, res: Response) => {
  *   get:
  *     tags: [Topics]
  *     summary: 인기 토픽 10개 조회
- *     description: "주기적으로 계산된 인기 점수(popularity_score)를 기준으로 상위 10개의 토픽 목록을 반환합니다."
+ *     description: "투표수, 댓글수, 조회수를 종합하여 계산된 인기 점수를 기준으로 상위 10개의 토픽 목록을 반환합니다."
  *     responses:
  *       200:
  *         description: "인기 토픽 목록"
@@ -72,11 +72,31 @@ router.get("/topics", async (req: Request, res: Response) => {
 router.get("/topics/popular-ranking", async (req: Request, res: Response) => {
   try {
     const [rows] = await pool.query(
-      `SELECT id, display_name, summary, published_at, view_count
-       FROM tn_topic 
-       WHERE status = 'OPEN' AND topic_type = 'VOTING'
-       ORDER BY published_at DESC
-       LIMIT 10`
+      `
+      SELECT
+        t.id,
+        t.display_name,
+        t.summary,
+        t.published_at,
+        t.view_count,
+        (t.vote_count_left + t.vote_count_right) AS total_votes,
+        COALESCE(c.comment_count, 0) AS comment_count,
+        -- Popularity Score: Votes + (Comments * 10) + Views
+        (t.vote_count_left + t.vote_count_right) + (COALESCE(c.comment_count, 0) * 10) + t.view_count AS popularity_score
+      FROM
+        tn_topic t
+      LEFT JOIN (
+        SELECT topic_id, COUNT(*) AS comment_count
+        FROM tn_topic_comment
+        WHERE status = 'ACTIVE'
+        GROUP BY topic_id
+      ) c ON t.id = c.topic_id
+      WHERE
+        t.status = 'OPEN' AND t.topic_type = 'VOTING'
+      ORDER BY
+        popularity_score DESC
+      LIMIT 10
+      `
     );
     res.json(rows);
   } catch (error) {
@@ -118,7 +138,7 @@ router.get("/topics/latest", async (req: Request, res: Response) => {
  *   get:
  *     tags: [Topics]
  *     summary: 모든 발행된 토픽을 인기순으로 조회
- *     description: "홈페이지 등에서 사용하기 위해, 모든 발행된 토픽을 popularity_score가 높은 순으로 정렬하여 반환합니다."
+ *     description: "투표수, 댓글수, 조회수를 종합하여 계산된 인기 점수를 기준으로 모든 토픽을 정렬하여 반환합니다."
  *     responses:
  *       200:
  *         description: 인기순으로 정렬된 모든 토픽 목록
@@ -126,10 +146,30 @@ router.get("/topics/latest", async (req: Request, res: Response) => {
 router.get("/topics/popular-all", async (req: Request, res: Response) => {
   try {
     const [rows] = await pool.query(
-      `SELECT id, display_name, summary, published_at, view_count
-       FROM tn_topic 
-       WHERE status = 'OPEN' AND topic_type = 'VOTING'
-       ORDER BY published_at DESC`
+      `
+      SELECT
+        t.id,
+        t.display_name,
+        t.summary,
+        t.published_at,
+        t.view_count,
+        (t.vote_count_left + t.vote_count_right) AS total_votes,
+        COALESCE(c.comment_count, 0) AS comment_count,
+        -- Popularity Score: Votes + (Comments * 10) + Views
+        (t.vote_count_left + t.vote_count_right) + (COALESCE(c.comment_count, 0) * 10) + t.view_count AS popularity_score
+      FROM
+        tn_topic t
+      LEFT JOIN (
+        SELECT topic_id, COUNT(*) AS comment_count
+        FROM tn_topic_comment
+        WHERE status = 'ACTIVE'
+        GROUP BY topic_id
+      ) c ON t.id = c.topic_id
+      WHERE
+        t.status = 'OPEN' AND t.topic_type = 'VOTING'
+      ORDER BY
+        popularity_score DESC
+      `
     );
     res.json(rows);
   } catch (error) {
@@ -163,8 +203,16 @@ router.get("/topics/:topicId", optionalAuthenticateUser, async (req: Authenticat
 
   try {
     const [topicRows]: any = await pool.query(
-      "SELECT id, display_name, summary, published_at, view_count, collection_status FROM tn_topic WHERE id = ? AND status = 'OPEN'",
-      [topicId]
+      `
+      SELECT 
+        t.id, t.display_name, t.summary, t.published_at, t.view_count, t.collection_status,
+        t.vote_count_left, t.vote_count_right,
+        v.side as my_vote
+      FROM tn_topic t
+      LEFT JOIN tn_topic_vote v ON t.id = v.topic_id AND v.user_id = ?
+      WHERE t.id = ? AND t.status = 'OPEN'
+      `,
+      [userId, topicId]
     );
     if (topicRows.length === 0) {
       return res.status(404).json({ message: "Topic not found" });
@@ -174,15 +222,9 @@ router.get("/topics/:topicId", optionalAuthenticateUser, async (req: Authenticat
       `
       SELECT 
         a.id, a.source, a.source_domain, a.side, a.title, a.url, a.published_at, a.is_featured, a.thumbnail_url, a.view_count,
-        COUNT(l_total.id) AS like_count,
-        MAX(IF(l_user.id IS NOT NULL, 1, 0)) AS isLiked,
         MAX(IF(s_user.id IS NOT NULL, 1, 0)) AS isSaved
       FROM 
         tn_article a
-      LEFT JOIN 
-        tn_article_like l_total ON a.id = l_total.article_id
-      LEFT JOIN
-        tn_article_like l_user ON a.id = l_user.article_id AND l_user.user_id = ?
       LEFT JOIN
         tn_user_saved_articles s_user ON a.id = s_user.article_id AND s_user.user_id = ?
       WHERE 
@@ -192,12 +234,11 @@ router.get("/topics/:topicId", optionalAuthenticateUser, async (req: Authenticat
       ORDER BY 
         a.display_order ASC, a.published_at DESC
       `,
-      [userId, userId, topicId] // userId is used twice now
+      [userId, topicId]
     );
 
     const articlesWithFavicon = (articleRows as any[]).map((article) => ({
       ...article,
-      isLiked: Boolean(article.isLiked), // Convert 0/1 to false/true
       isSaved: Boolean(article.isSaved),
       favicon_url: FAVICON_URLS[article.source_domain] || null,
     }));
@@ -279,6 +320,96 @@ router.post("/topics/:topicId/view", optionalAuthenticateUser, async (req: Authe
 
 /**
  * @swagger
+ * /api/topics/{topicId}/stance-vote:
+ *   post:
+ *     tags: [Topics]
+ *     summary: 토픽 주장 투표하기
+ *     description: "사용자가 특정 토픽에 대해 자신의 입장을 투표합니다. 재투표 시 기존 투표는 변경됩니다."
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: topicId
+ *         required: true
+ *         schema: { type: "integer" }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [side]
+ *             properties:
+ *               side:
+ *                 type: string
+ *                 enum: [LEFT, RIGHT]
+ *     responses:
+ *       200:
+ *         description: "투표 성공"
+ */
+router.post("/topics/:topicId/stance-vote", authenticateUser, async (req: AuthenticatedRequest, res: Response) => {
+  const { topicId } = req.params;
+  const userId = req.user?.userId;
+  const { side } = req.body;
+
+  if (!["LEFT", "RIGHT"].includes(side)) {
+    return res.status(400).json({ message: "Invalid vote side." });
+  }
+
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+
+    const [existingVote]: any = await connection.query(
+      "SELECT side FROM tn_topic_vote WHERE topic_id = ? AND user_id = ?",
+      [topicId, userId]
+    );
+
+    if (existingVote.length > 0) {
+      const oldSide = existingVote[0].side;
+      if (oldSide === side) {
+        // Same vote, do nothing
+        await connection.rollback();
+        return res.status(200).json({ message: "Vote unchanged." });
+      }
+
+      // Change vote
+      await connection.query("UPDATE tn_topic_vote SET side = ? WHERE topic_id = ? AND user_id = ?", [
+        side,
+        topicId,
+        userId,
+      ]);
+
+      // Adjust counts
+      const toDecrement = oldSide === "LEFT" ? "vote_count_left" : "vote_count_right";
+      const toIncrement = side === "LEFT" ? "vote_count_left" : "vote_count_right";
+      await connection.query(`UPDATE tn_topic SET ${toDecrement} = ${toDecrement} - 1, ${toIncrement} = ${toIncrement} + 1 WHERE id = ?`, [
+        topicId,
+      ]);
+    } else {
+      // New vote
+      await connection.query("INSERT INTO tn_topic_vote (topic_id, user_id, side) VALUES (?, ?, ?)", [
+        topicId,
+        userId,
+        side,
+      ]);
+      const toIncrement = side === "LEFT" ? "vote_count_left" : "vote_count_right";
+      await connection.query(`UPDATE tn_topic SET ${toIncrement} = ${toIncrement} + 1 WHERE id = ?`, [topicId]);
+    }
+
+    await connection.commit();
+    res.status(200).json({ message: "Vote cast successfully." });
+  } catch (error) {
+    await connection.rollback();
+    console.error(`Error casting vote for topic ${topicId}:`, error);
+    res.status(500).json({ message: "Server error" });
+  } finally {
+    connection.release();
+  }
+});
+
+/**
+ * @swagger
  * /api/search:
  *   get:
  *     tags: [Articles]
@@ -307,19 +438,15 @@ router.get("/search", optionalAuthenticateUser, async (req: AuthenticatedRequest
 
   try {
     const [rows] = await pool.query(
-      `SELECT a.*, COUNT(l.id) AS like_count, MAX(IF(l_user.id IS NOT NULL, 1, 0)) as isLiked
+      `SELECT a.*
        FROM tn_home_article a
-       LEFT JOIN tn_article_like l ON a.id = l.article_id
-       LEFT JOIN tn_article_like l_user ON a.id = l_user.article_id AND l_user.user_id = ?
        WHERE (a.title LIKE ? OR a.description LIKE ?)
-       GROUP BY a.id
        ORDER BY a.published_at DESC
        LIMIT 50`,
-      [userId, searchQuery, searchQuery]
+      [searchQuery, searchQuery]
     );
     const articlesWithFavicon = (rows as any[]).map((article) => ({
       ...article,
-      isLiked: Boolean(article.isLiked),
       favicon_url: FAVICON_URLS[article.source_domain] || null,
     }));
     res.json(articlesWithFavicon);

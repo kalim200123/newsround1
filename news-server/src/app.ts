@@ -37,6 +37,7 @@ const allowedOrigins = [
   "https://news-frontend-jg.vercel.app", // Production Frontend
   "https://news02.onrender.com", // Production Backend
   "http://localhost:5173", // Local Vite Dev
+  "http://localhost:3000", // Local Dev Frontend (e.g., React App)
 ];
 
 const corsOptions = {

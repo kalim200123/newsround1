@@ -25,7 +25,7 @@ from sentence_transformers import SentenceTransformer
 import mysql.connector
 
 # ---------------- Config ----------------
-MODEL_NAME = os.getenv("EMBED_MODEL", "intfloat/multilingual-e5-base")
+MODEL_NAME = os.getenv("EMBED_MODEL", "dragonkue/multilingual-e5-small-ko")
 TIME_WINDOW_HOURS = int(os.getenv("TIME_WINDOW_HOURS", "24"))
 TARGET_PER_SIDE = int(os.getenv("TARGET_ARTICLES_PER_SIDE", "20"))
 SIMILARITY_THRESHOLD = float(os.getenv("SIMILARITY_THRESHOLD", "0.78"))

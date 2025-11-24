@@ -1,6 +1,6 @@
 import { spawn } from "child_process";
-import path from "path";
 import os from "os";
+import path from "path";
 
 // 작업이 이미 실행 중인지 확인하기 위한 잠금 플래그
 let isJobRunning = false;
@@ -17,12 +17,12 @@ export const collectLatestArticles = () => {
 
   // 실행 환경(로컬, Docker, Render)에 구애받지 않도록 파일의 절대 경로를 기준으로 스크립트 경로를 계산합니다.
   const projectRoot = path.resolve(__dirname, "..", "..", "..");
-  const scriptPath = path.resolve(projectRoot, "news-data", "home_article_collector.py");
-  
+  const scriptPath = path.resolve(projectRoot, "news-data", "rss_collector.py");
+
   console.log(`Executing python script: ${scriptPath}`);
 
   // 일관성을 위해 다른 파일들과 동일한 방식으로 Python 명령어를 결정합니다.
-  const pythonCommand = process.env.PYTHON_EXECUTABLE_PATH || (os.platform() === 'win32' ? 'python' : 'python3');
+  const pythonCommand = process.env.PYTHON_EXECUTABLE_PATH || (os.platform() === "win32" ? "python" : "python3");
 
   isJobRunning = true; // 작업 시작 시 잠금 설정
 
