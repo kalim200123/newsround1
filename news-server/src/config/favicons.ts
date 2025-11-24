@@ -5,4 +5,6 @@ export const FAVICON_URLS: { [key: string]: string } = {
   "chosun.com": "https://www.google.com/s2/favicons?domain=chosun.com",
   "joongang.co.kr": "https://www.google.com/s2/favicons?domain=joongang.co.kr",
   "donga.com": "https://www.google.com/s2/favicons?domain=donga.com",
+  "yna.co.kr": "https://www.yna.co.kr/favicon.ico",
+  "newsis.co.kr": "https://www.newsis.com/favicon.ico",
 };
