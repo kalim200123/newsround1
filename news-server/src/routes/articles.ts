@@ -1,4 +1,4 @@
-import express, { Request, Response } from "express";
+import express, { Response } from "express";
 import pool from "../config/db";
 import { FAVICON_URLS } from "../config/favicons";
 import { AuthenticatedRequest, authenticateUser, optionalAuthenticateUser } from "../middleware/userAuth";
@@ -74,25 +74,26 @@ router.get("/by-category", optionalAuthenticateUser, async (req: AuthenticatedRe
     let query: string;
     let params: (string | number | null)[];
 
-    const sourceList = typeof sources === 'string' && sources ? sources.split(',') : [];
+    const sourceList = typeof sources === "string" && sources ? sources.split(",") : [];
 
     if (sourceList.length > 0) {
       // New logic: Fetch 10 articles per specified source
       const perSourceLimit = 10;
-      const subQueries = sourceList.map(() => `
+      const subQueries = sourceList.map(
+        () => `
         (SELECT a.*
          FROM tn_home_article a
          WHERE a.category = ? AND a.source = ? AND a.published_at >= NOW() - INTERVAL 3 DAY
          ORDER BY a.published_at DESC
          LIMIT ?)
-      `);
-      query = subQueries.join(' UNION ALL ');
-      
+      `
+      );
+      query = subQueries.join(" UNION ALL ");
+
       params = [];
-      sourceList.forEach(source => {
+      sourceList.forEach((source) => {
         params.push(name as string, source, perSourceLimit);
       });
-
     } else {
       // Fallback logic: Fetch latest 60 for the category if no sources are specified
       const limit = 60;
@@ -108,7 +109,6 @@ router.get("/by-category", optionalAuthenticateUser, async (req: AuthenticatedRe
 
     const [rows] = await pool.query(query, params);
     res.json(processArticles(rows as any[]));
-
   } catch (error) {
     console.error("Error fetching articles by category:", error);
     res.status(500).json({ message: "Server error" });
@@ -154,8 +154,8 @@ router.get("/by-category", optionalAuthenticateUser, async (req: AuthenticatedRe
  */
 router.get("/by-source", optionalAuthenticateUser, async (req: AuthenticatedRequest, res: Response) => {
   const name = req.query.name as string;
-  const limit = parseInt(req.query.limit as string || '30', 10);
-  const offset = parseInt(req.query.offset as string || '0', 10);
+  const limit = parseInt((req.query.limit as string) || "30", 10);
+  const offset = parseInt((req.query.offset as string) || "0", 10);
 
   if (!name) {
     return res.status(400).json({ message: "언론사 이름을 'name' 파라미터로 제공해야 합니다." });
@@ -173,105 +173,6 @@ router.get("/by-source", optionalAuthenticateUser, async (req: AuthenticatedRequ
     res.json(processArticles(rows as any[]));
   } catch (error) {
     console.error("Error fetching articles by source:", error);
-    res.status(500).json({ message: "Server error" });
-  }
-});
-
-/**
- * @swagger
- * /api/articles/popular:
- *   get:
- *     tags:
- *       - Articles
- *     summary: "인기 기사 목록 조회"
- *     description: "최근 3일간의 기사들을 대상으로, 조회수가 높은 순으로 10개의 목록을 조회합니다. 카테고리별 조회를 지원합니다."
- *     parameters:
- *       - in: query
- *         name: category
- *         schema:
- *           type: string
- *         description: "조회할 카테고리 (미지정 시 전체 카테고리 대상)"
- *     responses:
- *       200:
- *         description: "인기 기사 목록"
- *         content:
- *           application/json:
- *             schema:
- *               type: array
- *               items:
- *                 $ref: '#/components/schemas/ArticleWithFavicon'
- */
-router.get("/popular", optionalAuthenticateUser, async (req: AuthenticatedRequest, res: Response) => {
-  const { category } = req.query;
-
-  try {
-    let query = `
-      SELECT a.*
-      FROM tn_home_article a
-      WHERE a.published_at >= NOW() - INTERVAL 3 DAY
-    `;
-
-    const params: (string | number | undefined)[] = [];
-    if (category) {
-      query += ` AND a.category = ?`;
-      params.push(category as string);
-    }
-
-    query += `
-      ORDER BY a.view_count DESC, a.published_at DESC
-      LIMIT 10;
-    `;
-
-    const [rows] = await pool.query(query, params);
-    res.json(processArticles(rows as any[]));
-  } catch (error) {
-    console.error("Error fetching popular articles:", error);
-    res.status(500).json({ message: "Server error" });
-  }
-});
-
-
-/**
- * @swagger
- * /api/articles/{articleId}/view:
- *   post:
- *     tags:
- *       - Articles
- *     summary: "기사 조회수 1 증가"
- *     parameters:
- *       - in: path
- *         name: articleId
- *         required: true
- *         schema:
- *           type: integer
- *     responses:
- *       200:
- *         description: "조회수 증가 성공"
- */
-router.post("/:articleId/view", async (req: Request, res: Response) => {
-  const { articleId } = req.params;
-  try {
-    // This endpoint now simply increments the view count on the tn_article table.
-    // The old logic for preventing duplicate views with tn_article_view_log has been removed for simplicity.
-    const [updateResult]: any = await pool.query(
-      "UPDATE tn_article SET view_count = view_count + 1 WHERE id = ?",
-      [articleId]
-    );
-
-    if (updateResult.affectedRows === 0) {
-      // Also try updating tn_home_article as a fallback
-      const [updateHomeResult]: any = await pool.query(
-        "UPDATE tn_home_article SET view_count = view_count + 1 WHERE id = ?",
-        [articleId]
-      );
-      if (updateHomeResult.affectedRows === 0) {
-        return res.status(404).json({ message: "Article not found in any table." });
-      }
-    }
-
-    res.status(200).json({ message: "View count incremented." });
-  } catch (error) {
-    console.error(`Error incrementing view count for article ${articleId}:`, error);
     res.status(500).json({ message: "Server error" });
   }
 });
