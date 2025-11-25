@@ -36,8 +36,8 @@ const allowedOrigins = [
   "http://localhost:4001",
   "https://news-frontend-jg.vercel.app", // Production Frontend
   "https://news02.onrender.com", // Production Backend
+  "https://news01.onrender.com", // Production Backend (new)
   "http://localhost:5173", // Local Vite Dev
-  "http://localhost:3000", // Local Dev Frontend (e.g., React App)
 ];
 
 const corsOptions = {
@@ -75,13 +75,13 @@ app.use("/api/auth", authRouter);
 app.use("/api/user", userRouter);
 app.use("/api/jobs", jobsRouter);
 app.use("/api/articles", articlesRouter);
-app.use("/api", apiRouter); // Move this BEFORE topic-specific routes
 app.use("/api/topics/:topicId/chat", chatRouter); // 토픽에 종속된 채팅 내역 조회
 app.use("/api/chat", chatRouter); // 개별 채팅 메시지 관리 (삭제, 신고 등)
 app.use("/api/inquiry", inquiryRouter);
 app.use("/api", commentsRouter);
 app.use("/api/saved", savedRouter);
 app.use("/api/internal", internalRouter);
+app.use("/api", apiRouter);
 
 // 헬스 체크
 app.get("/", (req: Request, res: Response) => {

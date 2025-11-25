@@ -99,6 +99,7 @@ def collect_articles_for_topic(conn, model, topic_id: int):
             # Added constraints:
             # - published_at within last 7 days
             # - similarity >= 0.7 (distance <= 0.3)
+            # - exclude articles already added to this topic
             search_sql = """
             SELECT id, source, source_domain, title, url, published_at, thumbnail_url,
                    VEC_COSINE_DISTANCE(embedding, %s) as distance
@@ -108,22 +109,18 @@ def collect_articles_for_topic(conn, model, topic_id: int):
               AND published_at IS NOT NULL
               AND published_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
               AND VEC_COSINE_DISTANCE(embedding, %s) <= 0.3
+              AND url NOT IN (SELECT url FROM tn_article WHERE topic_id = %s)
             ORDER BY distance ASC
             LIMIT 10
             """
             
-            cursor.execute(search_sql, (query_embedding_json, side, query_embedding_json))
+            cursor.execute(search_sql, (query_embedding_json, side, query_embedding_json, topic_id))
             results = cursor.fetchall()
             
             print(f"Found {len(results)} candidates for {side}.")
             
             for row in results:
-                # Check if already exists for this topic
-                cursor.execute("SELECT id FROM tn_article WHERE topic_id = %s AND url = %s", (topic_id, row['url']))
-                if cursor.fetchone():
-                    continue
-                
-                # Insert into tn_article
+                # Insert into tn_article (no need to check duplicates, already filtered in SQL)
                 insert_sql = """
                 INSERT INTO tn_article (topic_id, source, source_domain, side, title, url, published_at, thumbnail_url, status, similarity)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'suggested', %s)

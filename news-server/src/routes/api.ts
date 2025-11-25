@@ -216,6 +216,8 @@ router.get("/topics/:topicId", optionalAuthenticateUser, async (req: Authenticat
       SELECT 
         t.id, t.display_name, t.summary, t.published_at, t.view_count, t.collection_status,
         t.vote_count_left, t.vote_count_right,
+        t.stance_left, t.stance_right,
+        t.vote_start_at, t.vote_end_at,
         v.side as my_vote
       FROM tn_topic t
       LEFT JOIN tn_topic_vote v ON t.id = v.topic_id AND v.user_id = ?
@@ -375,37 +377,19 @@ router.post("/topics/:topicId/stance-vote", authenticateUser, async (req: Authen
     );
 
     if (existingVote.length > 0) {
-      const oldSide = existingVote[0].side;
-      if (oldSide === side) {
-        // Same vote, do nothing
-        await connection.rollback();
-        return res.status(200).json({ message: "Vote unchanged." });
-      }
-
-      // Change vote
-      await connection.query("UPDATE tn_topic_vote SET side = ? WHERE topic_id = ? AND user_id = ?", [
-        side,
-        topicId,
-        userId,
-      ]);
-
-      // Adjust counts
-      const toDecrement = oldSide === "LEFT" ? "vote_count_left" : "vote_count_right";
-      const toIncrement = side === "LEFT" ? "vote_count_left" : "vote_count_right";
-      await connection.query(
-        `UPDATE tn_topic SET ${toDecrement} = ${toDecrement} - 1, ${toIncrement} = ${toIncrement} + 1 WHERE id = ?`,
-        [topicId]
-      );
-    } else {
-      // New vote
-      await connection.query("INSERT INTO tn_topic_vote (topic_id, user_id, side) VALUES (?, ?, ?)", [
-        topicId,
-        userId,
-        side,
-      ]);
-      const toIncrement = side === "LEFT" ? "vote_count_left" : "vote_count_right";
-      await connection.query(`UPDATE tn_topic SET ${toIncrement} = ${toIncrement} + 1 WHERE id = ?`, [topicId]);
+      // User already voted - no changes allowed
+      await connection.rollback();
+      return res.status(400).json({ message: "이미 투표하셨습니다. 투표는 한 번만 가능합니다." });
     }
+
+    // New vote
+    await connection.query("INSERT INTO tn_topic_vote (topic_id, user_id, side) VALUES (?, ?, ?)", [
+      topicId,
+      userId,
+      side,
+    ]);
+    const toIncrement = side === "LEFT" ? "vote_count_left" : "vote_count_right";
+    await connection.query(`UPDATE tn_topic SET ${toIncrement} = ${toIncrement} + 1 WHERE id = ?`, [topicId]);
 
     await connection.commit();
     res.status(200).json({ message: "Vote cast successfully." });
