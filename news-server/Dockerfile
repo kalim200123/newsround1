@@ -22,6 +22,14 @@ COPY --from=builder /app/dist ./dist
 # Copy source files needed by Swagger (routes, config, etc.)
 COPY --from=builder /app/src ./src
 
+# Copy python scripts
+COPY --from=builder /app/news-data /news-data
+
+# Install Python 3 and dependencies
+RUN apk add --no-cache python3 py3-pip && \
+    ln -sf python3 /usr/bin/python && \
+    pip3 install --no-cache-dir --break-system-packages -r /news-data/requirements.txt
+
 # Install only production dependencies
 COPY package*.json ./
 RUN npm ci --only=production
