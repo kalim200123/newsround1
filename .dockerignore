@@ -1,6 +1,6 @@
 # .dockerignore – 빌드 컨텍스트에 포함하지 않을 파일/디렉터리
-node_modules
-dist
+**/node_modules
+**/dist
 *.log
 .git
 .gitignore
@@ -9,3 +9,4 @@ docker-compose.yml
 README.md
 .vscode
 .idea
+.venv
