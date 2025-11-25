@@ -42,7 +42,7 @@ os.makedirs(LOG_DIR, exist_ok=True)
 
 logging.basicConfig(
     level=getattr(logging, LOG_LEVEL, logging.INFO),
-    format="%(asctime)s [home_collector.py] [%(levelname)s] %(message)s",
+    format="%(asctime)s [rss_collector.py] [%(levelname)s] %(message)s",
     handlers=[
         logging.FileHandler(LOG_FILE_PATH, mode='a', encoding='utf-8'),
         logging.StreamHandler(sys.stdout)

@@ -14,6 +14,7 @@ import sys
 import logging
 import time
 import json
+import gc
 from datetime import datetime, timedelta, timezone
 from typing import List, Dict
 
@@ -35,7 +36,7 @@ DB_CONFIG = {
     "database": os.getenv("DB_DATABASE"),
 }
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
-BATCH_SIZE = int(os.getenv("BATCH_SIZE", "100"))
+BATCH_SIZE = int(os.getenv("BATCH_SIZE", "5"))  # Reduced for low-memory environments
 LOCK_FILE_TIMEOUT = int(os.getenv("INDEXER_LOCK_TIMEOUT", "3600")) # 1 hour
 
 if os.getenv("DB_SSL_ENABLED") == 'true':
@@ -123,6 +124,11 @@ def main():
             cursor.executemany(update_query, updates)
             cnx.commit()
             logging.info(f"Successfully updated embeddings for {len(updates)} articles.")
+            
+        # Force garbage collection to free memory
+        del model
+        gc.collect()
+        logging.info("Memory cleanup completed.")
             
     except Exception as e:
         logging.exception(f"An unexpected error occurred during indexing: {e}")
