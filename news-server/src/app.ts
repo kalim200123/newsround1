@@ -76,13 +76,13 @@ app.use("/api/auth", authRouter);
 app.use("/api/user", userRouter);
 app.use("/api/jobs", jobsRouter);
 app.use("/api/articles", articlesRouter);
-app.use("/api/topics/:topicId/chat", chatRouter); // 토픽에 종속된 채팅 내역 조회
-app.use("/api/chat", chatRouter); // 개별 채팅 메시지 관리 (삭제, 신고 등)
 app.use("/api/inquiry", inquiryRouter);
 app.use("/api", commentsRouter);
 app.use("/api/saved", savedRouter);
 app.use("/api/internal", internalRouter);
-app.use("/api", apiRouter);
+app.use("/api", apiRouter); // MUST be before chatRouter to handle /api/topics/:topicId
+app.use("/api/topics/:topicId/chat", chatRouter); // 토픽에 종속된 채팅 내역 조회
+app.use("/api/chat", chatRouter); // 개별 채팅 메시지 관리 (삭제, 신고 등)
 
 // 헬스 체크
 app.get("/", (req: Request, res: Response) => {

@@ -28,7 +28,7 @@ const router = express.Router();
  *       200:
  *         description: 댓글 목록
  */
-router.get("/topics/:topicId", optionalAuthenticateUser, async (req: AuthenticatedRequest, res: Response) => {
+router.get("/comments/topics/:topicId", optionalAuthenticateUser, async (req: AuthenticatedRequest, res: Response) => {
   const { topicId } = req.params;
   const userId = req.user?.userId;
 
@@ -108,7 +108,7 @@ router.get("/topics/:topicId", optionalAuthenticateUser, async (req: Authenticat
  *       201:
  *         description: 댓글 작성 성공
  */
-router.post("/topics/:topicId", authenticateUser, async (req: AuthenticatedRequest, res: Response) => {
+router.post("/comments/topics/:topicId", authenticateUser, async (req: AuthenticatedRequest, res: Response) => {
   const { topicId } = req.params;
   const userId = req.user?.userId;
   const { content, parentCommentId, userVoteSide } = req.body;
@@ -275,20 +275,18 @@ router.post("/:commentId/reactions", authenticateUser, async (req: Authenticated
       if (oldReaction === "DISLIKE") dislikeChange = -1;
       if (reactionType === "LIKE") likeChange = 1;
       if (reactionType === "DISLIKE") dislikeChange = 1;
-      await connection.query("UPDATE tn_topic_comment_reaction SET reaction_type = ? WHERE user_id = ? AND comment_id = ?", [
-        reactionType,
-        userId,
-        commentId,
-      ]);
+      await connection.query(
+        "UPDATE tn_topic_comment_reaction SET reaction_type = ? WHERE user_id = ? AND comment_id = ?",
+        [reactionType, userId, commentId]
+      );
     } else {
       // New reaction
       if (reactionType === "LIKE") likeChange = 1;
       if (reactionType === "DISLIKE") dislikeChange = 1;
-      await connection.query("INSERT INTO tn_topic_comment_reaction (user_id, comment_id, reaction_type) VALUES (?, ?, ?)", [
-        userId,
-        commentId,
-        reactionType,
-      ]);
+      await connection.query(
+        "INSERT INTO tn_topic_comment_reaction (user_id, comment_id, reaction_type) VALUES (?, ?, ?)",
+        [userId, commentId, reactionType]
+      );
     }
 
     await connection.query(
@@ -332,43 +330,41 @@ router.post("/:commentId/reactions", authenticateUser, async (req: Authenticated
  *         description: 신고 접수 성공
  */
 router.post("/:commentId/reports", authenticateUser, async (req: AuthenticatedRequest, res: Response) => {
-    const { commentId } = req.params;
-    const userId = req.user?.userId;
-    const { reason } = req.body;
+  const { commentId } = req.params;
+  const userId = req.user?.userId;
+  const { reason } = req.body;
 
-    const connection = await pool.getConnection();
-    try {
-        await connection.beginTransaction();
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
 
-        const [alreadyReported]: any = await connection.query(
-            "SELECT id FROM tn_topic_comment_report_log WHERE user_id = ? AND comment_id = ?",
-            [userId, commentId]
-        );
+    const [alreadyReported]: any = await connection.query(
+      "SELECT id FROM tn_topic_comment_report_log WHERE user_id = ? AND comment_id = ?",
+      [userId, commentId]
+    );
 
-        if (alreadyReported.length > 0) {
-            await connection.rollback();
-            return res.status(409).json({ message: "You have already reported this comment." });
-        }
-
-        await connection.query("INSERT INTO tn_topic_comment_report_log (user_id, comment_id, reason) VALUES (?, ?, ?)", [
-            userId,
-            commentId,
-            reason,
-        ]);
-
-        await connection.query("UPDATE tn_topic_comment SET report_count = report_count + 1 WHERE id = ?", [commentId]);
-        
-        await connection.commit();
-        res.status(201).json({ message: "Comment reported successfully." });
-
-    } catch (error) {
-        await connection.rollback();
-        console.error("Error reporting comment:", error);
-        res.status(500).json({ message: "Server error" });
-    } finally {
-        connection.release();
+    if (alreadyReported.length > 0) {
+      await connection.rollback();
+      return res.status(409).json({ message: "You have already reported this comment." });
     }
-});
 
+    await connection.query("INSERT INTO tn_topic_comment_report_log (user_id, comment_id, reason) VALUES (?, ?, ?)", [
+      userId,
+      commentId,
+      reason,
+    ]);
+
+    await connection.query("UPDATE tn_topic_comment SET report_count = report_count + 1 WHERE id = ?", [commentId]);
+
+    await connection.commit();
+    res.status(201).json({ message: "Comment reported successfully." });
+  } catch (error) {
+    await connection.rollback();
+    console.error("Error reporting comment:", error);
+    res.status(500).json({ message: "Server error" });
+  } finally {
+    connection.release();
+  }
+});
 
 export default router;

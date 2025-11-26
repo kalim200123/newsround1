@@ -207,8 +207,11 @@ router.get("/topics/popular-all", async (req: Request, res: Response) => {
  *         description: 토픽 정보와 관련 기사 목록을 반환했습니다.
  */
 router.get("/topics/:topicId", optionalAuthenticateUser, async (req: AuthenticatedRequest, res: Response) => {
+  console.log("=== GET /topics/:topicId called ===");
   const { topicId } = req.params;
-  const userId = req.user?.userId; // From optionalAuthenticateUser
+  const userId = req.user?.userId || null; // Ensure null if undefined
+
+  console.log(`Fetching topic detail for ID: ${topicId}, UserID: ${userId}`);
 
   try {
     const [topicRows]: any = await pool.query(
@@ -225,7 +228,12 @@ router.get("/topics/:topicId", optionalAuthenticateUser, async (req: Authenticat
       `,
       [userId, topicId]
     );
+
     if (topicRows.length === 0) {
+      console.log(`Topic ${topicId} not found with status='OPEN'. Checking DB...`);
+      const [check]: any = await pool.query("SELECT id, status, topic_type FROM tn_topic WHERE id = ?", [topicId]);
+      console.log(`DB Check for Topic ${topicId}:`, check);
+
       return res.status(404).json({ message: "Topic not found" });
     }
 
@@ -233,20 +241,20 @@ router.get("/topics/:topicId", optionalAuthenticateUser, async (req: Authenticat
       `
       SELECT 
         a.id, a.source, a.source_domain, a.side, a.title, a.url, a.published_at, a.is_featured, a.thumbnail_url, a.view_count,
-        MAX(IF(s_user.id IS NOT NULL, 1, 0)) AS isSaved
+        IF(s_user.id IS NOT NULL, 1, 0) AS isSaved
       FROM 
         tn_article a
       LEFT JOIN
         tn_user_saved_articles s_user ON a.id = s_user.article_id AND s_user.user_id = ?
       WHERE 
         a.topic_id = ? AND a.status = 'published'
-      GROUP BY
-        a.id
       ORDER BY 
         a.display_order ASC, a.published_at DESC
       `,
       [userId, topicId]
     );
+
+    console.log(`Found ${(articleRows as any[]).length} articles for topic ${topicId}`);
 
     const articlesWithFavicon = (articleRows as any[]).map((article) => ({
       ...article,
@@ -390,7 +398,9 @@ router.post("/topics/:topicId/stance-vote", authenticateUser, async (req: Authen
       userId,
       side,
     ]);
+
     const toIncrement = side === "LEFT" ? "vote_count_left" : "vote_count_right";
+
     await connection.query(`UPDATE tn_topic SET ${toIncrement} = ${toIncrement} + 1 WHERE id = ?`, [topicId]);
 
     await connection.commit();
@@ -448,6 +458,73 @@ router.get("/search", optionalAuthenticateUser, async (req: AuthenticatedRequest
     res.json(articlesWithFavicon);
   } catch (error) {
     console.error("Error searching articles:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+/**
+ * @swagger
+ * /api/keywords:
+ *   get:
+ *     tags: [Keywords]
+ *     summary: 모든 키워드 채팅방 목록 조회
+ *     description: "topic_type='KEYWORD'인 모든 토픽(키워드 채팅방) 목록을 반환합니다."
+ *     responses:
+ *       200:
+ *         description: "키워드 채팅방 목록"
+ */
+router.get("/keywords", async (req: Request, res: Response) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT id, display_name, created_at 
+       FROM tn_topic 
+       WHERE topic_type = 'KEYWORD' AND status = 'OPEN'
+       ORDER BY created_at DESC`
+    );
+    res.json(rows);
+  } catch (error) {
+    console.error("Error fetching keywords:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+/**
+ * @swagger
+ * /api/keywords/{keyword}:
+ *   get:
+ *     tags: [Keywords]
+ *     summary: 특정 키워드의 토픽 ID 조회
+ *     description: "키워드 이름으로 해당 토픽의 ID를 반환합니다. 채팅방 연결에 사용됩니다."
+ *     parameters:
+ *       - in: path
+ *         name: keyword
+ *         required: true
+ *         schema: { type: "string" }
+ *         description: "키워드 이름 (예: 탄핵)"
+ *     responses:
+ *       200:
+ *         description: "키워드 토픽 정보"
+ *       404:
+ *         description: "키워드를 찾을 수 없습니다"
+ */
+router.get("/keywords/:keyword", async (req: Request, res: Response) => {
+  const { keyword } = req.params;
+
+  try {
+    const [rows]: any = await pool.query(
+      `SELECT id, display_name, created_at 
+       FROM tn_topic 
+       WHERE display_name = ? AND topic_type = 'KEYWORD' AND status = 'OPEN'`,
+      [keyword]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ message: "키워드를 찾을 수 없습니다." });
+    }
+
+    res.json(rows[0]);
+  } catch (error) {
+    console.error(`Error fetching keyword ${keyword}:`, error);
     res.status(500).json({ message: "Server error" });
   }
 });

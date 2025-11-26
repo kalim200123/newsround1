@@ -1983,5 +1983,67 @@ router.patch("/topics/:topicId/status", async (req: Request, res: Response) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/admin/keywords:
+ *   post:
+ *     tags: [Admin]
+ *     summary: 새로운 키워드 채팅방 생성
+ *     description: "키워드 이름으로 새로운 토픽(topic_type='KEYWORD')을 생성합니다. 기사는 저장하지 않고, 채팅방 역할만 합니다."
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [keyword]
+ *             properties:
+ *               keyword:
+ *                 type: string
+ *                 description: "키워드 이름 (예: 탄핵)"
+ *     responses:
+ *       201:
+ *         description: "키워드 채팅방 생성 성공"
+ *       400:
+ *         description: "키워드가 이미 존재하거나 잘못된 요청"
+ */
+router.post("/keywords", async (req: Request, res: Response) => {
+  const { keyword } = req.body;
+
+  if (!keyword || keyword.trim() === "") {
+    return res.status(400).json({ message: "키워드를 입력해주세요." });
+  }
+
+  try {
+    // 중복 확인
+    const [existing]: any = await pool.query(
+      "SELECT id FROM tn_topic WHERE display_name = ? AND topic_type = 'KEYWORD'",
+      [keyword.trim()]
+    );
+
+    if (existing.length > 0) {
+      return res.status(400).json({ message: "이미 존재하는 키워드입니다." });
+    }
+
+    // 키워드 토픽 생성
+    const [result]: any = await pool.query(
+      `INSERT INTO tn_topic (display_name, topic_type, status, created_at) 
+       VALUES (?, 'KEYWORD', 'OPEN', NOW())`,
+      [keyword.trim()]
+    );
+
+    res.status(201).json({
+      message: "키워드 채팅방이 생성되었습니다.",
+      id: result.insertId,
+      keyword: keyword.trim(),
+    });
+  } catch (error) {
+    console.error("Error creating keyword:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
 // dummy comment to trigger restart
 export default router;
