@@ -1,8 +1,9 @@
 import express, { Request, Response } from "express";
-import pool from "../config/db";
-import { authenticateUser, AuthenticatedRequest } from "../middleware/userAuth";
-import s3 from "../config/s3";
 import { v4 as uuidv4 } from "uuid";
+import { extractArticlePreview } from "../config/articlePreview";
+import pool from "../config/db";
+import s3 from "../config/s3";
+import { AuthenticatedRequest, authenticateUser } from "../middleware/userAuth";
 
 const router = express.Router({ mergeParams: true });
 
@@ -39,8 +40,8 @@ const router = express.Router({ mergeParams: true });
  */
 router.get("/", async (req: Request, res: Response) => {
   const { topicId } = req.params;
-  const limit = parseInt(req.query.limit as string || '50', 10);
-  const offset = parseInt(req.query.offset as string || '0', 10);
+  const limit = parseInt((req.query.limit as string) || "50", 10);
+  const offset = parseInt((req.query.offset as string) || "0", 10);
 
   try {
     const [rows] = await pool.query(
@@ -57,12 +58,20 @@ router.get("/", async (req: Request, res: Response) => {
     );
 
     const baseUrl = `${req.protocol}://${req.get("host")}`;
-    const messages = (rows as any[]).map(msg => ({
-      ...msg,
-      profile_image_url: msg.profile_image_url ? `${baseUrl}${msg.profile_image_url}` : null
-    }));
 
-    res.json(messages);
+    // 각 메시지에 대해 기사 정보 추출
+    const messagesWithPreviews = await Promise.all(
+      (rows as any[]).map(async (msg) => {
+        const articlePreview = await extractArticlePreview(msg.content);
+        return {
+          ...msg,
+          profile_image_url: msg.profile_image_url ? `${baseUrl}${msg.profile_image_url}` : null,
+          article_preview: articlePreview,
+        };
+      })
+    );
+
+    res.json(messagesWithPreviews);
   } catch (error) {
     console.error("Error fetching chat messages:", error);
     res.status(500).json({ message: "채팅 메시지를 불러오는 중 오류가 발생했습니다." });
@@ -111,7 +120,7 @@ router.post("/", authenticateUser, async (req: AuthenticatedRequest, res: Respon
   const userId = req.user?.userId;
   const { content } = req.body;
 
-  if (!content || typeof content !== 'string' || content.trim().length === 0) {
+  if (!content || typeof content !== "string" || content.trim().length === 0) {
     return res.status(400).json({ message: "메시지 내용이 비어있습니다." });
   }
   if (content.length > 1000) {
@@ -131,13 +140,19 @@ router.post("/", authenticateUser, async (req: AuthenticatedRequest, res: Respon
 
     // Fetch the newly created message with user info, matching the frontend payload
     const [rows]: any = await connection.query(
-        `SELECT c.id, c.content as message, c.created_at, u.nickname as author, u.profile_image_url 
+      `SELECT c.id, c.content as message, c.created_at, u.nickname as author, u.profile_image_url 
          FROM tn_chat c 
          JOIN tn_user u ON c.user_id = u.id 
          WHERE c.id = ?`,
-        [newMessageId]
+      [newMessageId]
     );
     const newMessage = rows[0];
+
+    // Extract article preview from the content
+    const articlePreview = await extractArticlePreview(content.trim());
+    if (articlePreview) {
+      newMessage.article_preview = articlePreview;
+    }
 
     await connection.commit();
 
@@ -149,7 +164,6 @@ router.post("/", authenticateUser, async (req: AuthenticatedRequest, res: Respon
 
     // Respond to the POST request
     res.status(201).json(newMessage);
-
   } catch (error) {
     await connection.rollback();
     console.error("Error posting new message:", error);
@@ -185,10 +199,7 @@ router.delete("/:messageId", authenticateUser, async (req: AuthenticatedRequest,
   const userId = req.user?.userId;
 
   try {
-    const [messages]: any = await pool.query(
-      "SELECT user_id FROM tn_chat WHERE id = ?",
-      [messageId]
-    );
+    const [messages]: any = await pool.query("SELECT user_id FROM tn_chat WHERE id = ?", [messageId]);
 
     if (messages.length === 0) {
       return res.status(404).json({ message: "메시지를 찾을 수 없습니다." });
@@ -198,10 +209,7 @@ router.delete("/:messageId", authenticateUser, async (req: AuthenticatedRequest,
       return res.status(403).json({ message: "메시지를 삭제할 권한이 없습니다." });
     }
 
-    await pool.query(
-      "UPDATE tn_chat SET status = 'DELETED_BY_USER' WHERE id = ?",
-      [messageId]
-    );
+    await pool.query("UPDATE tn_chat SET status = 'DELETED_BY_USER' WHERE id = ?", [messageId]);
 
     res.status(200).json({ message: "메시지가 삭제되었습니다." });
   } catch (error) {
@@ -253,27 +261,17 @@ router.post("/:messageId/report", authenticateUser, async (req: AuthenticatedReq
     const connection = await pool.getConnection();
     try {
       await connection.beginTransaction();
-      
-      await connection.query(
-        "UPDATE tn_chat SET report_count = report_count + 1 WHERE id = ?",
-        [messageId]
-      );
 
-      const [messages]: any = await connection.query(
-        "SELECT user_id, report_count FROM tn_chat WHERE id = ?",
-        [messageId]
-      );
+      await connection.query("UPDATE tn_chat SET report_count = report_count + 1 WHERE id = ?", [messageId]);
+
+      const [messages]: any = await connection.query("SELECT user_id, report_count FROM tn_chat WHERE id = ?", [
+        messageId,
+      ]);
 
       if (messages.length > 0 && messages[0].report_count >= REPORT_THRESHOLD) {
-        await connection.query(
-          "UPDATE tn_chat SET status = 'HIDDEN' WHERE id = ?",
-          [messageId]
-        );
+        await connection.query("UPDATE tn_chat SET status = 'HIDDEN' WHERE id = ?", [messageId]);
         const messageAuthorId = messages[0].user_id;
-        await connection.query(
-          "UPDATE tn_user SET warning_count = warning_count + 1 WHERE id = ?",
-          [messageAuthorId]
-        );
+        await connection.query("UPDATE tn_user SET warning_count = warning_count + 1 WHERE id = ?", [messageAuthorId]);
 
         // Real-time notification to hide the message
         const io = req.app.get("io");
@@ -283,10 +281,9 @@ router.post("/:messageId/report", authenticateUser, async (req: AuthenticatedReq
           io.to(`topic-${topicId}`).emit("message_hidden", { messageId: parseInt(messageId, 10) });
         }
       }
-      
+
       await connection.commit();
       res.status(200).json({ message: "신고가 접수되었습니다." });
-
     } catch (error) {
       await connection.rollback();
       console.error("Error processing report consequences:", error);
@@ -361,13 +358,13 @@ router.post("/presigned-url", authenticateUser, async (req: AuthenticatedRequest
     Key: fileKey,
     Expires: 60, // 1 minute
     ContentType: fileType,
-    ACL: 'public-read'
+    ACL: "public-read",
   };
 
   try {
     const uploadUrl = await s3.getSignedUrlPromise("putObject", s3Params);
     const fileUrl = `https://${bucketName}.s3.${process.env.AWS_REGION}.amazonaws.com/${fileKey}`;
-    
+
     res.json({ uploadUrl, fileUrl });
   } catch (error) {
     console.error("Error creating presigned URL:", error);
