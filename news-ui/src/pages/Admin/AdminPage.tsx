@@ -259,6 +259,11 @@ export default function AdminPage() {
                     시스템 로그
                   </Button>
                 </Link>
+                <Link to="/admin/notifications">
+                  <Button variant="outline" className="w-full">
+                    알림 발송
+                  </Button>
+                </Link>
                 <Button variant="outline" className="w-full" onClick={handleCopyPrompt}>
                   AI 프롬프트 복사
                 </Button>

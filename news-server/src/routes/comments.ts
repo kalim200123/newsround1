@@ -124,6 +124,10 @@ router.post("/comments/topics/:topicId", authenticateUser, async (req: Authentic
     return res.status(400).json({ message: "Content is required." });
   }
 
+  if (!["LEFT", "RIGHT"].includes(userVoteSide)) {
+    return res.status(400).json({ message: "userVoteSide must be either 'LEFT' or 'RIGHT'." });
+  }
+
   try {
     const [result]: any = await pool.query(
       "INSERT INTO tn_topic_comment (topic_id, user_id, content, parent_comment_id, user_vote_side) VALUES (?, ?, ?, ?, ?)",

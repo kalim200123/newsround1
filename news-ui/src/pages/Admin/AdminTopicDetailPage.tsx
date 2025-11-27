@@ -143,7 +143,15 @@ const AdminTopicDetailPage = () => {
   };
 
   const handleEditDataChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    setEditData({ ...editData, [e.target.name]: e.target.value });
+    let value = e.target.value;
+
+    // 투표 종료 시각은 항상 23:59:59로 고정
+    if (e.target.name === "vote_end_at" && value) {
+      const datePart = value.split("T")[0];
+      value = `${datePart}T23:59:59`;
+    }
+
+    setEditData({ ...editData, [e.target.name]: value });
   };
 
   const handlers = {

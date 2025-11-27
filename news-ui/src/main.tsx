@@ -11,6 +11,7 @@ import AdminInquiriesListPage from "./pages/Admin/AdminInquiriesListPage";
 import AdminInquiryDetailPage from "./pages/Admin/AdminInquiryDetailPage";
 import AdminKeywordPage from "./pages/Admin/AdminKeywordPage";
 import AdminLoginPage from "./pages/Admin/AdminLoginPage";
+import AdminNotificationPage from "./pages/Admin/AdminNotificationPage";
 import AdminPage from "./pages/Admin/AdminPage";
 import AdminSystemLogPage from "./pages/Admin/AdminSystemLogPage";
 import AdminTopicCreatePage from "./pages/Admin/AdminTopicCreatePage";
@@ -127,6 +128,14 @@ const router = createBrowserRouter([
     element: (
       <RequireAdminAuth>
         <AdminKeywordPage />
+      </RequireAdminAuth>
+    ),
+  },
+  {
+    path: "/admin/notifications",
+    element: (
+      <RequireAdminAuth>
+        <AdminNotificationPage />
       </RequireAdminAuth>
     ),
   },

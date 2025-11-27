@@ -6,6 +6,7 @@ import fs from "fs";
 import os from "os";
 import path from "path";
 import pool from "../config/db";
+import { createNotificationMessage, NotificationType } from "../config/notificationTemplates";
 import { authenticateAdmin, handleAdminLogin } from "../middleware/auth";
 
 const router = express.Router();
@@ -1954,6 +1955,35 @@ router.patch("/topics/:topicId/status", async (req: Request, res: Response) => {
         "UPDATE tn_topic SET status = 'OPEN', display_name = ?, embedding_keywords = ?, summary = ?, stance_left = ?, stance_right = ?, vote_start_at = ?, vote_end_at = ?, published_at = NOW() WHERE id = ? AND status = 'PREPARING'",
         [displayName, embeddingKeywords, summary, stanceLeft, stanceRight, vote_start_at, vote_end_at, topicId]
       );
+
+      // 토픽 발행 성공 시 모든 사용자에게 알림 발송
+      if (result.affectedRows > 0) {
+        try {
+          // 1. 모든 사용자 ID 조회
+          const [users]: any = await connection.query("SELECT id FROM tn_user");
+
+          if (users.length > 0) {
+            // 2. 알림 메시지 생성
+            const notification = createNotificationMessage(NotificationType.NEW_TOPIC, {
+              topicName: displayName,
+              topicId,
+            });
+
+            // 3. Bulk Insert 쿼리 생성
+            const values = users.map((user: any) => [user.id, "NEW_TOPIC", notification.message, notification.url, 0]);
+
+            await connection.query(
+              "INSERT INTO tn_notification (user_id, type, message, related_url, is_read) VALUES ?",
+              [values]
+            );
+
+            console.log(`[Notification] Sent NEW_TOPIC notification to ${users.length} users.`);
+          }
+        } catch (notifyError) {
+          console.error("[Notification] Failed to send notifications:", notifyError);
+          // 알림 발송 실패가 토픽 발행을 취소시키지는 않도록 함 (선택 사항)
+        }
+      }
     } else if (status === "REJECTED") {
       [result] = await connection.query(
         "UPDATE tn_topic SET status = 'REJECTED' WHERE id = ? AND status = 'PREPARING'",
@@ -2066,7 +2096,7 @@ router.get("/keywords", async (req: Request, res: Response) => {
        WHERE topic_type = 'KEYWORD' AND status = 'OPEN'
        ORDER BY created_at DESC`
     );
-    res.json({keywords: rows});
+    res.json({ keywords: rows });
   } catch (error) {
     console.error("Error fetching keywords:", error);
     res.status(500).json({ message: "Server error" });
@@ -2135,7 +2165,6 @@ router.post("/keywords", async (req: Request, res: Response) => {
   }
 });
 
-
 /**
  * @swagger
  * /api/admin/keywords/{id}:
@@ -2179,4 +2208,77 @@ router.delete("/keywords/:id", async (req: Request, res: Response) => {
 });
 
 // dummy comment to trigger restart
+/**
+ * @swagger
+ * /api/admin/notifications:
+ *   post:
+ *     tags: [Admin]
+ *     summary: 관리자 알림 발송
+ *     description: "특정 사용자 또는 전체 사용자에게 알림을 발송합니다."
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [message]
+ *             properties:
+ *               user_id:
+ *                 type: integer
+ *                 description: "수신자 ID (생략 시 전체 발송)"
+ *               message:
+ *                 type: string
+ *                 description: "알림 메시지"
+ *               related_url:
+ *                 type: string
+ *                 description: "관련 URL"
+ *     responses:
+ *       201:
+ *         description: "알림 발송 성공"
+ */
+router.post("/notifications", async (req: Request, res: Response) => {
+  const { user_id, message, related_url } = req.body;
+
+  if (!message) {
+    return res.status(400).json({ message: "Message is required." });
+  }
+
+  const connection = await pool.getConnection();
+  try {
+    let targetUsers = [];
+
+    if (user_id) {
+      // 특정 사용자에게 발송
+      targetUsers.push({ id: user_id });
+    } else {
+      // 전체 사용자에게 발송
+      const [users]: any = await connection.query("SELECT id FROM tn_user");
+      targetUsers = users;
+    }
+
+    if (targetUsers.length === 0) {
+      return res.status(404).json({ message: "No users found to send notification." });
+    }
+
+    // Bulk Insert
+    const values = targetUsers.map((user: any) => [user.id, "ADMIN_NOTICE", message, related_url || null, 0]);
+
+    await connection.query("INSERT INTO tn_notification (user_id, type, message, related_url, is_read) VALUES ?", [
+      values,
+    ]);
+
+    res.status(201).json({
+      message: "Notifications sent successfully.",
+      sent_count: targetUsers.length,
+    });
+  } catch (error) {
+    console.error("Error sending admin notifications:", error);
+    res.status(500).json({ message: "Server error" });
+  } finally {
+    connection.release();
+  }
+});
+
 export default router;
