@@ -455,67 +455,87 @@ router.get("/search", optionalAuthenticateUser, async (req: AuthenticatedRequest
 
 /**
  * @swagger
- * /api/keywords:
+ * /api/keywords/trending:
  *   get:
  *     tags: [Keywords]
- *     summary: 모든 키워드 채팅방 목록 조회
- *     description: "topic_type='KEYWORD'인 모든 토픽(키워드 채팅방) 목록을 반환합니다."
+ *     summary: 이슈 NOW - 인기 키워드 5개와 관련 기사 조회
+ *     description: "최근 기사에서 자주 등장하는 키워드 5개와 각 키워드별 대표 기사 3개를 반환합니다."
  *     responses:
  *       200:
- *         description: "키워드 채팅방 목록"
+ *         description: "인기 키워드 목록 및 관련 기사"
  */
-router.get("/keywords", async (req: Request, res: Response) => {
+router.get("/keywords/trending", async (req: Request, res: Response) => {
   try {
-    const [rows] = await pool.query(
-      `SELECT id, display_name, created_at 
-       FROM tn_topic 
-       WHERE topic_type = 'KEYWORD' AND status = 'OPEN'
-       ORDER BY created_at DESC`
-    );
-    res.json(rows);
-  } catch (error) {
-    console.error("Error fetching keywords:", error);
-    res.status(500).json({ message: "Server error" });
-  }
-});
+    // 1. DB에서 키워드 조회 (최대 5개)
+    const [keywords]: any = await pool.query(`
+      SELECT keyword
+      FROM tn_trending_keyword
+      ORDER BY created_at DESC
+      LIMIT 5
+    `);
 
-/**
- * @swagger
- * /api/keywords/{keyword}:
- *   get:
- *     tags: [Keywords]
- *     summary: 특정 키워드의 토픽 ID 조회
- *     description: "키워드 이름으로 해당 토픽의 ID를 반환합니다. 채팅방 연결에 사용됩니다."
- *     parameters:
- *       - in: path
- *         name: keyword
- *         required: true
- *         schema: { type: "string" }
- *         description: "키워드 이름 (예: 탄핵)"
- *     responses:
- *       200:
- *         description: "키워드 토픽 정보"
- *       404:
- *         description: "키워드를 찾을 수 없습니다"
- */
-router.get("/keywords/:keyword", async (req: Request, res: Response) => {
-  const { keyword } = req.params;
-
-  try {
-    const [rows]: any = await pool.query(
-      `SELECT id, display_name, created_at 
-       FROM tn_topic 
-       WHERE display_name = ? AND topic_type = 'KEYWORD' AND status = 'OPEN'`,
-      [keyword]
-    );
-
-    if (rows.length === 0) {
-      return res.status(404).json({ message: "키워드를 찾을 수 없습니다." });
+    if (keywords.length === 0) {
+      return res.json([]);
     }
 
-    res.json(rows[0]);
+    // 2. 각 키워드별 기사 수 및 대표 기사 3개 조회
+    const results = await Promise.all(
+      keywords.map(async (kw: any) => {
+        const keyword = kw.keyword;
+
+        // 기사 수 및 언론사 수 조회
+        const [counts]: any = await pool.query(
+          `
+          SELECT 
+            COUNT(*) as article_count,
+            COUNT(DISTINCT source) as source_count
+          FROM tn_home_article
+          WHERE 
+            published_at >= DATE_SUB(NOW(), INTERVAL 3 DAY)
+            AND title LIKE ?
+        `,
+          [`%${keyword}%`]
+        );
+
+        // 최신 기사 3개 조회
+        const [articles]: any = await pool.query(
+          `
+          SELECT 
+            id,
+            title,
+            url,
+            source,
+            source_domain,
+            thumbnail_url,
+            published_at
+          FROM tn_home_article
+          WHERE 
+            published_at >= DATE_SUB(NOW(), INTERVAL 3 DAY)
+            AND title LIKE ?
+          ORDER BY published_at DESC
+          LIMIT 3
+        `,
+          [`%${keyword}%`]
+        );
+
+        return {
+          keyword,
+          article_count: counts[0].article_count,
+          source_count: counts[0].source_count,
+          articles: articles.map((article: any) => ({
+            ...article,
+            favicon_url: FAVICON_URLS[article.source_domain] || null,
+          })),
+        };
+      })
+    );
+
+    // 기사가 있는 키워드만 반환
+    const filteredResults = results.filter((r) => r.article_count > 0);
+
+    res.json(filteredResults);
   } catch (error) {
-    console.error(`Error fetching keyword ${keyword}:`, error);
+    console.error("Error fetching trending keywords:", error);
     res.status(500).json({ message: "Server error" });
   }
 });

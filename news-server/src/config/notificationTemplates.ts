@@ -7,7 +7,6 @@
 
 export enum NotificationType {
   NEW_TOPIC = "NEW_TOPIC",
-  FRIEND_REQUEST = "FRIEND_REQUEST",
   VOTE_REMINDER = "VOTE_REMINDER",
   ADMIN_NOTICE = "ADMIN_NOTICE",
   BREAKING_NEWS = "BREAKING_NEWS",
@@ -35,16 +34,6 @@ export const NotificationTemplates: Record<NotificationType, NotificationTemplat
       if (params.url) return params.url;
       return `/debate/${params.topicId}`;
     },
-  },
-
-  /**
-   * 친구 요청 알림 (향후 구현)
-   * @param fromUserName - 요청 보낸 사용자 이름
-   * @param requestId - 요청 ID
-   */
-  [NotificationType.FRIEND_REQUEST]: {
-    getMessage: ({ fromUserName }: { fromUserName: string }) => `👥 ${fromUserName}님이 친구 요청을 보냈습니다.`,
-    getUrl: ({ requestId }: { requestId: number }) => `/friends/requests/${requestId}`,
   },
 
   /**

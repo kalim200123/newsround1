@@ -144,7 +144,7 @@ router.get("/stats/visitors/weekly", async (req: Request, res: Response) => {
         DATE_FORMAT(created_at, '%Y-%m-%d') as date,
         COUNT(DISTINCT user_identifier) as visitors
       FROM
-        tn_topic_view_log
+        tn_visitor_log
       WHERE
         created_at >= CURDATE() - INTERVAL 6 DAY
       GROUP BY
@@ -2016,200 +2016,6 @@ router.patch("/topics/:topicId/status", async (req: Request, res: Response) => {
   }
 });
 
-/**
- * @swagger
- * /api/admin/keywords:
- *   post:
- *     tags: [Admin]
- *     summary: 새로운 키워드 채팅방 생성
- *     description: "키워드 이름으로 새로운 토픽(topic_type='KEYWORD')을 생성합니다. 기사는 저장하지 않고, 채팅방 역할만 합니다."
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required: [keyword]
- *             properties:
- *               keyword:
- *                 type: string
- *                 description: "키워드 이름 (예: 탄핵)"
- *     responses:
- *       201:
- *         description: "키워드 채팅방 생성 성공"
- *       400:
- *         description: "키워드가 이미 존재하거나 잘못된 요청"
- */
-router.post("/keywords", async (req: Request, res: Response) => {
-  const { keyword } = req.body;
-
-  if (!keyword || keyword.trim() === "") {
-    return res.status(400).json({ message: "키워드를 입력해주세요." });
-  }
-
-  try {
-    // 중복 확인
-    const [existing]: any = await pool.query(
-      "SELECT id FROM tn_topic WHERE display_name = ? AND topic_type = 'KEYWORD'",
-      [keyword.trim()]
-    );
-
-    if (existing.length > 0) {
-      return res.status(400).json({ message: "이미 존재하는 키워드입니다." });
-    }
-
-    // 키워드 토픽 생성
-    const [result]: any = await pool.query(
-      `INSERT INTO tn_topic (display_name, topic_type, status, created_at) 
-       VALUES (?, 'KEYWORD', 'OPEN', NOW())`,
-      [keyword.trim()]
-    );
-
-    res.status(201).json({
-      message: "키워드 채팅방이 생성되었습니다.",
-      id: result.insertId,
-      keyword: keyword.trim(),
-    });
-  } catch (error) {
-    console.error("Error creating keyword:", error);
-    res.status(500).json({ message: "Server error" });
-  }
-});
-
-/**
- * @swagger
- * /api/admin/keywords:
- *   get:
- *     tags: [Admin]
- *     summary: 모든 키워드 채팅방 목록 조회
- *     description: "topic_type='KEYWORD'인 모든 토픽(키워드 채팅방) 목록을 반환합니다."
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: "키워드 채팅방 목록"
- */
-router.get("/keywords", async (req: Request, res: Response) => {
-  try {
-    const [rows] = await pool.query(
-      `SELECT id, display_name, created_at 
-       FROM tn_topic 
-       WHERE topic_type = 'KEYWORD' AND status = 'OPEN'
-       ORDER BY created_at DESC`
-    );
-    res.json({ keywords: rows });
-  } catch (error) {
-    console.error("Error fetching keywords:", error);
-    res.status(500).json({ message: "Server error" });
-  }
-});
-
-/**
- * @swagger
- * /api/admin/keywords:
- *   post:
- *     tags: [Admin]
- *     summary: 새로운 키워드 채팅방 생성
- *     description: "키워드 이름으로 새로운 토픽(topic_type='KEYWORD')을 생성합니다. 기사는 저장하지 않고, 채팅방 역할만 합니다."
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required: [keyword]
- *             properties:
- *               keyword:
- *                 type: string
- *                 description: "키워드 이름 (예: 탄핵)"
- *     responses:
- *       201:
- *         description: "키워드 채팅방 생성 성공"
- *       400:
- *         description: "키워드가 이미 존재하거나 잘못된 요청"
- */
-router.post("/keywords", async (req: Request, res: Response) => {
-  const { keyword } = req.body;
-
-  if (!keyword || keyword.trim() === "") {
-    return res.status(400).json({ message: "키워드를 입력해주세요." });
-  }
-
-  try {
-    // 중복 확인
-    const [existing]: any = await pool.query(
-      "SELECT id FROM tn_topic WHERE display_name = ? AND topic_type = 'KEYWORD'",
-      [keyword.trim()]
-    );
-
-    if (existing.length > 0) {
-      return res.status(400).json({ message: "이미 존재하는 키워드입니다." });
-    }
-
-    // 키워드 토픽 생성
-    const [result]: any = await pool.query(
-      `INSERT INTO tn_topic (display_name, topic_type, status, created_at) 
-       VALUES (?, 'KEYWORD', 'OPEN', NOW())`,
-      [keyword.trim()]
-    );
-
-    res.status(201).json({
-      message: "키워드 채팅방이 생성되었습니다.",
-      id: result.insertId,
-      keyword: keyword.trim(),
-    });
-  } catch (error) {
-    console.error("Error creating keyword:", error);
-    res.status(500).json({ message: "Server error" });
-  }
-});
-
-/**
- * @swagger
- * /api/admin/keywords/{id}:
- *   delete:
- *     tags: [Admin]
- *     summary: 키워드 채팅방 삭제
- *     description: "특정 키워드 채팅방을 삭제합니다. 실제로는 status를 'DELETED'로 변경하는 soft delete입니다."
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: integer
- *         description: "삭제할 키워드 토픽의 ID"
- *     responses:
- *       200:
- *         description: "키워드 삭제 성공"
- *       404:
- *         description: "키워드를 찾을 수 없음"
- */
-router.delete("/keywords/:id", async (req: Request, res: Response) => {
-  const { id } = req.params;
-
-  try {
-    const [result]: any = await pool.query(
-      "UPDATE tn_topic SET status = 'CLOSED' WHERE id = ? AND topic_type = 'KEYWORD'",
-      [id]
-    );
-
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ message: "Keyword not found or already deleted." });
-    }
-
-    res.status(200).json({ message: "Keyword deleted successfully." });
-  } catch (error) {
-    console.error("Error deleting keyword:", error);
-    res.status(500).json({ message: "Server error" });
-  }
-});
-
 // dummy comment to trigger restart
 /**
  * @swagger
@@ -2280,6 +2086,173 @@ router.post("/notifications", async (req: Request, res: Response) => {
     }
   } catch (error) {
     console.error("Error sending admin notifications:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+/**
+ * @swagger
+ * /api/admin/trending-keywords:
+ *   get:
+ *     tags: [Admin]
+ *     summary: 트렌딩 키워드 목록 조회
+ *     description: "이슈 NOW에 표시될 키워드 목록을 조회합니다."
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: "키워드 목록"
+ */
+router.get("/trending-keywords", async (req: Request, res: Response) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT id, keyword, created_at
+       FROM tn_trending_keyword
+       ORDER BY created_at DESC`
+    );
+    res.json({ keywords: rows });
+  } catch (error) {
+    console.error("Error fetching trending keywords:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+/**
+ * @swagger
+ * /api/admin/trending-keywords:
+ *   post:
+ *     tags: [Admin]
+ *     summary: 트렌딩 키워드 생성
+ *     description: "새로운 트렌딩 키워드를 추가합니다."
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [keyword]
+ *             properties:
+ *               keyword:
+ *                 type: string
+ *               aliases:
+ *                 type: string
+ *                 description: "동의어 (쉼표 구분)"
+ *     responses:
+ *       201:
+ *         description: "키워드 생성 성공"
+ */
+router.post("/trending-keywords", async (req: Request, res: Response) => {
+  const { keyword } = req.body;
+
+  if (!keyword || keyword.trim() === "") {
+    return res.status(400).json({ message: "키워드를 입력해주세요." });
+  }
+
+  try {
+    const [result]: any = await pool.query(`INSERT INTO tn_trending_keyword (keyword) VALUES (?)`, [keyword.trim()]);
+
+    res.status(201).json({
+      message: "키워드가 생성되었습니다.",
+      id: result.insertId,
+    });
+  } catch (error: any) {
+    if (error.code === "ER_DUP_ENTRY") {
+      return res.status(400).json({ message: "이미 존재하는 키워드입니다." });
+    }
+    console.error("Error creating trending keyword:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+/**
+ * @swagger
+ * /api/admin/trending-keywords/{id}:
+ *   put:
+ *     tags: [Admin]
+ *     summary: 트렌딩 키워드 수정
+ *     description: "기존 키워드를 수정합니다."
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: integer }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               keyword:
+ *                 type: string
+ *               aliases:
+ *                 type: string
+ *               is_active:
+ *                 type: boolean
+ *     responses:
+ *       200:
+ *         description: "수정 성공"
+ */
+router.put("/trending-keywords/:id", async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { keyword } = req.body;
+
+  if (!keyword || keyword.trim() === "") {
+    return res.status(400).json({ message: "키워드를 입력해주세요." });
+  }
+
+  try {
+    const [result]: any = await pool.query(`UPDATE tn_trending_keyword SET keyword = ? WHERE id = ?`, [
+      keyword.trim(),
+      id,
+    ]);
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: "키워드를 찾을 수 없습니다." });
+    }
+
+    res.json({ message: "키워드가 수정되었습니다." });
+  } catch (error) {
+    console.error("Error updating trending keyword:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+/**
+ * @swagger
+ * /api/admin/trending-keywords/{id}:
+ *   delete:
+ *     tags: [Admin]
+ *     summary: 트렌딩 키워드 삭제
+ *     description: "키워드를 삭제합니다."
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: integer }
+ *     responses:
+ *       200:
+ *         description: "삭제 성공"
+ */
+router.delete("/trending-keywords/:id", async (req: Request, res: Response) => {
+  const { id } = req.params;
+
+  try {
+    const [result]: any = await pool.query("DELETE FROM tn_trending_keyword WHERE id = ?", [id]);
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: "키워드를 찾을 수 없습니다." });
+    }
+
+    res.json({ message: "키워드가 삭제되었습니다." });
+  } catch (error) {
+    console.error("Error deleting trending keyword:", error);
     res.status(500).json({ message: "Server error" });
   }
 });

@@ -429,13 +429,14 @@ def main():
         logging.info(f"Step 5: Found {len(new_articles)} new articles to save and notify.")
 
         if new_articles:
-            # 알림 발송 로직 (DB 저장 전)
-            for article in new_articles:
-                title = article.get('title', '')
-                if '[속보]' in title:
-                    send_notification('BREAKING_NEWS', article)
-                elif '[단독]' in title:
-                    send_notification('EXCLUSIVE_NEWS', article)
+            # ===== 속보/단독 뉴스 자동 알림 (비활성화) =====
+            # 활성화하려면 아래 주석을 해제하세요
+            # for article in new_articles:
+            #     title = article.get('title', '')
+            #     if '[속보]' in title:
+            #         send_notification('BREAKING_NEWS', article)
+            #     elif '[단독]' in title:
+            #         send_notification('EXCLUSIVE_NEWS', article)
 
             # DB 저장 로직
             insert_query = "INSERT INTO tn_home_article (source, source_domain, side, category, title, url, published_at, thumbnail_url, description) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)"

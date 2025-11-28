@@ -71,6 +71,37 @@ const swaggerOptions = {
 };
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(specs, swaggerOptions));
 
+// 방문자 로깅 미들웨어
+app.use(async (req: Request, res: Response, next: NextFunction) => {
+  // API 요청 중 GET만 기록 (정적 파일, api-docs 제외)
+  if (req.method === "GET" && req.path.startsWith("/api") && !req.path.startsWith("/api-docs")) {
+    const userIdentifier = req.ip || "unknown";
+    const userAgent = req.get("user-agent") || null;
+    const path = req.path;
+
+    // 비동기로 처리 (응답 속도에 영향 없도록)
+    setImmediate(async () => {
+      try {
+        const today = new Date().toISOString().split("T")[0];
+        // 하루에 한 번만 기록 (같은 날, 같은 IP는 중복 방지)
+        await pool.query(
+          `INSERT INTO tn_visitor_log (user_identifier, user_agent, path, created_at)
+           SELECT ?, ?, ?, NOW()
+           WHERE NOT EXISTS (
+             SELECT 1 FROM tn_visitor_log
+             WHERE user_identifier = ? AND DATE(created_at) = ?
+           )`,
+          [userIdentifier, userAgent, path, userIdentifier, today]
+        );
+      } catch (error) {
+        // 로깅 실패는 무시 (서비스에 영향 없도록)
+        console.error("[Visitor Log] Failed to log visitor:", error);
+      }
+    });
+  }
+  next();
+});
+
 // API 라우터
 app.use("/api/admin", adminRouter);
 app.use("/api/auth", authRouter);
