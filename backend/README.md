@@ -44,7 +44,7 @@
 1.  **프로젝트 저장소 클론 및 이동**:
     ```bash
     git clone [YOUR_REPOSITORY_URL]
-    cd [YOUR_REPOSITORY_NAME]/news-server-nest # 이 폴더 이름을 'backend'로 변경할 예정입니다.
+    cd [YOUR_REPOSITORY_NAME]/backend
     ```
 2.  **의존성 설치**:
     ```bash
