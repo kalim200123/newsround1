@@ -62,15 +62,52 @@ export class AdminUsersController {
 
   @Get(':userId/comments')
   @ApiOperation({ summary: '사용자가 작성한 댓글 목록 조회' })
+  @ApiQuery({ name: 'page', required: false })
+  @ApiQuery({ name: 'limit', required: false })
   @ApiResponse({ status: 200, description: '댓글 목록' })
-  async getComments(@Param('userId') userId: number) {
-    return this.adminUsersService.getComments(userId);
+  async getComments(
+    @Param('userId') userId: number,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ) {
+    return this.adminUsersService.getComments(
+      userId,
+      page ? Number(page) : undefined,
+      limit ? Number(limit) : undefined,
+    );
   }
 
   @Get(':userId/chats')
   @ApiOperation({ summary: '사용자가 작성한 채팅 목록 조회' })
+  @ApiQuery({ name: 'page', required: false })
+  @ApiQuery({ name: 'limit', required: false })
   @ApiResponse({ status: 200, description: '채팅 목록' })
-  async getChats(@Param('userId') userId: number) {
-    return this.adminUsersService.getChats(userId);
+  async getChats(
+    @Param('userId') userId: number,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ) {
+    return this.adminUsersService.getChats(
+      userId,
+      page ? Number(page) : undefined,
+      limit ? Number(limit) : undefined,
+    );
+  }
+
+  @Get(':userId/votes')
+  @ApiOperation({ summary: '사용자가 참여한 투표 목록 조회' })
+  @ApiQuery({ name: 'page', required: false })
+  @ApiQuery({ name: 'limit', required: false })
+  @ApiResponse({ status: 200, description: '투표 목록' })
+  async getVotes(
+    @Param('userId') userId: number,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ) {
+    return this.adminUsersService.getVotes(
+      userId,
+      page ? Number(page) : undefined,
+      limit ? Number(limit) : undefined,
+    );
   }
 }

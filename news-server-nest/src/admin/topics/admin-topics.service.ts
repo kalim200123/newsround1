@@ -33,11 +33,16 @@ export class AdminTopicsService {
 
   async findAll(page: number, limit: number, status?: string, search?: string) {
     const offset = (page - 1) * limit;
-    let query = 'SELECT id, display_name, status, created_at FROM tn_topic';
+    let query =
+      'SELECT id, display_name, status, created_at, published_at, vote_end_at, stance_left, stance_right FROM tn_topic';
     let countQuery = 'SELECT COUNT(*) as total FROM tn_topic';
     const params: any[] = [];
 
     const conditions: string[] = [];
+
+    // Always filter by VOTING type
+    conditions.push('topic_type = ?');
+    params.push('VOTING');
 
     if (status && status !== 'ALL') {
       conditions.push('status = ?');
@@ -45,7 +50,7 @@ export class AdminTopicsService {
     }
 
     if (search) {
-      conditions.push('(title LIKE ? OR core_keyword LIKE ?)');
+      conditions.push('(display_name LIKE ? OR embedding_keywords LIKE ?)');
       params.push(`%${search}%`, `%${search}%`);
     }
 
@@ -64,9 +69,28 @@ export class AdminTopicsService {
     const [rows]: any = await this.dbPool.query(query, params);
     const [countRows]: any = await this.dbPool.query(countQuery, countParams);
 
+    // Calculate counts for each status (only VOTING topics)
+    const [statusCounts]: any = await this.dbPool.query(
+      'SELECT status, COUNT(*) as count FROM tn_topic WHERE topic_type = ? GROUP BY status',
+      ['VOTING'],
+    );
+
+    const counts = {
+      ALL: 0,
+      OPEN: 0,
+      PREPARING: 0,
+      CLOSED: 0,
+    };
+
+    statusCounts.forEach((row: any) => {
+      counts[row.status] = row.count;
+      counts.ALL += row.count;
+    });
+
     return {
       topics: rows,
       total: countRows[0].total,
+      counts,
       page,
       limit,
     };
@@ -82,16 +106,17 @@ export class AdminTopicsService {
       throw new NotFoundException('토픽을 찾을 수 없습니다.');
     }
 
-    return rows[0];
+    return { topic: rows[0] };
   }
 
   async create(dto: CreateTopicDto) {
     const {
-      title,
-      core_keyword,
-      search_keywords,
-      sub_description,
-      topic_type = TopicType.VOTING,
+      displayName,
+      searchKeywords,
+      summary,
+      stanceLeft,
+      stanceRight,
+      topicType = TopicType.VOTING,
     } = dto;
 
     const connection = await this.dbPool.getConnection();
@@ -100,9 +125,16 @@ export class AdminTopicsService {
 
       const [result]: any = await connection.query(
         `INSERT INTO tn_topic 
-         (title, core_keyword, search_keywords, sub_description, topic_type, status, collection_status) 
-         VALUES (?, ?, ?, ?, ?, 'PREPARING', 'pending')`,
-        [title, core_keyword, search_keywords, sub_description, topic_type],
+         (display_name, embedding_keywords, summary, stance_left, stance_right, topic_type, status, collection_status) 
+         VALUES (?, ?, ?, ?, ?, ?, 'PREPARING', 'pending')`,
+        [
+          displayName,
+          searchKeywords,
+          summary,
+          stanceLeft,
+          stanceRight,
+          topicType,
+        ],
       );
 
       const topicId = result.insertId;

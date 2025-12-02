@@ -71,12 +71,12 @@ export default function AdminPage() {
       try {
         const [statsRes, topicsRes, inquiriesRes] = await Promise.all([
           axios.get("/api/admin/stats"),
-          axios.get("/api/admin/topics/published?limit=3"),
+          axios.get("/api/admin/topics?limit=3&status=OPEN"),
           axios.get("/api/admin/inquiries?limit=3"),
         ]);
         setStats(statsRes.data);
-        setRecentTopics(topicsRes.data);
-        setRecentInquiries(inquiriesRes.data);
+        setRecentTopics(topicsRes.data.topics || []);
+        setRecentInquiries(inquiriesRes.data.inquiries || []);
       } catch (error) {
         console.error("대시보드 데이터를 불러오는 중 오류가 발생했습니다.", error);
         setStats(
@@ -254,11 +254,7 @@ export default function AdminPage() {
                     키워드 관리
                   </Button>
                 </Link>
-                <Link to="/admin/system">
-                  <Button variant="outline" className="w-full">
-                    시스템 로그
-                  </Button>
-                </Link>
+
                 <Link to="/admin/notifications">
                   <Button variant="outline" className="w-full">
                     알림 발송

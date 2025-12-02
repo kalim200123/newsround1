@@ -57,21 +57,14 @@ export default function AdminInquiriesListPage() {
       setIsLoading(true);
       setError(null);
       try {
-        const offset = (currentPage - 1) * ITEMS_PER_PAGE;
         const response = await axios.get(`/api/admin/inquiries`, {
           params: {
             limit: ITEMS_PER_PAGE,
-            offset: offset,
+            page: currentPage,
           },
         });
-        setInquiries(response.data);
-        if (currentPage === 1 && response.data.length < ITEMS_PER_PAGE) {
-          setTotalCount(response.data.length);
-        } else if (response.data.length === 0 && currentPage > 1) {
-          setCurrentPage(currentPage - 1);
-        } else {
-          setTotalCount(currentPage * ITEMS_PER_PAGE + 1);
-        }
+        setInquiries(response.data.inquiries || []);
+        setTotalCount(response.data.total || 0);
       } catch (err) {
         setError("문의 목록을 불러오는 데 실패했습니다.");
         console.error(err);

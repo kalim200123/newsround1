@@ -29,9 +29,10 @@ export default function AdminKeywordPage() {
   const fetchKeywords = async () => {
     try {
       const { data } = await axios.get("/api/admin/trending-keywords");
-      setKeywords(data.keywords);
+      setKeywords(Array.isArray(data.keywords) ? data.keywords : []);
     } catch (error) {
       console.error("Error fetching keywords:", error);
+      setKeywords([]);
     }
   };
 

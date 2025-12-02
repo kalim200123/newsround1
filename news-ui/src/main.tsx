@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import { Toaster } from "react-hot-toast";
 import { createBrowserRouter, Navigate, RouterProvider } from "react-router-dom";
 
+import "./App.css";
 import RequireAdminAuth from "./components/RequireAdminAuth";
 import { AdminAuthProvider } from "./context/AdminAuthContext";
 import "./index.css";
@@ -12,7 +13,7 @@ import AdminKeywordPage from "./pages/Admin/AdminKeywordPage";
 import AdminLoginPage from "./pages/Admin/AdminLoginPage";
 import AdminNotificationPage from "./pages/Admin/AdminNotificationPage";
 import AdminPage from "./pages/Admin/AdminPage";
-import AdminSystemLogPage from "./pages/Admin/AdminSystemLogPage";
+
 import AdminTopicCreatePage from "./pages/Admin/AdminTopicCreatePage";
 import AdminTopicDetailPage from "./pages/Admin/AdminTopicDetailPage";
 import AdminTopicEditPage from "./pages/Admin/AdminTopicEditPage";
@@ -80,14 +81,7 @@ const router = createBrowserRouter([
       </RequireAdminAuth>
     ),
   },
-  {
-    path: "/admin/system",
-    element: (
-      <RequireAdminAuth>
-        <AdminSystemLogPage />
-      </RequireAdminAuth>
-    ),
-  },
+
   {
     path: "/admin/topics/:topicId",
     element: (

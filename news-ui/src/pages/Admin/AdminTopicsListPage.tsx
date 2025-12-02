@@ -38,7 +38,7 @@ const getStatusVariant = (status: Topic["status"]): "default" | "success" | "war
   }
 };
 
-type TabType = "PREPARING" | "OPEN" | "ALL";
+type TabType = "PREPARING" | "OPEN" | "CLOSED" | "ALL";
 
 export default function AdminTopicsListPage() {
   const location = useLocation();
@@ -66,8 +66,8 @@ export default function AdminTopicsListPage() {
         }
 
         const response = await axios.get(`/api/admin/topics`, { params });
-        setTopics(response.data.topics);
-        setTotalCount(response.data.total);
+        setTopics(Array.isArray(response.data.topics) ? response.data.topics : []);
+        setTotalCount(response.data.total || 0);
         if (response.data.counts) {
           setCounts(response.data.counts);
         }
@@ -139,6 +139,15 @@ export default function AdminTopicsListPage() {
           >
             준비 중 <span className="ml-1 text-sm">({counts.PREPARING})</span>
           </button>
+          <button
+            type="button"
+            onClick={() => handleTabChange("CLOSED")}
+            className={`px-4 py-2 rounded-md font-medium transition-colors ${
+              activeTab === "CLOSED" ? "bg-blue-600 text-white" : "bg-white text-gray-700 hover:bg-gray-50 border"
+            }`}
+          >
+            종료됨 <span className="ml-1 text-sm">({counts.CLOSED})</span>
+          </button>
         </div>
 
         {/* Topics Table */}
@@ -153,8 +162,8 @@ export default function AdminTopicsListPage() {
                     <tr>
                       <th className="text-left py-3 px-4 font-medium text-gray-600">상태</th>
                       <th className="text-left py-3 px-4 font-medium text-gray-600">토픽 이름</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-600">검색 키워드</th>
                       <th className="text-left py-3 px-4 font-medium text-gray-600">발행일</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-600">종료일</th>
                       <th className="text-left py-3 px-4 font-medium text-gray-600">관리</th>
                     </tr>
                   </thead>
@@ -166,12 +175,10 @@ export default function AdminTopicsListPage() {
                             <Badge variant={getStatusVariant(topic.status)}>{getStatusText(topic.status)}</Badge>
                           </td>
                           <td className="py-3 px-4">
-                            <strong className="text-gray-900">{topic.display_name || topic.core_keyword}</strong>
-                          </td>
-                          <td className="py-3 px-4 text-gray-600">
-                            {topic.search_keywords || topic.embedding_keywords}
+                            <strong className="text-gray-900">{topic.display_name}</strong>
                           </td>
                           <td className="py-3 px-4 text-gray-600">{formatDateTime(topic.published_at)}</td>
+                          <td className="py-3 px-4 text-gray-600">{formatDateTime(topic.vote_end_at)}</td>
                           <td className="py-3 px-4">
                             <div className="flex gap-2">
                               <Link to={`/admin/topics/${topic.id}`}>
@@ -179,10 +186,10 @@ export default function AdminTopicsListPage() {
                                   {topic.status === "PREPARING" ? "큐레이션" : "관리"}
                                 </Button>
                               </Link>
-                              {topic.status === "OPEN" && (
+                              {(topic.status === "OPEN" || topic.status === "CLOSED") && (
                                 <Link to={`/admin/topics/${topic.id}/votes`}>
                                   <Button variant="outline" size="sm">
-                                    📊 투표현황
+                                    {topic.status === "CLOSED" ? "📊 투표결과" : "📊 투표현황"}
                                   </Button>
                                 </Link>
                               )}
@@ -195,6 +202,7 @@ export default function AdminTopicsListPage() {
                         <td colSpan={5} className="text-center py-12 text-gray-500">
                           {activeTab === "PREPARING" && "준비 중인 토픽이 없습니다."}
                           {activeTab === "OPEN" && "발행된 토픽이 없습니다."}
+                          {activeTab === "CLOSED" && "종료된 토픽이 없습니다."}
                           {activeTab === "ALL" && "생성된 토픽이 없습니다."}
                         </td>
                       </tr>

@@ -90,7 +90,8 @@ export class AdminTopicsController {
   @ApiOperation({ summary: '토픽 상세 정보 조회' })
   @ApiResponse({ status: 200, description: '토픽 상세 정보' })
   async findOne(@Param('topicId') topicId: number) {
-    return this.adminTopicsService.findOne(topicId);
+    const topic = await this.adminTopicsService.findOne(topicId);
+    return { topic };
   }
 
   @Patch(':topicId/status')

@@ -34,19 +34,32 @@ export class AdminInquiriesService {
   }
 
   async findOne(inquiryId: number) {
-    const query = `
-      SELECT i.*, u.email, u.nickname 
+    const queryInquiry = `
+      SELECT i.*, u.email as user_email, u.nickname as user_nickname 
       FROM tn_inquiry i
       LEFT JOIN tn_user u ON i.user_id = u.id
       WHERE i.id = ?
     `;
-    const [rows]: any = await this.dbPool.query(query, [inquiryId]);
+    const [inquiryRows]: any = await this.dbPool.query(queryInquiry, [
+      inquiryId,
+    ]);
 
-    if (rows.length === 0) {
+    if (inquiryRows.length === 0) {
       throw new NotFoundException('문의를 찾을 수 없습니다.');
     }
 
-    return rows[0];
+    const inquiry = inquiryRows[0];
+
+    const queryReply = `
+      SELECT id, content, created_at 
+      FROM tn_inquiry_reply 
+      WHERE inquiry_id = ?
+    `;
+    const [replyRows]: any = await this.dbPool.query(queryReply, [inquiryId]);
+
+    const reply = replyRows.length > 0 ? replyRows[0] : null;
+
+    return { inquiry, reply };
   }
 
   async reply(inquiryId: number, content: string, adminUsername: string) {

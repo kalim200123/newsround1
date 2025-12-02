@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { ServeStaticModule } from '@nestjs/serve-static';
+import { join } from 'path';
 import { AdminModule } from './admin/admin.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -9,8 +11,8 @@ import { ChatModule } from './chat/chat.module';
 import { CommentsModule } from './comments/comments.module';
 import { DatabaseModule } from './database/database.module';
 import { InquiryModule } from './inquiry/inquiry.module';
-import { KeywordsModule } from './keywords/keywords.module';
 import { JobsModule } from './jobs/jobs.module';
+import { KeywordsModule } from './keywords/keywords.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { SavedModule } from './saved/saved.module';
 import { TopicsModule } from './topics/topics.module';
@@ -21,6 +23,10 @@ import { UserModule } from './user/user.module';
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env',
+    }),
+    ServeStaticModule.forRoot({
+      rootPath: join(__dirname, '..', 'public'),
+      serveRoot: '/public',
     }),
     DatabaseModule,
     AuthModule,

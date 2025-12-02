@@ -1,7 +1,7 @@
-import axios from "axios";
-import { useEffect, useState, useCallback } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useCallback, useEffect, useState } from "react";
 import toast from "react-hot-toast";
+import { Link, useParams } from "react-router-dom";
+import { apiClient } from "../../api";
 import Pagination from "../../components/Pagination";
 
 const ITEMS_PER_PAGE = 20;
@@ -40,6 +40,15 @@ interface UserChatMessage {
   topic_name: string;
 }
 
+interface UserVote {
+  id: number;
+  topic_id: number;
+  topic_name: string;
+  topic_status: string;
+  side: "LEFT" | "RIGHT";
+  created_at: string;
+}
+
 // --- HELPER FUNCTIONS ---
 const formatDateTime = (value?: string) => {
   if (!value) return "";
@@ -59,12 +68,15 @@ const UserComments = ({ userId }: { userId: string }) => {
     const fetchComments = async () => {
       setIsLoading(true);
       try {
-        const res = await axios.get<{ comments: UserComment[], total: number }>(`/api/admin/users/${userId}/comments`, {
-          params: {
-            limit: ITEMS_PER_PAGE,
-            page: currentPage,
+        const res = await apiClient.get<{ comments: UserComment[]; total: number }>(
+          `/api/admin/users/${userId}/comments`,
+          {
+            params: {
+              limit: ITEMS_PER_PAGE,
+              page: currentPage,
+            },
           }
-        });
+        );
         setComments(res.data.comments);
         setTotalCount(res.data.total);
       } catch (err) {
@@ -126,12 +138,15 @@ const UserChats = ({ userId }: { userId: string }) => {
     const fetchChats = async () => {
       setIsLoading(true);
       try {
-        const res = await axios.get<{ messages: UserChatMessage[], total: number }>(`/api/admin/users/${userId}/chats`, {
-          params: {
-            limit: ITEMS_PER_PAGE,
-            page: currentPage,
+        const res = await apiClient.get<{ messages: UserChatMessage[]; total: number }>(
+          `/api/admin/users/${userId}/chats`,
+          {
+            params: {
+              limit: ITEMS_PER_PAGE,
+              page: currentPage,
+            },
           }
-        });
+        );
         setMessages(res.data.messages);
         setTotalCount(res.data.total);
       } catch (err) {
@@ -159,25 +174,101 @@ const UserChats = ({ userId }: { userId: string }) => {
               <th>작성일</th>
               <th>신고 수</th>
               <th>상태</th>
-              <th>관련 토픽</th>
+              <th>관련 페이지</th>
             </tr>
           </thead>
           <tbody>
             {messages.map((msg) => (
               <tr key={msg.id}>
-                <td style={{ maxWidth: '250px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {msg.content.startsWith('http') ? (
-                  <a href={msg.content} target="_blank" rel="noopener noreferrer">파일 보기</a>
-                ) : (
-                  msg.content
-                )}
-              </td>
+                <td style={{ maxWidth: "250px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                  {msg.content.startsWith("http") ? (
+                    <a href={msg.content} target="_blank" rel="noopener noreferrer">
+                      파일 보기
+                    </a>
+                  ) : (
+                    msg.content
+                  )}
+                </td>
                 <td>{formatDateTime(msg.created_at)}</td>
                 <td>{msg.report_count}</td>
                 <td>{msg.status}</td>
                 <td>
                   <Link to={`/admin/topics/${msg.topic_id}`}>{msg.topic_name}</Link>
                 </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
+    </>
+  );
+};
+
+// UserVotes Component
+const UserVotes = ({ userId }: { userId: string }) => {
+  const [votes, setVotes] = useState<UserVote[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchVotes = async () => {
+      setIsLoading(true);
+      try {
+        const res = await apiClient.get<{ votes: UserVote[]; total: number }>(`/api/admin/users/${userId}/votes`, {
+          params: {
+            limit: ITEMS_PER_PAGE,
+            page: currentPage,
+          },
+        });
+        setVotes(res.data.votes);
+        setTotalCount(res.data.total);
+      } catch (err) {
+        console.error("Error fetching user votes:", err);
+        toast.error("사용자의 투표 목록을 불러오는 데 실패했습니다.");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchVotes();
+  }, [userId, currentPage]);
+
+  const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
+
+  if (isLoading) return <p>투표 목록 로딩 중...</p>;
+  if (votes.length === 0) return <p>참여한 투표가 없습니다.</p>;
+
+  return (
+    <>
+      <div className="admin-table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>토픽</th>
+              <th>투표 입장</th>
+              <th>투표일</th>
+              <th>토픽 상태</th>
+            </tr>
+          </thead>
+          <tbody>
+            {votes.map((vote) => (
+              <tr key={vote.id}>
+                <td>
+                  <Link to={`/admin/topics/${vote.topic_id}`}>{vote.topic_name}</Link>
+                </td>
+                <td>
+                  <span
+                    style={{
+                      color: vote.side === "LEFT" ? "#2563eb" : "#dc2626",
+                      fontWeight: "bold",
+                    }}
+                  >
+                    {vote.side}
+                  </span>
+                </td>
+                <td>{formatDateTime(vote.created_at)}</td>
+                <td>{vote.topic_status}</td>
               </tr>
             ))}
           </tbody>
@@ -197,13 +288,13 @@ export default function AdminUserDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"info" | "comments" | "chats">("info");
+  const [activeTab, setActiveTab] = useState<"info" | "comments" | "chats" | "votes">("info");
 
   const fetchData = useCallback(async () => {
     if (!userId) return;
     setIsLoading(true);
     try {
-      const res = await axios.get<User>(`/api/admin/users/${userId}`);
+      const res = await apiClient.get<User>(`/api/admin/users/${userId}`);
       setUser(res.data);
       setEditableStatus(res.data.status);
       setEditableWarningCount(res.data.warning_count);
@@ -223,7 +314,7 @@ export default function AdminUserDetailPage() {
     if (!user) return;
     setIsSaving(true);
     try {
-      await axios.patch(`/api/admin/users/${userId}`, {
+      await apiClient.patch(`/api/admin/users/${userId}`, {
         status: editableStatus,
         warning_count: editableWarningCount,
       });
@@ -244,6 +335,8 @@ export default function AdminUserDetailPage() {
         return <UserComments userId={userId} />;
       case "chats":
         return <UserChats userId={userId} />;
+      case "votes":
+        return <UserVotes userId={userId} />;
       case "info":
       default:
         return (
@@ -257,7 +350,11 @@ export default function AdminUserDetailPage() {
                 <span className="item-label">프로필 이미지</span>
                 <span className="item-value">
                   {user?.profile_image_url ? (
-                    <img src={user.profile_image_url} alt={`${user.nickname} 프로필`} style={{ width: '50px', height: '50px', borderRadius: '50%' }} />
+                    <img
+                      src={user.profile_image_url}
+                      alt={`${user.nickname} 프로필`}
+                      style={{ width: "50px", height: "50px", borderRadius: "50%" }}
+                    />
                   ) : (
                     "없음"
                   )}
@@ -288,7 +385,9 @@ export default function AdminUserDetailPage() {
                 <span className="item-value">{user?.introduction || "-"}</span>
               </div>
               <div className="detail-item editable">
-                <label htmlFor="status" className="item-label">계정 상태</label>
+                <label htmlFor="status" className="item-label">
+                  계정 상태
+                </label>
                 <select
                   id="status"
                   className="item-input"
@@ -300,7 +399,9 @@ export default function AdminUserDetailPage() {
                 </select>
               </div>
               <div className="detail-item editable">
-                <label htmlFor="warning_count" className="item-label">경고 횟수</label>
+                <label htmlFor="warning_count" className="item-label">
+                  경고 횟수
+                </label>
                 <input
                   id="warning_count"
                   type="number"
@@ -343,14 +444,21 @@ export default function AdminUserDetailPage() {
       </header>
 
       <div className="admin-tabs">
-        <button onClick={() => setActiveTab("info")} className={activeTab === "info" ? "active" : ""}>기본 정보</button>
-        <button onClick={() => setActiveTab("comments")} className={activeTab === "comments" ? "active" : ""}>작성 댓글</button>
-        <button onClick={() => setActiveTab("chats")} className={activeTab === "chats" ? "active" : ""}>채팅 내역</button>
+        <button onClick={() => setActiveTab("info")} className={activeTab === "info" ? "active" : ""}>
+          기본 정보
+        </button>
+        <button onClick={() => setActiveTab("comments")} className={activeTab === "comments" ? "active" : ""}>
+          작성 댓글
+        </button>
+        <button onClick={() => setActiveTab("chats")} className={activeTab === "chats" ? "active" : ""}>
+          채팅 내역
+        </button>
+        <button onClick={() => setActiveTab("votes")} className={activeTab === "votes" ? "active" : ""}>
+          투표 내역
+        </button>
       </div>
 
-      <div className="admin-tab-content">
-        {renderTabContent()}
-      </div>
+      <div className="admin-tab-content">{renderTabContent()}</div>
     </div>
   );
 }

@@ -16,7 +16,7 @@ export class AdminKeywordsService {
     const [rows]: any = await this.dbPool.query(
       'SELECT * FROM tn_trending_keyword ORDER BY id DESC',
     );
-    return rows;
+    return { keywords: rows };
   }
 
   async create(dto: CreateKeywordDto) {

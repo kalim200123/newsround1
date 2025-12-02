@@ -120,9 +120,10 @@ const AdminTopicDetailPage = () => {
     const fetchTopicList = async () => {
       try {
         const response = await axios.get(`/api/admin/topics/sidebar`);
-        setTopicList(response.data);
+        setTopicList(Array.isArray(response.data.topics) ? response.data.topics : []);
       } catch (error) {
         console.error("발행 토픽 목록을 불러오지 못했습니다.", error);
+        setTopicList([]);
       }
     };
 

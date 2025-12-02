@@ -1,5 +1,0 @@
---- Starting Swagger JSDoc diagnosis ---
-Attempting to generate Swagger specs...
-Scanning files from glob: C:\Users\RST\.vscode\news\news-server\src\routes\**\*.ts
---- ✅  Swagger JSDoc generation SUCCEEDED! ---
-The problem is likely not a YAML syntax error. Please check other configurations.
