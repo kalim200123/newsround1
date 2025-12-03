@@ -17,11 +17,11 @@ services:
       retries: 5
 
   # Backend Service (NestJS)
-  news-server:
+  backend:
     build:
       context: .
       dockerfile: backend/Dockerfile
-    container_name: news_server
+    container_name: news_backend
     depends_on:
       db:
         condition: service_healthy
@@ -44,15 +44,18 @@ services:
       AWS_S3_BUCKET_NAME: ${AWS_S3_BUCKET_NAME}
     ports:
       - "3002:3002" # Expose backend port for direct local access if needed
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
 
   # Frontend Service (React)
-  news-ui:
+  frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
       # Use a target for development to run dev server
       target: dev
-    container_name: news_ui
+    container_name: news_frontend
     volumes:
       # Mount source code for live-reloading
       - ./frontend:/app
@@ -71,5 +74,5 @@ services:
     volumes:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf
     depends_on:
-      - news-server
-      - news-ui
+      - backend
+      - frontend
