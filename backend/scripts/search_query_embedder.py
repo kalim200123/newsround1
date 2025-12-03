@@ -20,7 +20,7 @@ import numpy as np
 dotenv_path = os.path.join(os.path.dirname(__file__), '..', '.env')
 load_dotenv(dotenv_path=dotenv_path)
 
-MODEL_NAME = os.getenv("EMBED_MODEL", "dragonkue/multilingual-e5-small-ko")
+MODEL_NAME = os.getenv("EMBED_MODEL", "intfloat/multilingual-e5-base")
 
 def main():
     # Check if at least one argument (the query) is provided

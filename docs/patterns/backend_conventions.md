@@ -1,17 +1,22 @@
-# 백엔드 코딩 컨벤션 (news-server)
+# 백엔드 코딩 컨벤션 (Backend)
 
 ## 1. 일반 원칙
 
 - **언어**: TypeScript (Strict 모드 권장).
-- **프레임워크**: Express.js.
+- **프레임워크**: NestJS.
 - **데이터베이스**: TiDB (MySQL 호환), `mysql2` 드라이버 사용.
 
 ## 2. 파일 구조
 
-- **Routes**: `src/routes/*.ts` - 엔드포인트 정의 및 요청/응답 로직 처리.
-  - _참고_: 현재 비즈니스 로직이 라우트 파일에 섞여 있는 경우가 많습니다. 복잡한 기능의 경우 함수나 서비스로 분리하는 것을 고려하세요.
-- **Middleware**: `src/middleware/*.ts` - 인증, 유효성 검사, 에러 처리.
-- **Config**: `src/config/*.ts` - DB 연결, 환경 변수 설정.
+- **프로젝트 루트**: `backend/` - 백엔드 전체 코드.
+- **소스 코드**: `backend/src/` - 메인 애플리케이션 코드.
+  - **Controllers**: `src/*/*.controller.ts` - HTTP 요청 처리 및 응답.
+  - **Services**: `src/*/*.service.ts` - 비즈니스 로직 구현.
+  - **Modules**: `src/*/*.module.ts` - 기능별 모듈 정의.
+  - **DTOs**: `src/*/dto/*.dto.ts` - 데이터 전송 객체.
+  - **Guards**: `src/*/guards/*.guard.ts` - 인증 및 권한 검사.
+- **Python 스크립트**: `backend/scripts/` - 데이터 수집 및 분석 스크립트.
+- **Config**: `src/config/*.ts` - 환경 변수 설정.
 
 ## 3. 명명 규칙
 

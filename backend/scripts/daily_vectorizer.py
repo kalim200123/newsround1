@@ -20,8 +20,8 @@ from typing import List, Dict
 
 import numpy as np
 from sentence_transformers import SentenceTransformer
-import mysql.connector
 from dotenv import load_dotenv
+import mysql.connector
 
 # --- Configuration & Setup ---
 dotenv_path = os.path.join(os.path.dirname(__file__), '..', '.env')
@@ -36,7 +36,7 @@ DB_CONFIG = {
     "database": os.getenv("DB_DATABASE"),
 }
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
-BATCH_SIZE = int(os.getenv("BATCH_SIZE", "500"))  # Increased for faster processing
+BATCH_SIZE = int(os.getenv("BATCH_SIZE", "500"))  # Increased for local processing
 LOCK_FILE_TIMEOUT = int(os.getenv("INDEXER_LOCK_TIMEOUT", "3600")) # 1 hour
 
 if os.getenv("DB_SSL_ENABLED") == 'true':
