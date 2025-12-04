@@ -3,7 +3,7 @@ import axios from "axios";
 import type { Article, Topic } from "../types";
 
 // API client 설정
-export const apiClient = axios.create({ baseURL: import.meta.env.VITE_API_URL || "http://localhost:3002" });
+export const apiClient = axios.create({ baseURL: import.meta.env.VITE_API_URL || "http://localhost:3001" });
 
 // GET /api/topics
 export const fetchPublishedTopics = async (): Promise<Topic[]> => {

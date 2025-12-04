@@ -14,6 +14,13 @@
  Date: 02/12/2025 16:35:07
 */
 
+-- Create and use newsround1 database
+CREATE DATABASE IF NOT EXISTS newsround1 
+CHARACTER SET utf8mb4 
+COLLATE utf8mb4_unicode_ci;
+
+USE newsround1;
+
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
 

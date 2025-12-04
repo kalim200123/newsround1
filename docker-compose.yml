@@ -43,7 +43,7 @@ services:
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
       AWS_S3_BUCKET_NAME: ${AWS_S3_BUCKET_NAME}
     ports:
-      - "3002:3002" # Expose backend port for direct local access if needed
+      - "3001:3001" # Expose backend port for direct local access if needed
     volumes:
       - ./backend:/app
       - /app/node_modules
@@ -63,7 +63,7 @@ services:
     ports:
       - "5173:5173"
     environment:
-      - VITE_API_URL=http://localhost:3002/api
+      - VITE_API_URL=http://localhost:3001/api
 
   # Nginx Reverse Proxy Service
   nginx:

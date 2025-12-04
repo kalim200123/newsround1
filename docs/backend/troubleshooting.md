@@ -301,7 +301,7 @@ docker-compose logs -f news-server
 
 ## 🆘 추가 도움이 필요한 경우
 
-1.  **Swagger API 문서**: `http://localhost:3002/api-docs`
+1.  **Swagger API 문서**: `http://localhost:3001/api-docs`
 2.  **GitHub Issues**: 프로젝트 저장소에서 검색
 3.  **공식 문서**:
     - [NestJS](https://docs.nestjs.com/)

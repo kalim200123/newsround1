@@ -54,6 +54,9 @@ COPY --from=builder /usr/src/app/dist ./dist
 # Copy Python scripts
 COPY --from=builder /usr/src/app/scripts ./scripts
 
+# Copy public folder (avatars, static files)
+COPY --from=builder /usr/src/app/public ./public
+
 # Copy the virtual environment from the builder stage
 COPY --from=builder /opt/venv /opt/venv
 

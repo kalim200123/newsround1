@@ -111,7 +111,7 @@ npm run test:e2e
 ## 📚 API 문서 (Swagger)
 
 애플리케이션이 실행 중일 때 다음 주소에서 Swagger UI를 통해 API 문서를 확인할 수 있습니다:
-`http://localhost:3002/api-docs` (기본 포트 3002)
+`http://localhost:3001/api-docs` (기본 포트 3001)
 
 ## 🐳 Docker를 이용한 개발/배포
 

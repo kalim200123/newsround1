@@ -63,7 +63,7 @@ docker-compose -f docker-compose.personal.yml up -d
 ### 4️⃣ 접속 확인
 
 - **관리자 페이지**: http://localhost:5173
-- **백엔드 API**: http://localhost:3002
+- **백엔드 API**: http://localhost:3001
 
 ---
 
