@@ -17,13 +17,13 @@ RUN python3 -m venv $VIRTUAL_ENV
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
 # Copy package definition files for the backend
-COPY backend/package*.json ./
+COPY package*.json ./
 
 # Install backend Node.js dependencies
 RUN npm install
 
 # Copy the entire backend source code
-COPY backend/ ./
+COPY . ./
 
 # Install Python dependencies for the scripts into the virtual environment
 # --no-cache-dir to keep image small

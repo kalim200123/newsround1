@@ -67,6 +67,21 @@ export default function AdminKeywordPage() {
     }
   };
 
+  const handleUpdate = async (id: number, currentKeyword: string) => {
+    const newKeyword = window.prompt("수정할 키워드를 입력하세요:", currentKeyword);
+    if (!newKeyword || newKeyword.trim() === currentKeyword) return;
+
+    try {
+      await axios.put(`/api/admin/trending-keywords/${id}`, {
+        keyword: newKeyword.trim(),
+      });
+      fetchKeywords();
+    } catch (error) {
+      console.error("Error updating keyword:", error);
+      alert("키워드 수정 실패");
+    }
+  };
+
   return (
     <div className="p-6 max-w-4xl mx-auto">
       <Card>
@@ -91,14 +106,17 @@ export default function AdminKeywordPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>키워드</TableHead>
-                <TableHead>액션</TableHead>
+                <TableHead className="text-right">액션</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {keywords.map((kw) => (
                 <TableRow key={kw.id}>
                   <TableCell>{kw.keyword}</TableCell>
-                  <TableCell>
+                  <TableCell className="flex gap-2 justify-end">
+                    <Button variant="outline" size="sm" onClick={() => handleUpdate(kw.id, kw.keyword)}>
+                      수정
+                    </Button>
                     <Button variant="destructive" size="sm" onClick={() => handleDelete(kw.id)}>
                       삭제
                     </Button>

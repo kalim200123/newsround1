@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-home_article_collector.py
+rss_collector.py
 - Collects articles for the home page from various RSS feeds.
 - Identifies breaking/exclusive news and triggers real-time notifications.
 """
