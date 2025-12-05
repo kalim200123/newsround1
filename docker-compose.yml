@@ -51,14 +51,14 @@ services:
   # Frontend Service (React)
   frontend:
     build:
-      context: ./frontend
+      context: ./frontend-admin
       dockerfile: Dockerfile
       # Use a target for development to run dev server
       target: dev
     container_name: news_frontend
     volumes:
       # Mount source code for live-reloading
-      - ./frontend:/app
+      - ./frontend-admin:/app
       - /app/node_modules
     ports:
       - "5173:5173"
