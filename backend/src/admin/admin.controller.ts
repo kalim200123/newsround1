@@ -1,12 +1,4 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Post,
-  Query,
-  Res,
-  UseGuards,
-} from '@nestjs/common';
+import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiBody,
@@ -15,7 +7,6 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import type { Response } from 'express';
 import { AdminGuard } from './admin.guard';
 import { AdminService } from './admin.service';
 import { AdminLoginDto } from './dto/admin-login.dto';
@@ -64,31 +55,6 @@ export class AdminController {
   })
   async getWeeklyVisitors() {
     return this.adminService.getWeeklyVisitors();
-  }
-
-  @Get('logs')
-  @UseGuards(AdminGuard)
-  @ApiBearerAuth('bearerAuth')
-  @ApiOperation({ summary: '사용 가능한 시스템 로그 파일 목록 조회' })
-  @ApiResponse({ status: 200, description: '로그 파일 목록' })
-  getLogs() {
-    return this.adminService.getLogs();
-  }
-
-  @Get('logs/view')
-  @UseGuards(AdminGuard)
-  @ApiBearerAuth('bearerAuth')
-  @ApiOperation({ summary: '특정 로그 파일의 내용 조회' })
-  @ApiQuery({
-    name: 'path',
-    required: true,
-    description: '조회할 로그 파일의 경로',
-  })
-  @ApiResponse({ status: 200, description: '로그 파일 내용' })
-  async getLogContent(@Query('path') path: string, @Res() res: Response) {
-    const content = await this.adminService.getLogContent(path);
-    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-    res.send(content);
   }
 
   @Get('download')

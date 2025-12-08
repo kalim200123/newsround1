@@ -1,5 +1,3 @@
-// news-server-nest/src/common/utils/article-helpers.ts
-
 export const FAVICON_URLS: Record<string, string> = {
   'yna.co.kr': 'https://www.google.com/s2/favicons?domain=yna.co.kr&sz=32',
   'hani.co.kr': 'https://www.google.com/s2/favicons?domain=hani.co.kr&sz=32',

@@ -23,17 +23,19 @@
 
 이 저장소는 백엔드와 데이터 분석, 관리자 페이지를 포함하고 있습니다.
 
-### 1. `backend` (NestJS API Server)
+### 1. `backend` (newsround1-api)
 
 - **역할**: 뉴스 커뮤니티의 메인 백엔드 API 서버입니다.
+- **Package Name**: `newsround1-api`
 - **기술 스택**: NestJS, TypeScript, Node.js
 - **주요 기능**:
   - `src`: API 서버 소스 코드
   - `scripts`: 데이터 수집 및 분석을 위한 Python 스크립트 모음 (`rss_collector.py`, `vector_indexer.py` 등)
 
-### 2. `frontend` (Admin UI)
+### 2. `frontend-admin` (newsround1-admin)
 
 - **역할**: 뉴스 데이터 및 토픽 관리를 위한 관리자 전용 대시보드입니다. (사용자용 웹사이트 아님)
+- **Package Name**: `newsround1-admin`
 - **기술 스택**: React, Vite, TypeScript
 - **주요 라이브러리**:
   - `react-router-dom`: 라우팅
@@ -64,10 +66,10 @@ npm install
 npm run start:dev
 ```
 
-#### Admin UI (`frontend`)
+#### Admin UI (`frontend-admin`)
 
 ```bash
-cd frontend
+cd frontend-admin
 npm install
 npm run dev
 ```

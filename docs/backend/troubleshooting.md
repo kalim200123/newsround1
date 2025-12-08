@@ -288,7 +288,7 @@ const socket = io(SERVER_URL, {
 npm run start:dev
 
 # Docker Compose 로그
-docker-compose logs -f news-server
+docker-compose logs -f newsround1-api
 ```
 
 ### Render 배포

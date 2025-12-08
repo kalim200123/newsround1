@@ -26,7 +26,10 @@ RUN npm install
 COPY . ./
 
 # Install Python dependencies for the scripts into the virtual environment
-# --no-cache-dir to keep image small
+# First, install PyTorch CPU version explicitly to save space and build time (default is GPU which is huge)
+RUN pip install torch --index-url https://download.pytorch.org/whl/cpu
+
+# then install other requirements
 RUN pip install --no-cache-dir -r scripts/requirements.txt
 
 # Build the NestJS application

@@ -54,7 +54,7 @@
 
 ### 🔑 환경 변수 설정
 
-`news-server-nest` 폴더 내에 `.env` 파일을 생성하고 다음 변수들을 설정합니다. `.env.example` 파일을 참고하세요.
+`newsround1-api` 폴더 내에 `.env` 파일을 생성하고 다음 변수들을 설정합니다. `.env.example` 파일을 참고하세요.
 
 ```env
 # Database Connection (MySQL)

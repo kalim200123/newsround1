@@ -1,7 +1,6 @@
 import { GetObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import {
-  ForbiddenException,
   Inject,
   Injectable,
   NotFoundException,
@@ -10,7 +9,6 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
-import * as fs from 'fs';
 import type { Pool } from 'mysql2/promise';
 import * as path from 'path';
 import { ChatGateway } from '../chat/chat.gateway';
@@ -18,12 +16,6 @@ import { DB_CONNECTION_POOL } from '../database/database.constants';
 import { NotificationsService } from '../notifications/notifications.service';
 import { AdminLoginDto } from './dto/admin-login.dto';
 import { AdminNotificationDto } from './dto/admin-notification.dto';
-
-const ALLOWED_LOG_FILES = [
-  'news-server/debug_log.txt',
-  'news-server/home_collector_log.txt',
-  'news-data/collector.log',
-];
 
 @Injectable()
 export class AdminService {
@@ -143,31 +135,6 @@ export class AdminService {
     }
 
     return weeklyData;
-  }
-
-  getLogs() {
-    return ALLOWED_LOG_FILES.map((filePath) => ({
-      name: path.basename(filePath),
-      path: filePath,
-    }));
-  }
-
-  async getLogContent(logPath: string) {
-    if (!ALLOWED_LOG_FILES.includes(logPath)) {
-      throw new ForbiddenException('Access to this log file is not permitted.');
-    }
-
-    const projectRoot = path.resolve(__dirname, '..', '..', '..');
-    const absolutePath = path.join(projectRoot, logPath);
-
-    try {
-      return await fs.promises.readFile(absolutePath, 'utf8');
-    } catch (err: any) {
-      if (err.code === 'ENOENT') {
-        throw new NotFoundException(`Log file not found at: ${logPath}`);
-      }
-      throw new Error('Error reading log file.');
-    }
   }
 
   async getDownloadUrl(s3Key: string) {
