@@ -67,5 +67,8 @@ COPY --from=builder /opt/venv /opt/venv
 ENV VIRTUAL_ENV=/opt/venv
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
+# Expose the application port
+EXPOSE 3001
+
 # The command to run the application
 CMD ["node", "dist/main"]
