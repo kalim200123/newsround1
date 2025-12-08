@@ -15,7 +15,11 @@ import { DB_CONNECTION_POOL } from '../database/database.constants';
 export class CommentsService {
   constructor(@Inject(DB_CONNECTION_POOL) private dbPool: Pool) {}
 
-  async getComments(topicId: number, userId?: number): Promise<any> {
+  async getComments(
+    topicId: number,
+    userId?: number,
+    baseUrl?: string,
+  ): Promise<any> {
     try {
       const [rows]: any = await this.dbPool.query(
         `
@@ -38,6 +42,15 @@ export class CommentsService {
       const rootComments: any[] = [];
 
       rows.forEach((comment: any) => {
+        // Convert to absolute URL if needed
+        if (
+          comment.profile_image_url &&
+          comment.profile_image_url.startsWith('/') &&
+          baseUrl
+        ) {
+          comment.profile_image_url = `${baseUrl}${comment.profile_image_url}`;
+        }
+
         comment.replies = [];
         comment.is_mine = Boolean(comment.is_mine);
         commentMap.set(comment.id, comment);

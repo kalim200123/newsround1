@@ -43,7 +43,8 @@ export class CommentsController {
     @Req() req: any,
   ) {
     const userId = req.user ? req.user.userId : null;
-    return this.commentsService.getComments(topicId, userId);
+    const baseUrl = `${req.protocol}://${req.get('host')}`;
+    return this.commentsService.getComments(topicId, userId, baseUrl);
   }
 
   @Post('topics/:topicId')
