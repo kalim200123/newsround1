@@ -46,8 +46,7 @@ export class KeywordsService {
             COUNT(DISTINCT source) as source_count
           FROM tn_home_article
           WHERE 
-            published_at >= DATE_SUB(NOW(), INTERVAL 3 DAY)
-            AND title LIKE ?
+            title LIKE ?
         `,
           [`%${keyword}%`],
         );
@@ -58,8 +57,7 @@ export class KeywordsService {
           SELECT *
           FROM tn_home_article
           WHERE 
-            published_at >= DATE_SUB(NOW(), INTERVAL 3 DAY)
-            AND title LIKE ?
+            title LIKE ?
           ORDER BY published_at DESC
           LIMIT 3
         `,

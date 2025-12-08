@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
@@ -9,6 +9,7 @@ import { ArticlesModule } from './articles/articles.module';
 import { AuthModule } from './auth/auth.module';
 import { ChatModule } from './chat/chat.module';
 import { CommentsModule } from './comments/comments.module';
+import { VisitorLoggerMiddleware } from './common/middleware/visitor-logger.middleware';
 import { DatabaseModule } from './database/database.module';
 import { InquiryModule } from './inquiry/inquiry.module';
 import { JobsModule } from './jobs/jobs.module';
@@ -45,4 +46,8 @@ import { UserModule } from './user/user.module';
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(VisitorLoggerMiddleware).forRoutes('*');
+  }
+}

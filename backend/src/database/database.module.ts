@@ -1,8 +1,8 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import * as fs from 'fs';
 import * as mysql from 'mysql2/promise';
 import { DB_CONNECTION_POOL } from './database.constants';
-import * as fs from 'fs';
 
 const dbProvider = {
   provide: DB_CONNECTION_POOL,
@@ -17,21 +17,31 @@ const dbProvider = {
       waitForConnections: true,
       connectionLimit: 10,
       queueLimit: 0,
+      enableKeepAlive: true,
+      keepAliveInitialDelay: 10000,
     };
 
     if (configService.get<string>('DB_SSL_ENABLED') === 'true') {
-      const isProduction = configService.get<string>('NODE_ENV') === 'production';
+      const isProduction =
+        configService.get<string>('NODE_ENV') === 'production';
       if (isProduction) {
         try {
           // Render와 같은 프로덕션 환경
-          config.ssl = { ca: fs.readFileSync('/etc/ssl/certs/ca-certificates.crt') };
+          config.ssl = {
+            ca: fs.readFileSync('/etc/ssl/certs/ca-certificates.crt'),
+          };
         } catch (e) {
-          console.error('Could not read CA certificate for production SSL connection:', e);
+          console.error(
+            'Could not read CA certificate for production SSL connection:',
+            e,
+          );
         }
       } else {
         // 로컬 개발 환경 (인증서 검증 안 함)
         config.ssl = { rejectUnauthorized: false };
-        console.warn('SSL enabled for DB connection without CA verification. For development use only.');
+        console.warn(
+          'SSL enabled for DB connection without CA verification. For development use only.',
+        );
       }
     }
 

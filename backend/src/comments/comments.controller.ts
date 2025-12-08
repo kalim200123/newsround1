@@ -42,13 +42,13 @@ export class CommentsController {
     @Param('topicId', ParseIntPipe) topicId: number,
     @Req() req: any,
   ) {
-    const userId = req.user ? req.user.id : null;
+    const userId = req.user ? req.user.userId : null;
     return this.commentsService.getComments(topicId, userId);
   }
 
   @Post('topics/:topicId')
   @UseGuards(AuthGuard('jwt'))
-  @ApiBearerAuth()
+  @ApiBearerAuth('bearerAuth')
   @ApiOperation({ summary: '토픽 댓글 작성' })
   @ApiParam({ name: 'topicId', description: '토픽 ID' })
   @ApiBody({ type: CreateCommentDto })
@@ -60,7 +60,7 @@ export class CommentsController {
   ) {
     return this.commentsService.createComment(
       topicId,
-      req.user.id,
+      req.user.userId,
       createCommentDto.content,
       createCommentDto.parentCommentId,
       createCommentDto.userVoteSide,
@@ -69,7 +69,7 @@ export class CommentsController {
 
   @Delete(':commentId')
   @UseGuards(AuthGuard('jwt'))
-  @ApiBearerAuth()
+  @ApiBearerAuth('bearerAuth')
   @ApiOperation({ summary: '댓글 삭제' })
   @ApiParam({ name: 'commentId', description: '댓글 ID' })
   @ApiResponse({ status: 200, description: '댓글 삭제 성공' })
@@ -77,12 +77,12 @@ export class CommentsController {
     @Param('commentId', ParseIntPipe) commentId: number,
     @Req() req: any,
   ) {
-    return this.commentsService.deleteComment(commentId, req.user.id);
+    return this.commentsService.deleteComment(commentId, req.user.userId);
   }
 
   @Patch(':commentId')
   @UseGuards(AuthGuard('jwt'))
-  @ApiBearerAuth()
+  @ApiBearerAuth('bearerAuth')
   @ApiOperation({ summary: '댓글 수정' })
   @ApiParam({ name: 'commentId', description: '댓글 ID' })
   @ApiBody({ type: UpdateCommentDto })
@@ -94,14 +94,14 @@ export class CommentsController {
   ) {
     return this.commentsService.updateComment(
       commentId,
-      req.user.id,
+      req.user.userId,
       updateCommentDto.content,
     );
   }
 
   @Post(':commentId/reactions')
   @UseGuards(AuthGuard('jwt'))
-  @ApiBearerAuth()
+  @ApiBearerAuth('bearerAuth')
   @ApiOperation({ summary: '댓글 반응(좋아요/싫어요)' })
   @ApiParam({ name: 'commentId', description: '댓글 ID' })
   @ApiBody({ type: ToggleReactionDto })
@@ -113,14 +113,14 @@ export class CommentsController {
   ) {
     return this.commentsService.toggleReaction(
       commentId,
-      req.user.id,
+      req.user.userId,
       toggleReactionDto.reactionType,
     );
   }
 
   @Post(':commentId/reports')
   @UseGuards(AuthGuard('jwt'))
-  @ApiBearerAuth()
+  @ApiBearerAuth('bearerAuth')
   @ApiOperation({ summary: '댓글 신고' })
   @ApiParam({ name: 'commentId', description: '댓글 ID' })
   @ApiBody({ type: ReportCommentDto })
@@ -132,7 +132,7 @@ export class CommentsController {
   ) {
     return this.commentsService.reportComment(
       commentId,
-      req.user.id,
+      req.user.userId,
       reportCommentDto.reason,
     );
   }
