@@ -7,6 +7,10 @@ import { DB_CONNECTION_POOL } from '../../database/database.constants';
 export class VisitorLoggerMiddleware implements NestMiddleware {
   constructor(@Inject(DB_CONNECTION_POOL) private readonly conn: Pool) {}
 
+  // In-memory cache to prevent race conditions and reduce DB queries
+  private dailyVisitors = new Set<string>();
+  private lastClearDate = new Date().toDateString();
+
   async use(req: Request, res: Response, next: NextFunction) {
     const userAgent = req.headers['user-agent'] || '';
     // Handle proxy headers (taking the first IP if multiple)
@@ -27,7 +31,20 @@ export class VisitorLoggerMiddleware implements NestMiddleware {
 
   private async logVisitor(ip: string, userAgent: string, path: string) {
     try {
-      // 1. Filter out ignored paths
+      // 1. Check Date and Reset Cache if needed
+      const today = new Date().toDateString();
+      if (today !== this.lastClearDate) {
+        this.dailyVisitors.clear();
+        this.lastClearDate = today;
+      }
+
+      // 2. Memory Cache Check (Synchronous check prevents race conditions)
+      if (this.dailyVisitors.has(ip)) {
+        return;
+      }
+      this.dailyVisitors.add(ip);
+
+      // 3. Filter out ignored paths
       const IGNORED_PATHS = [
         '/public',
         '/api-docs',
@@ -38,7 +55,7 @@ export class VisitorLoggerMiddleware implements NestMiddleware {
         return;
       }
 
-      // 2. Check if already logged today (Daily Unique Visit)
+      // 4. Double Check DB (in case of server restart mid-day)
       const [rows] = await this.conn.query(
         'SELECT id FROM tn_visitor_log WHERE user_identifier = ? AND DATE(created_at) = CURDATE() LIMIT 1',
         [ip],
@@ -48,7 +65,7 @@ export class VisitorLoggerMiddleware implements NestMiddleware {
         return;
       }
 
-      // 3. Insert log
+      // 5. Insert log
       const safeIp = ip.substring(0, 255);
       const safeUa = userAgent.substring(0, 512);
       const safePath = path.substring(0, 255);
@@ -59,6 +76,7 @@ export class VisitorLoggerMiddleware implements NestMiddleware {
       );
     } catch (e) {
       // Silent failure
+      // If insert fails (e.g. unique constraint if added later), we just ignore
     }
   }
 }

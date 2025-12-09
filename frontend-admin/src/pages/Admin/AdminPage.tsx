@@ -11,7 +11,7 @@ import type { Topic } from "../../types";
 interface Inquiry {
   id: number;
   subject: string;
-  status: "PENDING" | "REPLIED";
+  status: "SUBMITTED" | "IN_PROGRESS" | "RESOLVED";
   created_at: string;
   user_nickname: string;
 }
@@ -214,8 +214,20 @@ export default function AdminPage() {
                       <Link to={`/admin/inquiries/${item.id}`} className="block">
                         <div className="flex items-center justify-between">
                           <span className="font-medium text-gray-900">{item.subject}</span>
-                          <Badge variant={item.status === "PENDING" ? "warning" : "default"}>
-                            {item.status === "PENDING" ? "대기" : "답변완료"}
+                          <Badge
+                            variant={
+                              item.status === "SUBMITTED"
+                                ? "warning"
+                                : item.status === "IN_PROGRESS"
+                                ? "default"
+                                : "success"
+                            }
+                          >
+                            {item.status === "SUBMITTED"
+                              ? "대기"
+                              : item.status === "IN_PROGRESS"
+                              ? "진행중"
+                              : "답변완료"}
                           </Badge>
                         </div>
                         <span className="text-sm text-gray-500 mt-1 block">

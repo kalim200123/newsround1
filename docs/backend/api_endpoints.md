@@ -19,16 +19,17 @@
 
 **Base URL**: `/api/topics`
 
-| Method | Endpoint               | 설명                          | 인증 필요   |
-| ------ | ---------------------- | ----------------------------- | ----------- |
-| GET    | `/`                    | 토픽 목록 조회 (필터, 페이징) | ❌          |
-| GET    | `/:id`                 | 토픽 상세 조회                | ❌          |
-| GET    | `/:id/articles`        | 토픽의 기사 목록              | ❌          |
-| GET    | `/popular-ranking`     | 인기 토픽 순위 (TOP 10)       | ❌          |
-| GET    | `/popular-all`         | 모든 인기 토픽                | ❌          |
-| POST   | `/:id/vote`            | 토픽 투표하기                 | ✅ User JWT |
-| DELETE | `/:id/vote`            | 투표 취소                     | ✅ User JWT |
-| GET    | `/:id/vote-statistics` | 투표 통계 조회                | ❌          |
+| Method | Endpoint               | 설명                                        | 인증 필요   |
+| ------ | ---------------------- | ------------------------------------------- | ----------- |
+| GET    | `/`                    | 토픽 목록 조회 (필터, 페이징)               | ❌          |
+| GET    | `/:id`                 | 토픽 상세 조회                              | ❌          |
+| GET    | `/:id/articles`        | 토픽의 기사 목록                            | ❌          |
+| GET    | `/popular-ranking`     | 인기 토픽 순위 (투표수 + 댓글\*10 + 조회수) | ❌          |
+| GET    | `/popular-all`         | 모든 인기 토픽                              | ❌          |
+| POST   | `/:id/view`            | 토픽 조회수 증가 (24h 쿨다운)               | ❌          |
+| POST   | `/:id/vote`            | 토픽 투표하기                               | ✅ User JWT |
+| DELETE | `/:id/vote`            | 투표 취소                                   | ✅ User JWT |
+| GET    | `/:id/vote-statistics` | 투표 통계 조회                              | ❌          |
 
 ---
 
