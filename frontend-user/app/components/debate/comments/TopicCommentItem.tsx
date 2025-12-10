@@ -2,7 +2,9 @@
 
 import { useAuth } from "@/app/context/AuthContext";
 import { Comment } from "@/lib/types/comment";
-import { formatRelativeTime, getFullImageUrl } from "@/lib/utils";
+import { format, formatDistanceToNow, isBefore, subHours, addHours } from "date-fns";
+import { ko } from "date-fns/locale";
+import { getFullImageUrl } from "@/lib/utils";
 import { Check, Edit, Flag, MoreVertical, ThumbsDown, ThumbsUp, Trash } from "lucide-react";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
@@ -67,6 +69,15 @@ export default function TopicCommentItem({
 
   const isAuthor = user?.id && comment.author_id ? Number(user.id) === Number(comment.author_id) : false;
 
+  const commentDate = addHours(new Date(comment.created_at), 9);
+  const now = addHours(new Date(), 9);
+  const twentyFourHoursAgo = subHours(now, 24);
+  const isOlderThan24Hours = isBefore(commentDate, twentyFourHoursAgo);
+
+  const formattedTime = isOlderThan24Hours
+    ? format(commentDate, "yyyy-MM-dd HH:mm", { locale: ko })
+    : formatDistanceToNow(commentDate, { addSuffix: true, locale: ko });
+
   // Close menu on click outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -113,7 +124,7 @@ export default function TopicCommentItem({
             <div className="flex items-center gap-2 mb-1">
               <span className="font-bold text-[15px] text-foreground/90">{comment.author_name}</span>
               <span className="text-xs text-muted-foreground/60">•</span>
-              <span className="text-xs text-muted-foreground/80">{formatRelativeTime(comment.created_at)}</span>
+              <span className="text-xs text-muted-foreground/80">{formattedTime}</span>
             </div>
 
             <div className="relative" ref={menuRef}>

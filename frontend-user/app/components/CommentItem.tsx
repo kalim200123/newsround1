@@ -4,7 +4,7 @@ import ReportModal from "@/app/components/common/ReportModal";
 import ToastNotification, { ToastType } from "@/app/components/common/ToastNotification";
 import { useAuth } from "@/app/context/AuthContext";
 import { Comment } from "@/lib/types/comment";
-import { format, formatDistanceToNow, isBefore, subHours } from "date-fns";
+import { format, formatDistanceToNow, isBefore, subHours, addHours } from "date-fns";
 import { ko } from "date-fns/locale";
 import { Ban, Check, Flag, Loader2, MessageSquare, MoreVertical, Pencil, Trash2, X } from "lucide-react";
 import Image from "next/image";
@@ -72,8 +72,8 @@ export default function CommentItem({ comment, handlers, depth }: CommentItemPro
   const isDeleted = comment.status === "DELETED_BY_USER";
   const isHidden = comment.status === "HIDDEN";
 
-  const commentDate = new Date(comment.created_at);
-  const now = new Date();
+  const commentDate = addHours(new Date(comment.created_at), 9);
+  const now = addHours(new Date(), 9);
   const twentyFourHoursAgo = subHours(now, 24);
   const isOlderThan24Hours = isBefore(commentDate, twentyFourHoursAgo);
 

@@ -16,7 +16,7 @@ import { Article } from "@/lib/types/article";
 import { Message } from "@/lib/types/shared";
 import { Topic, TopicPreview } from "@/lib/types/topic";
 import { getFullImageUrl } from "@/lib/utils";
-import { format } from "date-fns";
+import { format, addHours } from "date-fns";
 import {
   AlertTriangle,
   Flag,
@@ -51,9 +51,10 @@ type ToastState = {
 
 const formatTimestamp = (dateString: string) => {
   try {
-    // Remove 'Z' to treat as local time (backend stores Korean time as UTC)
-    const localDateString = dateString.replace("Z", "");
-    return format(new Date(localDateString), "a h:mm");
+    // DB에 저장된 시간(UTC)을 한국 시간(KST)으로 보여주기 위해 9시간을 더합니다.
+    const date = new Date(dateString);
+    const kstDate = addHours(date, 9);
+    return format(kstDate, "a h:mm");
   } catch {
     return "--:--";
   }
