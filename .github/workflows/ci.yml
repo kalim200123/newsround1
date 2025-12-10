@@ -34,12 +34,12 @@ jobs:
     # - name: Run tests
     #   run: npm run test
 
-  frontend-build:
+  frontend-user-build:
     runs-on: ubuntu-latest
 
     defaults:
       run:
-        working-directory: ./frontend
+        working-directory: ./frontend-user
 
     steps:
       - uses: actions/checkout@v3
@@ -49,7 +49,30 @@ jobs:
         with:
           node-version: "18.x"
           cache: "npm"
-          cache-dependency-path: ./frontend/package-lock.json
+          cache-dependency-path: ./frontend-user/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+  frontend-admin-build:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: ./frontend-admin
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Use Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: "18.x"
+          cache: "npm"
+          cache-dependency-path: ./frontend-admin/package-lock.json
 
       - name: Install dependencies
         run: npm ci
