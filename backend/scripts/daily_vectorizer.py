@@ -21,7 +21,7 @@ from typing import List, Dict
 import numpy as np
 from sentence_transformers import SentenceTransformer
 from dotenv import load_dotenv
-import mysql.connector
+import pymysql
 
 # --- Configuration & Setup ---
 dotenv_path = os.path.join(os.path.dirname(__file__), '..', '.env')
@@ -39,13 +39,9 @@ LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
 BATCH_SIZE = int(os.getenv("BATCH_SIZE", "500"))  # Increased for local processing
 LOCK_FILE_TIMEOUT = int(os.getenv("INDEXER_LOCK_TIMEOUT", "3600")) # 1 hour
 
-if os.getenv("DB_SSL_ENABLED") == 'true':
-    is_production = os.getenv('NODE_ENV') == 'production'
-    if is_production:
-        DB_CONFIG["ssl_ca"] = "/etc/ssl/certs/ca-certificates.crt"
-        DB_CONFIG["ssl_verify_cert"] = True
-    else:
-        DB_CONFIG["ssl_verify_cert"] = False
+if 'tidbcloud.com' in DB_CONFIG.get('host', '') or os.getenv("DB_SSL_ENABLED") == 'true':
+    # TiDB Cloud requires SSL or explicit non-verification for some clients
+    DB_CONFIG["ssl"] = {"rejectUnauthorized": False}
 
 LOG_FILE_PATH = os.path.join(os.path.dirname(__file__), 'indexer.log')
 logging.basicConfig(
@@ -94,8 +90,8 @@ def main():
 
     cnx = None
     try:
-        cnx = mysql.connector.connect(**DB_CONFIG)
-        cursor = cnx.cursor(dictionary=True)
+        cnx = pymysql.connect(**DB_CONFIG)
+        cursor = cnx.cursor(pymysql.cursors.DictCursor)
         logging.info("DB connected.")
 
         cursor.execute(f"SELECT id, title, description FROM tn_home_article WHERE embedding IS NULL LIMIT {BATCH_SIZE}")
@@ -135,7 +131,7 @@ def main():
     except Exception as e:
         logging.exception(f"An unexpected error occurred during indexing: {e}")
     finally:
-        if cnx and cnx.is_connected():
+        if cnx and cnx.open:
             cursor.close()
             cnx.close()
         release_lock()

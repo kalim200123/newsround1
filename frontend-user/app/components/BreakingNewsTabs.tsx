@@ -12,7 +12,13 @@ interface BreakingNewsTabsProps {
   exclusiveNews?: Article[];
 }
 
-const ArticleItem = ({ article, type }: { article: Article; type: "breaking" | "exclusive" }) => {
+const ArticleItem = ({
+  article,
+  type,
+}: {
+  article: Article;
+  type: "breaking" | "exclusive";
+}) => {
   // Remove existing [속보], [단독], (속보), (단독) etc from the title to avoid duplication
   const cleanedTitle = article.title
     .replace(/^\[(속보|단독)\]\s*/, "")
@@ -20,11 +26,17 @@ const ArticleItem = ({ article, type }: { article: Article; type: "breaking" | "
     .trim();
 
   const handleDragStart = (e: React.DragEvent) => {
-    e.dataTransfer.setData("application/json", JSON.stringify({ type: "article", ...article }));
+    e.dataTransfer.setData(
+      "application/json",
+      JSON.stringify({ type: "article", ...article })
+    );
     e.dataTransfer.effectAllowed = "copy";
   };
 
-  const faviconSrc = FAVICON_URLS[article.source_domain] || article.favicon_url || "/placeholder.png";
+  const faviconSrc =
+    FAVICON_URLS[article.source_domain] ||
+    article.favicon_url ||
+    "/placeholder.png";
 
   return (
     <a
@@ -37,20 +49,48 @@ const ArticleItem = ({ article, type }: { article: Article; type: "breaking" | "
     >
       <div className="flex-1">
         <p className="text-sm font-semibold text-foreground line-clamp-2 leading-tight group-hover:text-primary transition-colors">
-          <span className={cn("mr-1.5", type === "breaking" ? "text-red-500" : "text-blue-500")}>
+          <span
+            className={cn(
+              "mr-1.5",
+              type === "breaking" ? "text-red-500" : "text-blue-500"
+            )}
+          >
             [{type === "breaking" ? "속보" : "단독"}]
           </span>
           {cleanedTitle}
         </p>
         <div className="flex items-center gap-2 mt-1.5 text-xs text-muted-foreground">
-          <Favicon src={faviconSrc} alt="" size={14} className="w-3.5 h-3.5 rounded-sm" />
+          <Favicon
+            src={faviconSrc}
+            alt=""
+            size={14}
+            className="w-3.5 h-3.5 rounded-sm"
+          />
           <span className="truncate">{article.source}</span>
           <span className="text-zinc-300 dark:text-zinc-700">•</span>
           <span suppressHydrationWarning>
-            {new Date(article.published_at.replace("Z", "")).toLocaleTimeString("ko-KR", {
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
+            {(() => {
+              const formatKstTime = (dateStr: string) => {
+                if (!dateStr) return "";
+                // Treat the string as local time or whatever it is, and just add 9 hours
+                // First standardize format to allow creating a Date object
+                let isoStr = dateStr.replace(" ", "T");
+                
+                // Create date object (browser will assume local timezone if no Z provided)
+                // If the DB date is 06:28, this becomes 06:28 Local Time
+                const date = new Date(isoStr);
+                
+                // Add 9 hours explicitly
+                date.setHours(date.getHours() + 9);
+
+                return date.toLocaleTimeString("ko-KR", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                  hour12: true // Optional: maintain AM/PM format if desired, or remove for 24h
+                });
+              };
+              return formatKstTime(article.published_at);
+            })()}
           </span>
         </div>
       </div>
@@ -58,12 +98,18 @@ const ArticleItem = ({ article, type }: { article: Article; type: "breaking" | "
   );
 };
 
-export default function BreakingNewsTabs({ breakingNews = [], exclusiveNews = [] }: BreakingNewsTabsProps) {
+export default function BreakingNewsTabs({
+  breakingNews = [],
+  exclusiveNews = [],
+}: BreakingNewsTabsProps) {
   const { theme } = useTheme();
   const isDarkMode = theme === "dark";
-  const [activeTab, setActiveTab] = useState<"breaking" | "exclusive">("breaking");
+  const [activeTab, setActiveTab] = useState<"breaking" | "exclusive">(
+    "breaking"
+  );
 
-  const currentArticles = activeTab === "breaking" ? breakingNews : exclusiveNews;
+  const currentArticles =
+    activeTab === "breaking" ? breakingNews : exclusiveNews;
 
   return (
     <div className="flex flex-col h-full">
@@ -76,7 +122,11 @@ export default function BreakingNewsTabs({ breakingNews = [], exclusiveNews = []
             ) : (
               <Star className="w-5 h-5 text-blue-500" />
             )}
-            <h2 className={`text-xl font-bold ${isDarkMode ? "text-white" : "text-black"}`}>
+            <h2
+              className={`text-xl font-bold ${
+                isDarkMode ? "text-white" : "text-black"
+              }`}
+            >
               {activeTab === "breaking" ? (
                 <span className="text-red-500">속보</span>
               ) : (
@@ -115,12 +165,20 @@ export default function BreakingNewsTabs({ breakingNews = [], exclusiveNews = []
       <div className="flex-1 overflow-y-auto py-4 px-1 space-y-2 bg-secondary">
         {currentArticles.length === 0 ? (
           <p className="text-center text-muted-foreground pt-10">
-            {activeTab === "breaking" ? "속보 뉴스가 없습니다." : "단독 뉴스가 없습니다."}
+            {activeTab === "breaking"
+              ? "속보 뉴스가 없습니다."
+              : "단독 뉴스가 없습니다."}
           </p>
         ) : (
           currentArticles
             .slice(0, 5)
-            .map((article) => <ArticleItem key={article.id} article={article} type={activeTab} />)
+            .map((article) => (
+              <ArticleItem
+                key={article.id}
+                article={article}
+                type={activeTab}
+              />
+            ))
         )}
       </div>
     </div>

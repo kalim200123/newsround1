@@ -1,6 +1,6 @@
 
 import requests
-import mysql.connector
+import pymysql
 import os
 from dotenv import load_dotenv
 import time
@@ -15,11 +15,10 @@ def verify():
         "password": os.getenv("DB_PASSWORD"),
         "database": os.getenv("DB_DATABASE"),
     }
-    if os.getenv("DB_SSL_ENABLED") == 'true':
-        db_config["ssl_ca"] = "/etc/ssl/certs/ca-certificates.crt"
-        db_config["ssl_verify_cert"] = False
+    if 'tidbcloud.com' in db_config.get('host', '') or os.getenv("DB_SSL_ENABLED") == 'true':
+        db_config["ssl"] = {"rejectUnauthorized": False}
 
-    conn = mysql.connector.connect(**db_config)
+    conn = pymysql.connect(**db_config)
     cursor = conn.cursor()
     
     # 1. Get initial count

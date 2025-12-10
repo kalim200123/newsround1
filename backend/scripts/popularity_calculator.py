@@ -1,5 +1,5 @@
 import os
-import mysql.connector
+import pymysql
 from dotenv import load_dotenv
 
 def calculate_and_update_popularity():
@@ -20,19 +20,15 @@ def calculate_and_update_popularity():
         "database": os.getenv("DB_DATABASE"),
     }
 
-    if os.getenv("DB_SSL_ENABLED") == 'true':
-        is_production = os.getenv('NODE_ENV') == 'production'
-        if is_production:
-            DB_CONFIG["ssl_ca"] = "/etc/ssl/certs/ca-certificates.crt"
-            DB_CONFIG["ssl_verify_cert"] = True
-        else:
-            DB_CONFIG["ssl_verify_cert"] = False
+    if 'tidbcloud.com' in DB_CONFIG.get('host', '') or os.getenv("DB_SSL_ENABLED") == 'true':
+        # TiDB Cloud requires SSL or explicit non-verification for some clients
+        DB_CONFIG["ssl"] = {"rejectUnauthorized": False}
             
     print("--- Popularity Score Calculation Start ---")
     
     try:
-        cnx = mysql.connector.connect(**DB_CONFIG)
-        cursor = cnx.cursor(dictionary=True)
+        cnx = pymysql.connect(**DB_CONFIG)
+        cursor = cnx.cursor(pymysql.cursors.DictCursor)
         print("DB Connected.")
 
         # 새로운 공식: 투표수 + (댓글수 * 10) + 조회수
@@ -81,12 +77,12 @@ def calculate_and_update_popularity():
                 print(f"     (Votes: {topic['vote_count_left'] + topic['vote_count_right']}, "
                       f"Comments: {topic['comment_count']}, Views: {topic['view_count']})")
 
-    except mysql.connector.Error as err:
+    except pymysql.Error as err:
         print(f"Database Error: {err}")
     except Exception as e:
         print(f"An unexpected error occurred: {e}")
     finally:
-        if 'cnx' in locals() and cnx.is_connected():
+        if 'cnx' in locals() and cnx.open:
             cursor.close()
             cnx.close()
             print("DB Connection Closed.")

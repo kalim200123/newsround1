@@ -22,7 +22,7 @@ from datetime import datetime, timedelta, timezone
 
 import numpy as np
 from sentence_transformers import SentenceTransformer
-import mysql.connector
+import pymysql
 
 # ---------------- Config ----------------
 MODEL_NAME = os.getenv("EMBED_MODEL", "intfloat/multilingual-e5-base")
@@ -41,13 +41,9 @@ DB_CONFIG = {
     "autocommit": True
 }
 
-if os.getenv("DB_SSL_ENABLED") == 'true':
-    is_production = os.getenv('NODE_ENV') == 'production'
-    if is_production:
-        DB_CONFIG["ssl_ca"] = "/etc/ssl/certs/ca-certificates.crt"
-        DB_CONFIG["ssl_verify_cert"] = True
-    else:
-        DB_CONFIG["ssl_verify_cert"] = False
+if 'tidbcloud.com' in DB_CONFIG.get('host', '') or os.getenv("DB_SSL_ENABLED") == 'true':
+    # TiDB Cloud requires SSL or explicit non-verification for some clients
+    DB_CONFIG["ssl"] = {"rejectUnauthorized": False}
 
 @dataclass
 class Article:
@@ -172,7 +168,7 @@ def collect_for_topic(cnx, topic: Dict, articles: List[Article]):
       return
 
     # Filter out existing articles
-    cursor = cnx.cursor(dictionary=True)
+    cursor = cnx.cursor(pymysql.cursors.DictCursor)
     update_collection_status(cursor, topic_id, "collecting")
     existing_urls = get_existing_urls_for_topic(cursor, topic_id)
     candidates = [a for a in candidates if a.url not in existing_urls]
@@ -209,8 +205,8 @@ def main():
 
     cnx = None
     try:
-        cnx = mysql.connector.connect(**DB_CONFIG)
-        cursor = cnx.cursor(dictionary=True)
+        cnx = pymysql.connect(**DB_CONFIG)
+        cursor = cnx.cursor(pymysql.cursors.DictCursor)
         logging.info("DB connected.")
 
         topics = get_published_topics(cursor, target_topic_id)

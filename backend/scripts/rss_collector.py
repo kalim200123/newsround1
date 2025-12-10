@@ -15,7 +15,7 @@ import logging
 from datetime import datetime, timezone, timedelta
 from typing import Optional, Dict, List, Any
 import feedparser
-import mysql.connector
+import pymysql
 import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urlparse, urljoin
@@ -70,13 +70,9 @@ DB_CONFIG = {
 
 INTERNAL_API_URL = os.getenv("INTERNAL_NOTIFICATION_API_URL", "http://127.0.0.1:4001/api/internal/send-notification")
 
-if os.getenv("DB_SSL_ENABLED") == 'true':
-    is_production = os.getenv('NODE_ENV') == 'production'
-    if is_production:
-        DB_CONFIG["ssl_ca"] = "/etc/ssl/certs/ca-certificates.crt"
-        DB_CONFIG["ssl_verify_cert"] = True
-    else:
-        DB_CONFIG["ssl_verify_cert"] = False
+if 'tidbcloud.com' in DB_CONFIG.get('host', '') or os.getenv("DB_SSL_ENABLED") == 'true':
+    # TiDB Cloud requires SSL or explicit non-verification for some clients
+    DB_CONFIG["ssl"] = {"rejectUnauthorized": False}
 
 KST = timezone(timedelta(hours=9))
 
@@ -416,8 +412,8 @@ def main():
 
     try:
         logging.info("Step 3: Attempting to connect to the database...")
-        cnx = mysql.connector.connect(**DB_CONFIG)
-        cursor = cnx.cursor(dictionary=True)
+        cnx = pymysql.connect(**DB_CONFIG)
+        cursor = cnx.cursor(pymysql.cursors.DictCursor)
         logging.info("Step 4: Database connection successful.")
 
         # 기존에 저장된 URL 목록을 가져와서 중복 체크
@@ -445,11 +441,11 @@ def main():
             cnx.commit()
             logging.info(f"Step 6: {cursor.rowcount} new articles saved successfully.")
 
-    except mysql.connector.Error as err:
+    except pymysql.Error as err:
         logging.error(f"DB 오류 발생: {err}")
         sys.exit(1)
     finally:
-        if 'cnx' in locals() and cnx.is_connected():
+        if 'cnx' in locals() and cnx.open:
             cursor.close()
             cnx.close()
 
