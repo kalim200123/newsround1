@@ -136,7 +136,7 @@ export default function TopicDetailPage() {
   const dDayBadge = getDDay(topic.vote_end_at);
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-black/20 pb-20">
+    <div className="min-h-screen bg-gray-50 dark:bg-black pb-20">
       {/* 1. Hero Header */}
       <div className={cn("relative w-full overflow-hidden text-white shadow-2xl", "bg-linear-to-br", gradient.bg)}>
         {/* Background Noise & Overlay */}
@@ -216,7 +216,7 @@ export default function TopicDetailPage() {
           {/* Main Content Column */}
           <main className="lg:col-span-2">
             {/* Vote Section */}
-            <div className="bg-white dark:bg-zinc-900 rounded-3xl shadow-xl p-6 md:p-8 mb-10 ring-1 ring-black/5 dark:ring-white/10">
+            <div className="bg-white dark:bg-black rounded-3xl shadow-xl p-6 md:p-8 mb-10 ring-1 ring-black/5 dark:ring-white/10">
               <h3 className="text-2xl font-bold mb-6 flex items-center gap-2">
                 <BarChart2 className="text-blue-500" />
                 투표 현황

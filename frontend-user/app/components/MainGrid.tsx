@@ -69,7 +69,7 @@ export default function MainGrid({
 
       {/* Right Column: ROUND2 Topics (1/4) */}
       <div className="hidden xl:block h-[600px] lg:h-[729px]">
-        <div className={cn(sectionClasses, "h-full")}>
+        <div className="bg-card rounded-xl flex flex-col overflow-hidden h-full">
           <div className={`p-4 ${isDarkMode ? "bg-black" : "bg-white"}`}>
             <div className="flex justify-between items-center">
               <div className="flex items-center gap-3">
@@ -100,7 +100,7 @@ export default function MainGrid({
             </div>
           </div>
           <hr className={isDarkMode ? "border-gray-700" : "border-gray-200"} />
-          <div className="flex-1 min-h-0 p-4 bg-secondary">
+          <div className="flex-1 min-h-0 bg-secondary">
             <TrendingTopics
               displayMode={topicTab}
               topics={topicTab === "popular" ? popularTopics : latestTopics}

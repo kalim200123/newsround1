@@ -207,7 +207,7 @@ const InquiryForm: React.FC<InquiryFormProps> = ({ onSuccess }) => {
                   className="flex items-center justify-between w-full p-4 bg-secondary/30 border border-border rounded-xl"
                 >
                   <div className="flex items-center gap-3 overflow-hidden">
-                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0 text-primary">
+                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 text-primary">
                       <FileText className="w-5 h-5" />
                     </div>
                     <div className="flex flex-col min-w-0">

@@ -9,6 +9,8 @@ import { useState } from "react";
 
 import Image from "next/image"; // Re-import Image
 
+import { FAVICON_URLS } from "@/lib/constants";
+
 interface TrendingKeywordsProps {
   keywords: TrendingKeyword[];
 }
@@ -18,6 +20,8 @@ const ArticleItem = ({ article }: { article: Article }) => {
     e.dataTransfer.setData("application/json", JSON.stringify({ type: "article", ...article }));
     e.dataTransfer.effectAllowed = "copy";
   };
+
+  const faviconSrc = FAVICON_URLS[article.source_domain] || article.favicon_url || "/placeholder.png";
 
   return (
     <a
@@ -32,7 +36,7 @@ const ArticleItem = ({ article }: { article: Article }) => {
         <p className="text-sm font-semibold text-foreground line-clamp-2 leading-tight">{article.title}</p>
         <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
           <Image // Changed from img to Image
-            src={article.favicon_url || "/placeholder.png"}
+            src={faviconSrc}
             alt=""
             width={14} // specify width
             height={14} // specify height

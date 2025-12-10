@@ -123,7 +123,7 @@ export default function InquiryClientPage() {
       {/* Header & Controls */}
       <div className="flex flex-col md:flex-row gap-4 items-center justify-between bg-card/40 backdrop-blur-md p-6 rounded-2xl border border-border/50 shadow-sm">
         <div>
-          <h1 className="text-2xl font-bold bg-gradient-to-r from-foreground to-muted-foreground bg-clip-text text-transparent">
+          <h1 className="text-2xl font-bold bg-linear-to-r from-foreground to-muted-foreground bg-clip-text text-transparent">
             나의 문의 내역
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
@@ -226,7 +226,7 @@ export default function InquiryClientPage() {
               )}
             >
               {/* Decorative gradient blob */}
-              <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-primary/10 to-transparent blur-2xl rounded-full -translate-y-1/2 translate-x-1/2 group-hover:bg-primary/20 transition-colors" />
+              <div className="absolute top-0 right-0 w-24 h-24 bg-linear-to-br from-primary/10 to-transparent blur-2xl rounded-full -translate-y-1/2 translate-x-1/2 group-hover:bg-primary/20 transition-colors" />
 
               <div className="relative z-10 flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-3">

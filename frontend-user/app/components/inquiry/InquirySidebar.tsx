@@ -2,9 +2,9 @@
 
 import { Button } from "@/app/components/common/Button";
 import ClientPaginationControls from "@/app/components/common/ClientPaginationControls";
-import { InquiryStatus, InquirySummary } from "@/lib/types/inquiry";
+import { InquirySummary } from "@/lib/types/inquiry";
 import { cn } from "@/lib/utils";
-import { CheckCircle2, ChevronRight, Clock, Inbox, PlusCircle, Search } from "lucide-react";
+import { ChevronRight, Inbox, PlusCircle, Search } from "lucide-react";
 import { useMemo, useState } from "react";
 
 interface InquirySidebarProps {
@@ -17,12 +17,6 @@ interface InquirySidebarProps {
   onSelect: (id: number) => void;
   onNew: () => void;
 }
-
-const InquiryStatusIcon = ({ status }: { status: InquiryStatus }) => {
-  if (status === "ANSWERED") return <CheckCircle2 className="w-4 h-4 text-green-500" />;
-  if (status === "SUBMITTED") return <Clock className="w-4 h-4 text-amber-500" />;
-  return <div className="w-4 h-4 rounded-full border-2 border-muted-foreground/30" />;
-};
 
 export default function InquirySidebar({
   inquiries,
@@ -100,7 +94,7 @@ export default function InquirySidebar({
       </div>
 
       {/* Inquiry List */}
-      <div className="flex-grow overflow-y-auto custom-scrollbar">
+      <nav className="flex-1 overflow-y-auto px-4 py-2 custom-scrollbar space-y-2 grow">
         {filteredInquiries.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center p-8 opacity-60">
             <Inbox className="w-12 h-12 text-muted-foreground mb-3" />
@@ -162,7 +156,7 @@ export default function InquirySidebar({
             ))}
           </ul>
         )}
-      </div>
+      </nav>
 
       {/* Pagination Footer */}
       {total > limit && (

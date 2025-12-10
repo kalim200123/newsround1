@@ -24,12 +24,12 @@ export default function LatestNews({ articles }: LatestNewsProps) {
           rel="noopener noreferrer"
           className="flex items-center gap-4 px-1 py-0.5 rounded-md hover:bg-muted/50 transition-colors duration-150"
         >
-          <div className="w-24 h-16 flex-shrink-0 relative">
+          <div className="relative w-24 h-16 shrink-0 rounded-md overflow-hidden bg-muted">
             <Image
               src={article.thumbnail_url || "/placeholder.svg"}
               alt={article.title}
               fill
-              className="object-cover rounded-md"
+              className="object-cover"
               sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
               unoptimized={true}
             />

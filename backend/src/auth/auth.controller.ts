@@ -2,8 +2,8 @@ import { Body, Controller, Post, Req } from '@nestjs/common';
 import { ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import type { Request } from 'express';
 import { AuthService } from './auth.service';
-import { SignUpDto } from './dto/sign-up.dto';
 import { LoginDto } from './dto/login.dto';
+import { SignUpDto } from './dto/sign-up.dto';
 
 @ApiTags('Auth')
 @Controller('api/auth')
@@ -13,7 +13,7 @@ export class AuthController {
   @Post('signup')
   @ApiOperation({
     summary: '사용자 회원가입',
-    description: '새로운 사용자를 Different News 서비스에 등록합니다.',
+    description: '새로운 사용자를 Newsround1 서비스에 등록합니다.',
   })
   @ApiBody({ type: SignUpDto })
   @ApiResponse({

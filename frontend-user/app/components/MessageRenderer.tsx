@@ -269,7 +269,6 @@ export default function MessageRenderer({
           <ArticleEmbedCard article={msg.article_preview} />
         </div>
       )}
-
       {/* Part 3: Render client-side resolved topic preview */}
       {clientResolvedTopic &&
         !msg.topic_preview && ( // Only render if not already from backend

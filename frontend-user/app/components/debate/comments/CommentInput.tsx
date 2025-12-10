@@ -68,7 +68,7 @@ export default function CommentInput({
           value={content}
           onChange={(e) => setContent(e.target.value)}
           placeholder={placeholder}
-          className="w-full p-4 bg-background border border-border/80 rounded-xl text-[15px] text-foreground placeholder-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all duration-200 resize-none shadow-sm min-h-[100px]"
+          className="w-full p-4 bg-background dark:bg-zinc-900 border border-border/80 rounded-xl text-[15px] text-foreground placeholder-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all duration-200 resize-none shadow-sm min-h-[100px]"
           disabled={isSubmitting}
         />
         <div className="flex justify-end gap-2 mt-2">

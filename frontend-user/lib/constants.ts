@@ -1,9 +1,9 @@
-export const BACKEND_BASE_URL = "https://news02.onrender.com";
+export const BACKEND_BASE_URL = "http://localhost:3001";
 
 // A map of known favicon URLs for specific news sources.
 // Can be populated over time.
 export const FAVICON_URLS: { [key: string]: string } = {
-  // Example: 'yna.co.kr': 'https://www.yna.co.kr/favicon.ico',
+  "ohmynews.com": "https://media.livere.org/uploads/8tjwRfX43js4Y6D5pyIs_ohmy.png",
 };
 
 // A function to generate a fallback favicon URL using a generic service.

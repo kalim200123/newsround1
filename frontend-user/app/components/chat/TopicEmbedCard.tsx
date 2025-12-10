@@ -75,7 +75,7 @@ export default function TopicEmbedCard({ topic, className }: TopicEmbedCardProps
     <Link
       href={`/debate/${topic.id}`}
       className={cn(
-        "group block relative w-full h-[300px] rounded-xl overflow-hidden transition-all duration-300",
+        "group block relative w-[280px] h-[280px] rounded-2xl overflow-hidden transition-all duration-300",
         "hover:scale-[1.02] hover:shadow-lg",
         "border border-white/20",
         className

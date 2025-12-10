@@ -10,11 +10,11 @@ interface TrendingTopicsProps {
 
 export default function TrendingTopics({ topics, displayMode, onTopicSelect }: TrendingTopicsProps) {
   return (
-    <div className="h-full overflow-y-auto pr-1">
+    <div className="h-full overflow-y-auto">
       {topics.length === 0 ? (
         <p className="text-muted-foreground text-center pt-10">표시할 토픽이 없습니다.</p>
       ) : (
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-0">
           {topics.map((topic, index) => {
             const rank = index + 1;
             const isPopular = displayMode === "popular";
@@ -74,9 +74,8 @@ export default function TrendingTopics({ topics, displayMode, onTopicSelect }: T
                 onClick={() => onTopicSelect(topic)}
                 key={topic.id}
                 className={cn(
-                  "group relative w-full rounded-xl overflow-hidden transition-all duration-500",
-                  "hover:scale-[1.02] hover:shadow-xl",
-                  "border border-border/50 hover:border-border",
+                  "group relative w-full overflow-hidden transition-all duration-500",
+                  "hover:shadow-xl",
                   "outline-none focus-visible:ring-2 focus-visible:ring-ring",
                   isTopThree ? "min-h-[160px]" : "min-h-[130px]"
                 )}

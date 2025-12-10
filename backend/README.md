@@ -1,10 +1,10 @@
-# Different News Backend (NestJS)
+# Newsround1 Backend (NestJS)
 
 ## 📝 프로젝트 개요
 
-이 프로젝트는 [Different News](https://your-frontend-url.com) 애플리케이션의 백엔드 서비스입니다. 기존 Express.js 기반의 백엔드를 NestJS 프레임워크로 마이그레이션한 버전입니다. 뉴스 기사 수집, 토픽 관리, 사용자 인증, 실시간 채팅, 알림, 관리자 기능 등을 담당합니다.
+이 프로젝트는 뉴스라운드1(Newsround1) 애플리케이션의 백엔드 서비스입니다. NestJS 프레임워크 기반으로 뉴스 기사 수집, 토픽 관리, 사용자 인증, 실시간 채팅, 알림, 관리자 기능 등을 담당합니다.
 
-이 백엔드는 [Different News Frontend (React)](/frontend)와 [데이터 수집/처리 스크립트](/backend/scripts)와 함께 모노레포 형태로 관리됩니다.
+이 백엔드는 [프론트엔드 (React, Next.js)](/frontend)와 [데이터 수집/처리 스크립트](/backend/scripts)와 함께 모노레포 형태로 관리됩니다.
 
 ## ✨ 주요 기능
 

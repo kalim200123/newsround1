@@ -51,7 +51,9 @@ type ToastState = {
 
 const formatTimestamp = (dateString: string) => {
   try {
-    return format(new Date(dateString), "a h:mm");
+    // Remove 'Z' to treat as local time (backend stores Korean time as UTC)
+    const localDateString = dateString.replace("Z", "");
+    return format(new Date(localDateString), "a h:mm");
   } catch {
     return "--:--";
   }

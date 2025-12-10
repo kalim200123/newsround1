@@ -44,7 +44,7 @@ const AdminLoginPage = () => {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <CardTitle className="text-3xl font-bold text-gray-900">관리자 로그인</CardTitle>
-          <p className="text-gray-600 mt-2">Different News Admin Panel</p>
+          <p className="text-gray-600 mt-2">Newsround1 Admin Panel</p>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">

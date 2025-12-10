@@ -5,6 +5,8 @@ import { useTheme } from "next-themes";
 import { useState } from "react";
 import Favicon from "./common/Favicon"; // Import Favicon
 
+import { FAVICON_URLS } from "@/lib/constants";
+
 interface BreakingNewsTabsProps {
   breakingNews?: Article[];
   exclusiveNews?: Article[];
@@ -21,6 +23,8 @@ const ArticleItem = ({ article, type }: { article: Article; type: "breaking" | "
     e.dataTransfer.setData("application/json", JSON.stringify({ type: "article", ...article }));
     e.dataTransfer.effectAllowed = "copy";
   };
+
+  const faviconSrc = FAVICON_URLS[article.source_domain] || article.favicon_url || "/placeholder.png";
 
   return (
     <a
@@ -39,15 +43,15 @@ const ArticleItem = ({ article, type }: { article: Article; type: "breaking" | "
           {cleanedTitle}
         </p>
         <div className="flex items-center gap-2 mt-1.5 text-xs text-muted-foreground">
-          <Favicon
-            src={article.favicon_url || "/placeholder.png"}
-            alt=""
-            size={14}
-            className="w-3.5 h-3.5 rounded-sm"
-          />
+          <Favicon src={faviconSrc} alt="" size={14} className="w-3.5 h-3.5 rounded-sm" />
           <span className="truncate">{article.source}</span>
           <span className="text-zinc-300 dark:text-zinc-700">•</span>
-          <span>{new Date(article.published_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+          <span suppressHydrationWarning>
+            {new Date(article.published_at.replace("Z", "")).toLocaleTimeString("ko-KR", {
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
+          </span>
         </div>
       </div>
     </a>

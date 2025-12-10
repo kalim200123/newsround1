@@ -1,25 +1,32 @@
 "use client";
 
 import DebateCard from "@/app/components/debate/DebateCard";
-import { getAllTopics, getPopularTopicsAll } from "@/lib/api/topics";
+import TrendingTopicCard from "@/app/components/TrendingTopicCard";
+import { getAllTopics, getPopularTopics, getPopularTopicsAll } from "@/lib/api/topics";
 import { Topic } from "@/lib/types/topic";
 import { PenSquare } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import LoadingSpinner from "../components/common/LoadingSpinner";
 
 export default function DebateArenaPage() {
+  const router = useRouter();
   const [allTopics, setAllTopics] = useState<Topic[]>([]);
+  const [popularRanking, setPopularRanking] = useState<Topic[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  // Sort state is kept, but popularity sort is removed. Defaulting to 'latest'.
 
   useEffect(() => {
     const fetchTopics = async () => {
       setIsLoading(true);
       try {
-        const popular = await getPopularTopicsAll();
+        const popularAll = await getPopularTopicsAll();
         const latest = await getAllTopics();
+        const ranking = await getPopularTopics(); // Fetch popular ranking
+
+        setPopularRanking(ranking);
+
         const topicsMap = new Map<number, Topic>();
-        [...popular, ...latest].forEach((topic) => topicsMap.set(topic.id, topic));
+        [...popularAll, ...latest].forEach((topic) => topicsMap.set(topic.id, topic));
         const uniqueTopics = Array.from(topicsMap.values());
         setAllTopics(uniqueTopics);
       } catch (error) {
@@ -31,21 +38,17 @@ export default function DebateArenaPage() {
     fetchTopics();
   }, []);
 
-  const { featured, ongoing, past } = useMemo(() => {
+  const { featured, ongoing } = useMemo(() => {
     const processedTopics = [...allTopics];
-
-    // Sorting logic is simplified as popularity data is no longer available.
-    // The component will always sort by latest.
     processedTopics.sort((a, b) => new Date(b.published_at).getTime() - new Date(a.published_at).getTime());
 
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
     const ongoingTopics = processedTopics.filter((t) => new Date(t.published_at) > sevenDaysAgo);
-    const pastTopics = processedTopics.filter((t) => new Date(t.published_at) <= sevenDaysAgo);
+    // past is no longer used for display, replaced by popularRanking
 
     return {
       featured: ongoingTopics[0],
       ongoing: ongoingTopics.slice(1),
-      past: pastTopics,
     };
   }, [allTopics]);
 
@@ -100,13 +103,20 @@ export default function DebateArenaPage() {
           </section>
         )}
 
-        {/* Past Debates */}
-        {past.length > 0 && (
+        {/* Hall of Fame (Popular Ranking) */}
+        {popularRanking.length > 0 && (
           <section>
             <h2 className="text-2xl font-bold border-b border-border pb-4 mb-8">Hall of Fame</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {past.map((topic) => (
-                <DebateCard key={topic.id} topic={topic} status="past" />
+              {popularRanking.map((topic, index) => (
+                <TrendingTopicCard
+                  key={topic.id}
+                  topic={topic}
+                  rank={index + 1}
+                  displayMode="popular"
+                  onClick={(t) => router.push(`/debate/${t.id}`)}
+                  className="h-full"
+                />
               ))}
             </div>
           </section>

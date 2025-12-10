@@ -6,17 +6,7 @@ import { useAuth } from "@/app/context/AuthContext";
 import { Comment } from "@/lib/types/comment";
 import { format, formatDistanceToNow, isBefore, subHours } from "date-fns";
 import { ko } from "date-fns/locale";
-import {
-  Ban,
-  Check,
-  Flag,
-  Loader2,
-  MessageSquare,
-  MoreVertical,
-  Pencil,
-  Trash2,
-  X,
-} from "lucide-react";
+import { Ban, Check, Flag, Loader2, MessageSquare, MoreVertical, Pencil, Trash2, X } from "lucide-react";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -111,9 +101,7 @@ export default function CommentItem({ comment, handlers, depth }: CommentItemPro
     }
 
     const childrenWrapperClasses =
-      depth === 0
-        ? "pt-2 pl-6 border-l-2 border-border/50 bg-card/50 p-3 rounded-lg mt-2 space-y-2"
-        : "pt-2 space-y-2";
+      depth === 0 ? "pt-2 pl-6 border-l-2 border-border/50 bg-card/50 p-3 rounded-lg mt-2 space-y-2" : "pt-2 space-y-2";
 
     return (
       <div className={childrenWrapperClasses}>
@@ -182,7 +170,11 @@ export default function CommentItem({ comment, handlers, depth }: CommentItemPro
                 rows={2}
               />
               <div className="flex justify-end gap-2 mt-2">
-                <button onClick={() => setIsEditing(false)} className="p-1 text-muted-foreground hover:text-foreground" title="취소">
+                <button
+                  onClick={() => setIsEditing(false)}
+                  className="p-1 text-muted-foreground hover:text-foreground"
+                  title="취소"
+                >
                   <X size={16} />
                 </button>
                 <button
@@ -219,7 +211,10 @@ export default function CommentItem({ comment, handlers, depth }: CommentItemPro
 
             {isAuthor && (
               <div className="relative" ref={menuRef}>
-                <button onClick={() => setIsMenuOpen((prev) => !prev)} className="p-1 text-muted-foreground hover:text-foreground">
+                <button
+                  onClick={() => setIsMenuOpen((prev) => !prev)}
+                  className="p-1 text-muted-foreground hover:text-foreground"
+                >
                   <MoreVertical size={16} />
                 </button>
                 {isMenuOpen && (
@@ -275,7 +270,7 @@ export default function CommentItem({ comment, handlers, depth }: CommentItemPro
           reportType="comment"
           targetId={comment.id}
           onReportSuccess={(message) => {
-            const toastType: ToastType = message.includes('이미') ? 'info' : 'success';
+            const toastType: ToastType = message.includes("이미") ? "info" : "success";
             setToast({ message, type: toastType });
             if (toastType === "success" || message.includes("이미 신고")) {
               setIsReported(true);
