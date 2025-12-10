@@ -1,0 +1,51 @@
+{
+  "compilerOptions": {
+    // --- 추가 ---
+    "baseUrl": ".", // 기준 경로를 프로젝트 루트로 설정
+    // --- 수정 ---
+    "paths": {
+      "@/*": [
+        "./*"
+      ] // @/를 프로젝트 루트 기준으로 매핑
+    },
+    // --- 이하 기존 설정 유지 ---
+    "target": "ES2017",
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "react-jsx",
+    "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ]
+    // "paths"는 위에서 수정했으므로 여기서는 제거되거나 위 내용으로 대체됩니다.
+  },
+  "include": [
+    "next-env.d.ts",
+    // --- 수정 ---
+    "**/*.ts", // 모든 .ts 파일 포함
+    "**/*.tsx", // 모든 .tsx 파일 포함
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts",
+    "**/*.mts" // 모든 .mts 파일 포함
+    ,
+    ".next\\dev/types/**/*.ts",
+    ".next\\dev/types/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+}

@@ -1,0 +1,468 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    /* Base colors for Light Mode (Layered Grays) */
+    --background-hsl: 240 5% 96.1%; /* Very light gray (zinc-50), for body background */
+    --foreground-hsl: 240 10% 3.9%; /* Neutral 950 */
+    --carbon-bg-color: #ffffff; /* White base for light mode */
+    --carbon-pattern: none;
+
+    /* Grays for backgrounds, borders, cards */
+    --muted-hsl: 240 4.8% 95.9%; /* Neutral 100 */
+    --muted-foreground-hsl: 240 3.8% 46.1%; /* Neutral 500 */
+
+    --popover-hsl: 0 0% 100%; /* Pure White, for popovers/dropdowns */
+    --popover-foreground-hsl: 240 10% 3.9%; /* Neutral 950 */
+
+    --card-hsl: 0 0% 100%; /* Pure White, for main cards */
+    --card-foreground-hsl: 240 10% 3.9%; /* Neutral 950 */
+
+    --card-elevated-hsl: 0 0% 100%;
+    --card-elevated-foreground-hsl: 240 10% 3.9%;
+
+    --border-hsl: 240 5% 96.1%; /* Very light gray, subtle borders */
+    --input-hsl: 240 5% 96.1%; /* Very light gray, same as background */
+
+    /* Primary/Accent colors */
+    --primary-hsl: 240 5.9% 10%;
+    --primary-foreground-hsl: 0 0% 98%;
+
+    --secondary-hsl: 240 4.8% 95.9%;
+    --secondary-foreground-hsl: 240 5.9% 10%;
+
+    --accent-hsl: 240 4.8% 95.9%;
+    --accent-foreground-hsl: 240 5.9% 10%;
+
+    /* Other semantic colors */
+    --destructive-hsl: 0 84.2% 60.2%;
+    --destructive-foreground-hsl: 0 0% 98%;
+    --ring-hsl: 240 5.9% 10%;
+    --header-height: 64px;
+
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    /* Base colors for Dark Mode (Layered Grays) */
+    --background-hsl: 0 0% 15%; /* VSCode-like dark gray, #1E1E1E */
+    --foreground-hsl: 0 0% 98%; /* zinc-50 */
+    --carbon-bg-color: #000000; /* Pure black for header/footer in dark mode */
+    --carbon-pattern: linear-gradient(
+        45deg,
+        rgba(255, 255, 255, 0.03) 25%,
+        transparent 25%,
+        transparent 75%,
+        rgba(255, 255, 255, 0.03) 75%
+      ),
+      linear-gradient(
+        -45deg,
+        rgba(255, 255, 255, 0.03) 25%,
+        transparent 25%,
+        transparent 75%,
+        rgba(255, 255, 255, 0.03) 75%
+      );
+
+    /* Grays for backgrounds, borders, cards */
+    --muted-hsl: 240 3.7% 15.9%; /* zinc-800 */
+    --muted-foreground-hsl: 240 5% 64.9%; /* zinc-400 */
+
+    --popover-hsl: 240 3.7% 15.9%; /* zinc-800, for dropdowns/popups */
+    --popover-foreground-hsl: 0 0% 98%; /* zinc-50 */
+
+    --card-hsl: 240 3.7% 15.9%; /* zinc-800, for main cards */
+    --card-foreground-hsl: 0 0% 98%; /* zinc-50 */
+
+    --card-elevated-hsl: 0 0% 100%; /* Pure white for elevated cards in dark mode */
+    --card-elevated-foreground-hsl: 0 0% 98%; /* zinc-50 */
+
+    --border-hsl: 240 3.7% 15.9%; /* zinc-800, visible on cards and background */
+    --input-hsl: 240 3.7% 15.9%; /* zinc-800, same as card */
+
+    /* Primary/Accent colors */
+    --primary-hsl: 0 0% 98%;
+    --primary-foreground-hsl: 240 5.9% 10%;
+
+    --secondary-hsl: 240 4% 19%; /* Adjusted for better contrast: lighter than bg, darker than zinc-800 */
+    --secondary-foreground-hsl: 0 0% 98%;
+
+    --accent-hsl: 240 3.7% 15.9%;
+    --accent-foreground-hsl: 0 0% 98%;
+
+    /* Other semantic colors */
+    --destructive-hsl: 0 62.8% 30.6%;
+    --destructive-foreground-hsl: 0 0% 98%;
+    --ring-hsl: 240 4.9% 83.9%;
+  }
+}
+
+@layer utilities {
+  .footer-title {
+    @apply text-lg font-semibold mb-4 text-zinc-900;
+  }
+  .dark .footer-title {
+    color: white !important;
+  }
+}
+
+@layer base {
+  body {
+    background-color: hsl(var(--background-hsl));
+    color: hsl(var(--foreground-hsl));
+  }
+}
+
+/* All the other keyframes and utility classes from the original globals.css can be kept below */
+
+/* --- Animations --- */
+
+@keyframes pulse-hot {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 0.7;
+  }
+}
+
+.animate-pulse-hot {
+  animation: pulse-hot 1.5s infinite ease-in-out;
+}
+
+@keyframes glow-border {
+  /* 1st place */
+  0%,
+  100% {
+    box-shadow: 0 0 12px rgba(255, 215, 0, 0.7), inset 0 0 8px rgba(255, 215, 0, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 28px rgba(255, 215, 0, 1), inset 0 0 12px rgba(255, 215, 0, 0.5);
+  }
+}
+
+.animate-glow-border {
+  animation: glow-border 2s infinite ease-in-out;
+}
+
+@keyframes glow-border-2nd {
+  /* 2nd place */
+  0%,
+  100% {
+    box-shadow: 0 0 8px rgba(192, 192, 192, 0.5), inset 0 0 6px rgba(192, 192, 192, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(192, 192, 192, 0.8), inset 0 0 10px rgba(192, 192, 192, 0.4);
+  }
+}
+
+.animate-glow-border-2nd {
+  animation: glow-border-2nd 2.2s infinite ease-in-out;
+}
+
+@keyframes glow-border-bronze {
+  /* 3rd place */
+  0%,
+  100% {
+    box-shadow: 0 0 6px rgba(205, 127, 50, 0.5), inset 0 0 4px rgba(205, 127, 50, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 16px rgba(205, 127, 50, 0.8), inset 0 0 8px rgba(205, 127, 50, 0.4);
+  }
+}
+
+.animate-glow-border-bronze {
+  animation: glow-border-bronze 2.4s infinite ease-in-out;
+}
+
+/* --- Original Glow Animations for Main Page --- */
+@keyframes glow-border-main {
+  /* 1st place */
+  0% {
+    box-shadow: 0 0 8px rgba(255, 0, 0, 0.6);
+  }
+  50% {
+    box-shadow: 0 0 25px rgba(255, 0, 0, 1);
+  }
+  100% {
+    box-shadow: 0 0 8px rgba(255, 0, 0, 0.6);
+  }
+}
+
+.animate-glow-border-main {
+  animation: glow-border-main 2s infinite ease-in-out;
+}
+
+@keyframes glow-border-main-2nd {
+  /* 2nd place */
+  0% {
+    box-shadow: 0 0 4px rgba(255, 100, 0, 0.3); /* Orange-ish glow */
+  }
+  50% {
+    box-shadow: 0 0 12px rgba(255, 100, 0, 0.6);
+  }
+  100% {
+    box-shadow: 0 0 4px rgba(255, 100, 0, 0.3);
+  }
+}
+
+.animate-glow-border-main-2nd {
+  animation: glow-border-main-2nd 2s infinite ease-in-out;
+}
+
+@keyframes glow-border-main-3rd {
+  /* 3rd place */
+  0% {
+    box-shadow: 0 0 2px rgba(255, 200, 0, 0.2); /* Yellow-ish glow */
+  }
+  50% {
+    box-shadow: 0 0 8px rgba(255, 200, 0, 0.4);
+  }
+  100% {
+    box-shadow: 0 0 2px rgba(255, 200, 0, 0.2);
+  }
+}
+
+.animate-glow-border-main-3rd {
+  animation: glow-border-main-3rd 2s infinite ease-in-out;
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.5s ease-out forwards;
+}
+
+@keyframes float-effect {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+.animate-float {
+  animation: float-effect 4s ease-in-out infinite;
+}
+
+/* --- Gradients for Ranked Cards --- */
+.bg-gradient-gold {
+  background-image: radial-gradient(circle at 50% 0%, rgba(255, 215, 0, 0.15) 0%, transparent 40%);
+}
+.bg-gradient-silver {
+  background-image: radial-gradient(circle at 50% 0%, rgba(192, 192, 192, 0.15) 0%, transparent 40%);
+}
+.bg-gradient-bronze {
+  background-image: radial-gradient(circle at 50% 0%, rgba(205, 127, 50, 0.15) 0%, transparent 40%);
+}
+
+/* --- Scrollbar & Misc --- */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: hsl(var(--muted-hsl));
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground-hsl));
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--foreground-hsl));
+}
+
+/* --- Infinite Scroller --- */
+@keyframes scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-100%);
+  }
+}
+
+.scroller {
+  -webkit-mask: linear-gradient(90deg, transparent, white 20%, white 80%, transparent);
+  mask: linear-gradient(90deg, transparent, white 20%, white 80%, transparent);
+}
+
+.scroller-inner {
+  animation: scroll 40s linear infinite;
+}
+
+/* --- Toast Animations --- */
+@keyframes toast-in {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes toast-out {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}
+
+.animate-toast-in {
+  animation: toast-in 0.3s ease-out forwards;
+}
+
+.animate-toast-out {
+  animation: toast-out 0.3s ease-in forwards;
+}
+
+/* --- Aurora Background --- */
+@layer utilities {
+  .bg-gradient-radial {
+    background-image: radial-gradient(ellipse at center, var(--tw-gradient-stops));
+  }
+  .bg-carbon-fiber {
+    background-color: var(--carbon-bg-color);
+    background-image: var(--carbon-pattern);
+    background-size: 8px 8px;
+  }
+}
+
+@keyframes aurora-1 {
+  0%,
+  100% {
+    transform: translate(0%, 0%) scale(1);
+    opacity: 0.2;
+  }
+  25% {
+    transform: translate(40%, 20%) scale(1.2);
+    opacity: 0.3;
+  }
+  50% {
+    transform: translate(10%, 50%) scale(1.5);
+    opacity: 0.25;
+  }
+  75% {
+    transform: translate(-20%, 10%) scale(1.3);
+    opacity: 0.3;
+  }
+}
+
+@keyframes aurora-2 {
+  0%,
+  100% {
+    transform: translate(0%, 0%) scale(1);
+    opacity: 0.2;
+  }
+  25% {
+    transform: translate(-40%, -20%) scale(1.2);
+    opacity: 0.3;
+  }
+  50% {
+    transform: translate(-10%, -50%) scale(1.5);
+    opacity: 0.25;
+  }
+  75% {
+    transform: translate(20%, -10%) scale(1.3);
+    opacity: 0.3;
+  }
+}
+
+@keyframes aurora-3 {
+  0%,
+  100% {
+    transform: translate(0%, 0%) scale(1);
+    opacity: 0.15;
+  }
+  25% {
+    transform: translate(30%, -40%) scale(1.3);
+    opacity: 0.2;
+  }
+  50% {
+    transform: translate(0%, 0%) scale(1);
+    opacity: 0.25;
+  }
+  75% {
+    transform: translate(-30%, 40%) scale(1.3);
+    opacity: 0.2;
+  }
+}
+
+.animate-aurora-1 {
+  animation: aurora-1 25s infinite ease-in-out;
+}
+
+.animate-aurora-2 {
+  animation: aurora-2 30s infinite ease-in-out reverse;
+}
+
+.animate-aurora-3 {
+  animation: aurora-3 35s infinite ease-in-out;
+}
+
+@keyframes slide-right-fade {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-slide-right-fade {
+  animation: slide-right-fade 0.3s ease-out forwards;
+}
+
+/* --- New Global Animations --- */
+.hover-zoom {
+  transition: transform 0.3s ease-in-out;
+}
+.hover-zoom:hover {
+  transform: scale(1.02);
+}
+
+.hover-zoom-img {
+  overflow: hidden;
+}
+.hover-zoom-img img {
+  transition: transform 0.5s ease-in-out;
+}
+.hover-zoom-img:hover img {
+  transform: scale(1.05);
+}
+
+.fade-in {
+  animation: fade-in 0.5s ease-out forwards;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
