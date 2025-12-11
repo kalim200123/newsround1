@@ -8,7 +8,7 @@ import { useAuth } from "@/app/context/AuthContext";
 import { getTopicDetail, incrementTopicView } from "@/lib/api/topics";
 import { TopicDetail } from "@/lib/types/topic";
 import { cn } from "@/lib/utils";
-import { format } from "date-fns";
+import { format, subHours } from "date-fns";
 import { BarChart2, Calendar, Clock, Trophy, Users } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
@@ -192,7 +192,7 @@ export default function TopicDetailPage() {
                 <Clock size={14} /> 투표 시작
               </div>
               <div className="text-lg font-bold">
-                {topic.vote_start_at ? format(new Date(topic.vote_start_at), "MM.dd HH:mm") : "-"}
+                {topic.vote_start_at ? format(subHours(new Date(topic.vote_start_at), 9), "MM.dd HH:mm") : "-"}
               </div>
             </div>
             <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/10 hover:bg-white/20 transition-colors">
