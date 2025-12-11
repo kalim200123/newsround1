@@ -23,7 +23,7 @@
 
 ### 📎 주요 링크
 
-- **[🌐 배포된 서비스 바로가기](#)** ← 클릭하여 실제 서비스 체험 (배포 후 URL 업데이트)
+- **[🌐 배포된 서비스 바로가기](https://newsround1-git-main-kalims-projects-144eea21.vercel.app/)** ← 클릭하여 실제 서비스 체험
 - **[📚 NotebookLM 프로젝트 가이드](https://notebooklm.google.com/notebook/ab93c38c-3d4b-4787-92d7-3b2da5b05fe2)** ← AI 기반 프로젝트 설명 및 Q&A (공유 후 URL 업데이트)
 
 > **💡 Tip**: 위 링크를 통해 프로젝트를 빠르게 파악하실 수 있습니다!
