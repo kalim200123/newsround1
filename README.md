@@ -4,7 +4,7 @@
 
 ### 🛠️ 기술 스택
 
-![Node.js](https://img.shields.io/badge/Node.js-18+-339933?style=flat&logo=node.js&logoColor=white)
+![Node.js](https://img.shields.io/badge/Node.js-22+-339933?style=flat&logo=node.js&logoColor=white)
 ![NestJS](https://img.shields.io/badge/NestJS-10.0-E0234E?style=flat&logo=nestjs&logoColor=white)
 ![Next.js](https://img.shields.io/badge/Next.js-16.0-000000?style=flat&logo=next.js&logoColor=white)
 ![React](https://img.shields.io/badge/React-19.2-61DAFB?style=flat&logo=react&logoColor=black)
@@ -90,7 +90,7 @@
 
 ### 1. 사전 준비 (Prerequisites)
 
-- [Node.js](https://nodejs.org/) (v18 이상 권장)
+- [Node.js](https://nodejs.org/) (v22 이상 권장)
 - Python 3.8+ (데이터 수집 스크립트 실행 시 필요)
 
 ### 2. 백엔드 실행 (Backend)

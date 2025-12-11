@@ -72,21 +72,14 @@ const ArticleItem = ({
             {(() => {
               const formatKstTime = (dateStr: string) => {
                 if (!dateStr) return "";
-                // Treat the string as local time or whatever it is, and just add 9 hours
-                // First standardize format to allow creating a Date object
-                let isoStr = dateStr.replace(" ", "T");
+                // Treat the string as standard ISO (UTC)
+                const date = new Date(dateStr);
                 
-                // Create date object (browser will assume local timezone if no Z provided)
-                // If the DB date is 06:28, this becomes 06:28 Local Time
-                const date = new Date(isoStr);
-                
-                // Add 9 hours explicitly
-                date.setHours(date.getHours() + 9);
-
                 return date.toLocaleTimeString("ko-KR", {
+                  timeZone: "Asia/Seoul",
                   hour: "2-digit",
                   minute: "2-digit",
-                  hour12: true // Optional: maintain AM/PM format if desired, or remove for 24h
+                  hour12: true
                 });
               };
               return formatKstTime(article.published_at);

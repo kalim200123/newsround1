@@ -51,10 +51,9 @@ type ToastState = {
 
 const formatTimestamp = (dateString: string) => {
   try {
-    // DB에 저장된 시간(UTC)을 한국 시간(KST)으로 보여주기 위해 9시간을 더합니다.
+    // Convert UTC string to local Date object (Browser handles conversion)
     const date = new Date(dateString);
-    const kstDate = addHours(date, 9);
-    return format(kstDate, "a h:mm");
+    return format(date, "a h:mm");
   } catch {
     return "--:--";
   }
